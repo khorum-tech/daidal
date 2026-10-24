@@ -147,6 +147,8 @@ describe("stage seed", () => {
     const edges = docs.flatMap(d => d.edges);
     const boundaries = docs.flatMap(d => d.boundaries ?? []);
     for (const key of ["subtitle", "flags", "notes", "links"]) expect(nodes.some(n => key in n), `node ${key}`).toBe(true);
+    // The prototype draws only these flags (web/index.html Component.FLAGS); any other id would never show.
+    expect(new Set(nodes.flatMap(n => n.flags ?? []))).toEqual(new Set(["db", "cache", "mq"]));
     expect(nodes.some(n => n.layout.h)).toBe(true);
     for (const key of ["label", "line", "direction", "route", "anchors", "width", "showLabel"]) expect(edges.some(e => key in e), `edge ${key}`).toBe(true);
     for (const key of ["border", "moveContents", "labelPosition"]) expect(boundaries.some(b => key in b), `boundary ${key}`).toBe(true);

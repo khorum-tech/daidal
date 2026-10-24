@@ -16,6 +16,7 @@ export default defineConfig(async () => {
         },
       }),
     ],
-    test: { setupFiles: ["./worker/test/apply-migrations.ts"] },
+    // Only the Worker's tests: the app (app/) and the end-to-end tests (e2e/) have their own runners.
+    test: { include: ["worker/test/**/*.test.ts"], setupFiles: ["./worker/test/apply-migrations.ts"] },
   };
 });

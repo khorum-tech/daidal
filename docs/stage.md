@@ -41,7 +41,9 @@ STAGE_OWNER_EMAIL=you@example.com npm run stage-seed && npx wrangler d1 execute 
 ```
 
 Run `npx wrangler d1 migrations apply skope --local` first on a fresh checkout. Then
-`npx wrangler dev --var DEV_USER_EMAIL:you@example.com` signs you in as the owner on localhost.
+`npx wrangler dev --var DEV_USER_EMAIL:you@example.com` signs you in as the owner on localhost. It builds first
+(the prototype plus the SvelteKit app into `dist/`), so run `npm ci --prefix app` once. The prototype is at `/`, the
+app at `/app`; the stage data shows only in the app, since the prototype keeps its own data in the browser.
 
 `node scripts/stage-config.mjs` (with `STAGE_D1_ID` and `STAGE_ACCESS_AUD` set) writes `wrangler.stage.jsonc`.
 Neither generated file is committed.

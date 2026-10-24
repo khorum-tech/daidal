@@ -76,13 +76,27 @@ function diagramRoute(request: Request, db: D1Database, email: string, url: URL,
   return notAllowed();
 }
 
+/**
+ * Static files come first; a request reaches the Worker only when no file matches. Under /app that is one of the
+ * SvelteKit app's routes, so it gets the app's page, unless it looks like a file (an extension, or the app's
+ * `_app/` build folder), which stays a 404. Everything else is the prototype's, served as is.
+ */
+async function siteFile(request: Request, env: Env, url: URL): Promise<Response> {
+  const file = await env.ASSETS.fetch(request);
+  if (file.status !== 404 || !(url.pathname === "/app" || url.pathname.startsWith("/app/"))) return file;
+  const last = url.pathname.split("/").pop() ?? "";
+  if (url.pathname.startsWith("/app/_app/") || /\.[A-Za-z0-9]+$/.test(last)) return file;
+  // "/app/" rather than "/app/index.html": the assets binding answers the latter with a redirect to the former.
+  return env.ASSETS.fetch(new Request(new URL("/app/", url), request));
+}
+
 export async function handleRequest(
   request: Request,
   env: Env,
   getKeys: () => KeySource,
 ): Promise<Response> {
   const url = new URL(request.url);
-  if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
+  if (!url.pathname.startsWith("/api/")) return siteFile(request, env, url);
 
   try {
     const email = await currentEmail(request, env, getKeys);

@@ -4,10 +4,14 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "build": "npm run build --prefix app && node scripts/assemble.mjs",
+    "test": "vitest run && npm test --prefix app",
+    "test:worker": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p e2e && npm run check --prefix app",
     "deploy": "wrangler deploy",
-    "stage-seed": "tsx scripts/stage-seed.ts"
+    "stage-seed": "tsx scripts/stage-seed.ts",
+    "e2e": "playwright test",
+    "playwright:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
     "jose": "^6.2.12"
@@ -15,6 +19,8 @@
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.0",
     "@cloudflare/workers-types": "^5.20261012.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.19.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11",

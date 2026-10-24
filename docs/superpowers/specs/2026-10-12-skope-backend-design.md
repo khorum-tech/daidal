@@ -258,6 +258,11 @@ Each step is deployed before the next starts. Each gets its own plan.
 > `worker/src/importer.ts`) are live; the stage seed runs that importer (`docs/stage.md`). Steps 4 and 5 below
 > are therefore done on the server and remain for the client. The prototype still keeps diagrams in
 > `localStorage`; the SvelteKit port wires each screen to the API.
+>
+> **Step 3 started 2026-10-24:** the SvelteKit app and Storybook (`app/`) are served at `/app` beside the
+> prototype, read-only: the workspace and diagram lists, the canvas with views and tags, node details, history
+> replay and follow status, all from the API. Editing, and moving the prototype off `/`, come next. Step 2's
+> behaviour suite was not written first; the app has its own end-to-end tests (`e2e/`) instead.
 
 1. **Pipeline and login.** Deploy the prototype bundle behind Access.
    `/api/me` replaces the mock login screen and the hard-coded profile.
