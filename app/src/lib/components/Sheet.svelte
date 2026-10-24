@@ -46,6 +46,7 @@
 		width: 100%;
 		max-width: 100%;
 		max-height: 75vh;
+		max-height: 75dvh;
 		padding: 0;
 		border: none;
 		border-radius: 16px 16px 0 0;
@@ -74,6 +75,7 @@
 		display: flex;
 		flex-direction: column;
 		max-height: 75vh;
+		max-height: 75dvh;
 	}
 	header {
 		display: flex;
