@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { bounds, isHidden, SHEET_H, SHEET_W, type Scene, type SceneNode } from '../diagram/model';
 	import { edgePath, type Box } from '../diagram/geometry';
-	import { clampView, fitView, panBy, zoomAt, type Point, type View } from '../diagram/zoom';
+	import { clampView, fitView, panBy, toContent, zoomAt, type Point, type View } from '../diagram/zoom';
 	import { SNAP_PX, snapBox, type Guide } from '../diagram/snap';
 	import NodeCard from './NodeCard.svelte';
 
@@ -90,6 +90,11 @@
 	const view = $derived(chosen ?? fitView(area, viewW, viewH));
 	const setView = (v: View) => (chosen = clampView(v, area, viewW, viewH));
 	const zoomBy = (f: number, p: Point = { x: viewW / 2, y: viewH / 2 }) => setView(zoomAt(view, Math.round(view.s * f * 100) / 100, p));
+
+	/** The diagram point at the middle of the canvas: where a node added now should go. */
+	export function center(): Point {
+		return toContent(view, { x: viewW / 2, y: viewH / 2 });
+	}
 
 	let canvas = $state<HTMLDivElement>();
 	const local = (e: { clientX: number; clientY: number }): Point => {

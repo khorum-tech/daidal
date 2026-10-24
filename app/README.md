@@ -1,7 +1,10 @@
 # Skope app (SvelteKit)
 
 The SvelteKit port of the prototype, served under **`/app`** beside the prototype at `/`. It reads everything from
-the Worker's API, and so far makes one edit: **moving nodes** on a diagram you own, which saves through the API.
+the Worker's API, and on a diagram you own it edits **nodes**: add one (the type picker, placed in free space near the
+middle of the view), move, rename, change its type, flags, tags and links, duplicate or delete it (with its
+connections). Every edit saves through the API and can be undone (⌘Z, ⇧⌘Z; ⌘D duplicates, Delete removes the
+selected node). Connections, containers, tags and views are still edited in the prototype.
 
 | Route | What it shows |
 |-------|---------------|

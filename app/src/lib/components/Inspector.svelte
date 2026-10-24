@@ -1,33 +1,179 @@
 <script lang="ts">
 	import type { SceneNode, SceneTag } from '../diagram/model';
-	import { FLAGS } from '../diagram/icons';
+	import type { NodeChange } from '../diagram/edit';
+	import { hostOf, linkUrl } from '../diagram/edit';
+	import { FLAGS, typeIcon } from '../diagram/icons';
+	import Icon from './Icon.svelte';
+	import TypePicker from './TypePicker.svelte';
 
-	/** What a selected node holds, read-only: the prototype's inspector without its fields. */
-	let { node, tags }: { node: SceneNode; tags: Record<string, SceneTag> } = $props();
+	/**
+	 * What a selected node holds. Read-only by default; with [editable] on, it is the prototype's inspector: name,
+	 * subtitle and notes edit in place, and type, flags, tags and links change with a tap. Each change goes to
+	 * [onchange] with a label for undo; typing into one field reports a [group] that lasts until the field loses
+	 * focus ([onfieldend]), so it undoes as one step.
+	 */
+	let {
+		node,
+		tags,
+		editable = false,
+		onchange,
+		onfieldend,
+		ondelete,
+		onduplicate
+	}: {
+		node: SceneNode;
+		tags: Record<string, SceneTag>;
+		editable?: boolean;
+		onchange?: (change: NodeChange, label: string, group?: string) => void;
+		onfieldend?: () => void;
+		ondelete?: () => void;
+		onduplicate?: () => void;
+	} = $props();
+
+	let picking = $state(false);
+	let linkLabel = $state('');
+	let linkAddress = $state('');
+	// A different node starts with the type list closed and an empty link form.
+	let shown = $state('');
+	$effect.pre(() => {
+		if (node.id === shown) return;
+		shown = node.id;
+		picking = false;
+		linkLabel = '';
+		linkAddress = '';
+	});
+
+	const addable = $derived(Object.values(tags).filter(t => !node.tags.includes(t.key)));
+	const href = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
+
+	function typed(field: 'name' | 'subtitle' | 'notes', label: string) {
+		return (e: Event) => onchange?.({ [field]: (e.currentTarget as HTMLInputElement).value }, label, `${node.id}:${field}`);
+	}
+	function nameDone(e: FocusEvent) {
+		// A node keeps a name: left blank, it takes its type's.
+		if (!(e.currentTarget as HTMLInputElement).value.trim()) onchange?.({ name: node.type }, 'Rename node', `${node.id}:name`);
+		onfieldend?.();
+	}
+	function toggleFlag(id: string, label: string) {
+		const on = node.flags.includes(id);
+		onchange?.({ flags: on ? node.flags.filter(f => f !== id) : [...node.flags, id] }, `${on ? 'Unflag' : 'Flag'} ${label.toLowerCase()}`);
+	}
+	function addLink(e: SubmitEvent) {
+		e.preventDefault();
+		if (!linkAddress.trim()) return;
+		onchange?.({ links: [...node.links, { ...(linkLabel.trim() ? { label: linkLabel.trim() } : {}), url: linkUrl(linkAddress) }] }, 'Add link');
+		linkLabel = '';
+		linkAddress = '';
+	}
 </script>
 
-<section class="inspector" aria-label="Selected node">
-	<p class="type">{node.type}</p>
-	<h2>{node.name}</h2>
-	{#if node.sub}<p class="sub">{node.sub}</p>{/if}
-	{#if node.flags.length}
-		<p class="flags">{FLAGS.filter(f => node.flags.includes(f.id)).map(f => f.label).join(' · ')}</p>
-	{/if}
-	{#if node.tags.length}
-		<ul class="tags">
-			{#each node.tags as key (key)}
-				<li><span class="swatch" style:background={tags[key]?.color}></span>{tags[key]?.label ?? key}</li>
-			{/each}
-		</ul>
-	{/if}
-	{#if node.desc}<p class="desc">{node.desc}</p>{/if}
+{#snippet links()}
 	{#if node.links.length}
 		<h3>Links</h3>
 		<ul class="links">
-			{#each node.links as l (l.url)}
-				<li><a href={/^https?:\/\//i.test(l.url) ? l.url : `https://${l.url}`} target="_blank" rel="noopener noreferrer">{l.label || l.url}</a></li>
+			{#each node.links as l, i (i)}
+				<li>
+					<a href={href(l.url)} target="_blank" rel="noopener noreferrer">{l.label || hostOf(l.url)}</a>
+					{#if editable}
+						<button type="button" class="x" aria-label="Remove link {l.label || hostOf(l.url)}" onclick={() => onchange?.({ links: node.links.filter((_, j) => j !== i) }, 'Remove link')}>×</button>
+					{/if}
+				</li>
 			{/each}
 		</ul>
+	{/if}
+{/snippet}
+
+<section class="inspector" class:editable aria-label="Selected node">
+	{#if editable}
+		<label class="sr" for="node-name">Name</label>
+		<input id="node-name" class="input name" value={node.name} placeholder="Name" oninput={typed('name', 'Rename node')} onblur={nameDone} />
+		<label class="sr" for="node-sub">Subtitle</label>
+		<input id="node-sub" class="input" value={node.sub} placeholder="Subtitle: owner, replicas, region…" oninput={typed('subtitle', 'Edit subtitle')} onblur={() => onfieldend?.()} />
+		<label class="sr" for="node-notes">Notes</label>
+		<textarea id="node-notes" class="input notes" rows="3" value={node.desc} placeholder="What this does, and anything worth knowing." oninput={typed('notes', 'Edit notes')} onblur={() => onfieldend?.()}></textarea>
+
+		<h3>Type</h3>
+		<button type="button" class="type-btn" aria-expanded={picking} onclick={() => (picking = !picking)}>
+			<Icon name={typeIcon(node.type)} size={15} />
+			<span>{node.type}</span>
+			<Icon name="caretDown" size={11} />
+		</button>
+		{#if picking}
+			<div class="pick">
+				<TypePicker
+					current={node.type}
+					autofocus
+					onpick={t => {
+						picking = false;
+						if (t !== node.type) onchange?.({ type: t }, 'Change type');
+					}}
+				/>
+			</div>
+		{/if}
+
+		<h3>Flags</h3>
+		<div class="chips">
+			{#each FLAGS as f (f.id)}
+				<button type="button" class="chip" class:on={node.flags.includes(f.id)} aria-pressed={node.flags.includes(f.id)} onclick={() => toggleFlag(f.id, f.label)}>
+					<Icon name={f.icon} size={12} />{f.label}
+				</button>
+			{/each}
+		</div>
+
+		<h3>Tags</h3>
+		<div class="chips">
+			{#each node.tags as key (key)}
+				<span class="chip tag">
+					<span class="swatch" style:background={tags[key]?.color}></span>{tags[key]?.label ?? key}
+					<button type="button" class="x" aria-label="Remove tag {tags[key]?.label ?? key}" onclick={() => onchange?.({ tags: node.tags.filter(t => t !== key) }, 'Change tags')}>×</button>
+				</span>
+			{/each}
+			{#if addable.length}
+				<select
+					class="add-tag"
+					aria-label="Add a tag"
+					value=""
+					onchange={e => {
+						const key = e.currentTarget.value;
+						e.currentTarget.value = '';
+						if (key) onchange?.({ tags: [...node.tags, key] }, 'Change tags');
+					}}
+				>
+					<option value="" disabled>+ Tag</option>
+					{#each addable as t (t.key)}<option value={t.key}>{t.label}</option>{/each}
+				</select>
+			{:else if !node.tags.length}
+				<span class="hint">This diagram has no tags yet.</span>
+			{/if}
+		</div>
+
+		{@render links()}
+		<form class="link-form" onsubmit={addLink}>
+			<input class="input" aria-label="Link label" placeholder="Label" bind:value={linkLabel} />
+			<input class="input" aria-label="Link address" placeholder="https://…" inputmode="url" bind:value={linkAddress} />
+			<button type="submit" class="btn btn-secondary" disabled={!linkAddress.trim()}>Add link</button>
+		</form>
+
+		<div class="actions">
+			<button type="button" class="btn btn-secondary" onclick={() => onduplicate?.()}>Duplicate</button>
+			<button type="button" class="btn btn-secondary danger" onclick={() => ondelete?.()}><Icon name="trash" size={14} />Delete node</button>
+		</div>
+	{:else}
+		<p class="type">{node.type}</p>
+		<h2>{node.name}</h2>
+		{#if node.sub}<p class="sub">{node.sub}</p>{/if}
+		{#if node.flags.length}
+			<p class="flags">{FLAGS.filter(f => node.flags.includes(f.id)).map(f => f.label).join(' · ')}</p>
+		{/if}
+		{#if node.tags.length}
+			<ul class="tags">
+				{#each node.tags as key (key)}
+					<li><span class="swatch" style:background={tags[key]?.color}></span>{tags[key]?.label ?? key}</li>
+				{/each}
+			</ul>
+		{/if}
+		{#if node.desc}<p class="desc">{node.desc}</p>{/if}
+		{@render links()}
 	{/if}
 </section>
 
@@ -66,7 +212,8 @@
 		flex-wrap: wrap;
 		gap: 6px;
 	}
-	.tags li {
+	.tags li,
+	.chip {
 		display: flex;
 		align-items: center;
 		gap: 5px;
@@ -79,6 +226,7 @@
 		width: 7px;
 		height: 7px;
 		border-radius: 50%;
+		flex: none;
 	}
 	.desc {
 		font-size: 12.5px;
@@ -100,5 +248,176 @@
 		gap: 4px;
 		margin-top: 6px;
 		font-size: 12.5px;
+	}
+	.links li {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		min-width: 0;
+	}
+	.links a {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	/* ---- editing ---- */
+	.sr {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+	.editable .input {
+		display: block;
+		width: 100%;
+		box-sizing: border-box;
+		min-height: 0;
+		padding: 5px 8px;
+		font-size: 12.5px;
+		margin-top: 5px;
+	}
+	.editable .input.name {
+		margin-top: 0;
+		font-family: var(--font-heading);
+		font-size: 16px;
+		font-weight: 500;
+	}
+	.editable .notes {
+		min-height: 64px;
+		line-height: 1.5;
+		font-family: var(--font-body);
+	}
+	.type-btn {
+		width: 100%;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-top: 6px;
+		padding: 7px 9px;
+		min-height: 36px;
+		border-radius: 7px;
+		border: 1px solid var(--color-divider);
+		background: transparent;
+		color: var(--color-text);
+		font: inherit;
+		font-size: 12.5px;
+		cursor: pointer;
+	}
+	.type-btn span {
+		flex: 1;
+		text-align: left;
+	}
+	.type-btn :global(svg:first-child) {
+		color: var(--color-accent);
+	}
+	.pick {
+		margin-top: 6px;
+		padding: 8px;
+		border: 1px solid var(--color-divider);
+		border-radius: 8px;
+		max-height: 320px;
+		overflow-y: auto;
+	}
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-top: 6px;
+	}
+	button.chip {
+		min-height: 30px;
+		background: transparent;
+		color: var(--color-neutral-400);
+		font: inherit;
+		font-size: 11.5px;
+		cursor: pointer;
+	}
+	button.chip.on {
+		border-color: var(--color-accent);
+		background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+		color: var(--color-accent-100);
+	}
+	.chip.tag {
+		padding-right: 2px;
+	}
+	.x {
+		width: 24px;
+		height: 24px;
+		flex: none;
+		padding: 0;
+		border: none;
+		border-radius: 50%;
+		background: transparent;
+		color: var(--color-neutral-500);
+		font-size: 15px;
+		line-height: 1;
+		cursor: pointer;
+	}
+	.x:hover {
+		color: var(--color-text);
+		background: color-mix(in srgb, var(--color-text) 8%, transparent);
+	}
+	.add-tag {
+		/* Safari draws a native select as a white pill; this one should look like the other chips. */
+		-webkit-appearance: none;
+		appearance: none;
+		min-height: 30px;
+		padding: 2px 8px;
+		border-radius: 999px;
+		border: 1px dashed var(--color-neutral-700);
+		background: transparent;
+		color: var(--color-neutral-400);
+		font: inherit;
+		font-size: 11.5px;
+		cursor: pointer;
+	}
+	.add-tag option {
+		background: var(--color-surface);
+		color: var(--color-text);
+	}
+	.hint {
+		font-size: 11.5px;
+		color: var(--color-neutral-600);
+	}
+	.link-form {
+		display: grid;
+		grid-template-columns: 1fr 1.6fr;
+		gap: 0 6px;
+		margin-top: 8px;
+	}
+	.link-form .btn {
+		grid-column: 1 / -1;
+		margin-top: 6px;
+		font-size: 12.5px;
+		padding: 5px 10px;
+	}
+	.actions {
+		display: flex;
+		gap: 8px;
+		margin-top: 18px;
+	}
+	.actions .btn {
+		flex: 1;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		font-size: 12.5px;
+		padding: 6px 8px;
+		white-space: nowrap;
+	}
+	.danger:hover {
+		color: var(--color-danger, #e5767b);
+		border-color: currentColor;
+	}
+	/* Safari on iOS zooms the page into any field set smaller than 16px. */
+	@media (pointer: coarse) {
+		.editable .input,
+		.editable .input.name,
+		.add-tag {
+			font-size: 16px;
+		}
 	}
 </style>

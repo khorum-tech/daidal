@@ -57,8 +57,9 @@ test.describe("the app on a phone", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     const menu = page.getByTestId("node-menu");
     await expect(menu).toContainText("Journal DB");
-    await menu.getByRole("button", { name: /^Details/ }).tap();
-    await expect(page.getByRole("dialog", { name: "Node details" })).toContainText("Append-only journal");
+    // The owner's details are the editable inspector.
+    await menu.getByRole("button", { name: /^Edit/ }).tap();
+    await expect(page.getByRole("dialog", { name: "Node details" }).getByLabel("Notes")).toHaveValue(/Append-only journal/);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await menu.getByRole("button", { name: /^Done/ }).tap();
@@ -90,7 +91,7 @@ test.describe("the app on a phone", () => {
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
     await page.getByRole("navigation", { name: "Diagram panels" }).getByRole("button", { name: /History/ }).tap();
     await page.getByRole("dialog", { name: "History" }).getByRole("button", { name: /Container view/ }).tap();
-    await expect(page.getByTestId("save-status")).toContainText("go back to the working copy to move nodes");
+    await expect(page.getByTestId("save-status")).toContainText("go back to the working copy to edit");
     const before = await sheet(page);
     const start = await middle(page, '[data-node="postings"]');
     await swipe(page, start.x, start.y, -90, 60);
@@ -103,7 +104,7 @@ test.describe("the app on a phone", () => {
   test("a swipe that starts on a node pans, selected or not, until Move is chosen", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
-    await expect(page.getByTestId("save-status")).toContainText("tap a node to move it");
+    await expect(page.getByTestId("save-status")).toContainText("tap a node to edit it");
     const postings = page.locator('[data-node="postings"]');
     await postings.tap();
     await expect(postings).toHaveAttribute("aria-pressed", "true");
@@ -134,6 +135,28 @@ test.describe("the app on a phone", () => {
     expect(saved.doc.nodes.find((n: { id: string }) => n.id === "collector").layout).toMatchObject({ x: 100, y: 450 });
     await page.reload();
     await expect(page.locator('[data-node="collector"]')).toHaveCSS("left", "100px");
+  });
+
+  test("adds a node from the Add sheet and renames it in the Edit sheet", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add" }).tap();
+    const add = page.getByRole("dialog", { name: "Add a node" });
+    await add.getByRole("button", { name: "Queue" }).first().tap();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    const menu = page.getByTestId("node-menu");
+    await expect(menu).toContainText("New Queue");
+    await menu.getByRole("button", { name: /^Edit/ }).tap();
+    const details = page.getByRole("dialog", { name: "Node details" });
+    await details.getByLabel("Name").fill("Settlement Queue");
+    await details.getByLabel("Name").blur();
+    await page.keyboard.press("Escape");
+    await expect(menu).toContainText("Settlement Queue");
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    const saved = await (await request.get(`/api/diagrams/${id}`)).json();
+    expect(saved.doc.nodes.some((n: { name: string; type: string }) => n.name === "Settlement Queue" && n.type === "queue")).toBe(true);
   });
 
   test("never scrolls the page sideways", async ({ page, request }) => {
