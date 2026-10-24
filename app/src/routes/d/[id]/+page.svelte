@@ -10,10 +10,13 @@
 	import Inspector from '#lib/components/Inspector.svelte';
 	import Sheet from '#lib/components/Sheet.svelte';
 	import TagPanel from '#lib/components/TagPanel.svelte';
+	import TypePicker from '#lib/components/TypePicker.svelte';
+	import { addNode, duplicateNode, removeNode, updateNode, type NodeChange } from '#lib/diagram/edit.ts';
+	import { History } from '#lib/history.svelte.ts';
 	import { tagsOn, toScene } from '#lib/diagram/model.ts';
 	import { followState } from '#lib/follow.ts';
 	import { Saver } from '#lib/saver.svelte.ts';
-	import type { Diagram } from '#lib/types.ts';
+	import type { Diagram, SkopeDoc } from '#lib/types.ts';
 	import { ago } from '#lib/time.ts';
 
 	let { data } = $props();
@@ -21,8 +24,13 @@
 	const workspace = $derived(data.workspaces.find(w => w.id === data.diagram.workspaceId));
 	const api = createApi(fetch);
 
-	// The working copy as edited here, and what saves it. Both start over whenever a diagram (re)loads.
-	const start = (d: Diagram) => ({ doc: structuredClone(d.doc), saver: new Saver((rev, doc) => api.save(d.id, { rev, doc }), d.rev) });
+	// The working copy as edited here, what saves it, and its undo history. All start over whenever a diagram
+	// (re)loads.
+	const start = (d: Diagram) => ({
+		doc: structuredClone(d.doc),
+		saver: new Saver((rev, doc) => api.save(d.id, { rev, doc }), d.rev),
+		history: new History()
+	});
 	let loaded = untrack(() => data.diagram);
 	let working = $state(start(loaded));
 	// The snapshot being replayed, or null for the working copy.
@@ -57,13 +65,79 @@
 	const mine = $derived(data.diagram.ownerEmail === data.me.email);
 	const now = Date.now();
 
-	// Moving nodes is the one edit so far: only on your own diagram, and not while replaying history.
+	// Nodes can be edited on your own diagram, and not while replaying history.
 	const editable = $derived(mine && !replayed && working.saver.state !== 'conflict');
+
+	// Every edit goes through here: the document as it was goes on the undo history, the new one is shown and saved.
+	const current = () => $state.snapshot(working.doc) as SkopeDoc;
+	function apply(next: SkopeDoc, before: SkopeDoc, label: string, group?: string) {
+		if (!editable) return;
+		working.history.record(before, label, group);
+		show(next);
+	}
+	function show(doc: SkopeDoc) {
+		working.doc = doc;
+		working.saver.queue(doc);
+		if (selected && !doc.nodes?.some(n => n.id === selected)) select(null);
+	}
+	function undo() {
+		const doc = editable && working.history.undo(current());
+		if (doc) show(doc);
+	}
+	function redo() {
+		const doc = editable && working.history.redo(current());
+		if (doc) show(doc);
+	}
 	function moveNode(id: string, x: number, y: number) {
-		const node = working.doc.nodes?.find(n => n.id === id);
-		if (!node) return;
-		node.layout = { ...(node.layout ?? { x, y }), x, y };
-		working.saver.queue($state.snapshot(working.doc));
+		const before = current();
+		const next = { ...before, nodes: before.nodes?.map(n => (n.id === id ? { ...n, layout: { ...(n.layout ?? { x, y }), x, y } } : n)) };
+		apply(next, before, 'Move node');
+	}
+	function changeNode(change: NodeChange, label: string, group?: string) {
+		if (!selected) return;
+		const before = current();
+		apply(updateNode(before, selected, change), before, label, group);
+	}
+
+	let canvasRef = $state<ReturnType<typeof DiagramCanvas>>();
+	let adding = $state(false);
+	function add(type: string) {
+		adding = false;
+		sheet = null;
+		const before = current();
+		const made = addNode(before, type, canvasRef?.center() ?? { x: 400, y: 300 });
+		apply(made.doc, before, `Add ${type.toLowerCase()}`);
+		select(made.id);
+	}
+	function duplicate() {
+		if (!selected) return;
+		const before = current();
+		const made = duplicateNode(before, selected);
+		if (!made) return;
+		apply(made.doc, before, 'Duplicate node');
+		select(made.id);
+	}
+	function remove() {
+		if (!selected) return;
+		const before = current();
+		const name = selectedNode?.name ?? 'node';
+		sheet = null;
+		apply(removeNode(before, selected), before, `Delete “${name}”`);
+	}
+
+	// The prototype's shortcuts, away from text fields: ⌘Z / ⇧⌘Z (or ctrl+Y) undo and redo, ⌘D duplicates, and
+	// Delete or Backspace removes the selected node.
+	function shortcut(e: KeyboardEvent) {
+		if (!editable || e.defaultPrevented || (e.target as Element).closest?.('input, textarea, select, [contenteditable]')) return;
+		const meta = e.metaKey || e.ctrlKey;
+		const k = e.key.toLowerCase();
+		if (meta && k === 'z') e.shiftKey ? redo() : undo();
+		else if (meta && k === 'y') redo();
+		else if (meta && k === 'd' && selected) duplicate();
+		else if ((k === 'delete' || k === 'backspace') && selected && !meta) remove();
+		else if (k === 'escape' && adding) adding = false;
+		else return;
+		e.preventDefault();
 	}
 	// Don't let a change go unsaved by leaving: save it on the way to another page, and ask before a reload or close.
 	beforeNavigate(() => {
@@ -85,7 +159,7 @@
 		mq.addEventListener('change', update);
 		return () => mq.removeEventListener('change', update);
 	});
-	let sheet = $state<'views' | 'history' | 'details' | null>(null);
+	let sheet = $state<'views' | 'history' | 'details' | 'add' | null>(null);
 	// Moving mode: a drag anywhere on the canvas moves the selected node. It is how a finger moves a node (a mouse
 	// can drag one directly), chosen from the node menu, and ends with the selection.
 	let moving = $state(false);
@@ -114,6 +188,13 @@
 </script>
 
 <svelte:head><title>{data.diagram.name} · Skope</title></svelte:head>
+<svelte:window
+	onkeydown={shortcut}
+	onpointerdown={e => {
+		// The add menu closes on a press anywhere outside it (its own button toggles it).
+		if (adding && !(e.target as Element).closest('.add-menu, .tool.add')) adding = false;
+	}}
+/>
 
 <AppHeader
 	me={data.me}
@@ -137,11 +218,11 @@
 			{:else if working.saver.state === 'conflict'}
 				This diagram changed somewhere else. <button type="button" class="link" onclick={() => invalidateAll()}>Load the latest</button>
 			{:else if replayed}
-				Replaying history: go back to the working copy to move nodes
+				Replaying history: go back to the working copy to edit
 			{:else if moving && selectedNode}
 				Drag anywhere to move “{selectedNode.name}” · two fingers pan
 			{:else}
-				Saved · {narrow ? 'tap a node to move it' : 'drag a node to move it'}
+				Saved{working.history.undoLabel ? '' : narrow ? ' · tap a node to edit it' : ' · drag a node to move it, click one to edit it'}
 			{/if}
 		</span>
 	{/if}
@@ -174,11 +255,29 @@
 <div class="body">
 	{#if !narrow}{@render tags()}{/if}
 	<main class="stage" aria-label="Diagram">
-		<DiagramCanvas {scene} {on} {selected} onselect={select} ondetails={details} {editable} moving={moving && editable} onmove={moveNode} />
+		<DiagramCanvas bind:this={canvasRef} {scene} {on} {selected} onselect={select} ondetails={details} {editable} moving={moving && editable} onmove={moveNode} />
+		{#if editable}
+			<div class="tools" role="toolbar" aria-label="Edit">
+				<button type="button" class="tool add" aria-expanded={narrow ? sheet === 'add' : adding} onclick={() => (narrow ? (sheet = 'add') : (adding = !adding))}>
+					<span aria-hidden="true">+</span> Add
+				</button>
+				<button type="button" class="tool" aria-label={working.history.undoLabel ? `Undo ${working.history.undoLabel}` : 'Nothing to undo'} title={working.history.undoLabel ? `Undo: ${working.history.undoLabel}` : 'Nothing to undo'} disabled={!working.history.undoLabel} onclick={undo}>
+					<Icon name="arrowCCW" size={15} />
+				</button>
+				<button type="button" class="tool" aria-label={working.history.redoLabel ? `Redo ${working.history.redoLabel}` : 'Nothing to redo'} title={working.history.redoLabel ? `Redo: ${working.history.redoLabel}` : 'Nothing to redo'} disabled={!working.history.redoLabel} onclick={redo}>
+					<Icon name="arrowCW" size={15} />
+				</button>
+			</div>
+			{#if adding && !narrow}
+				<div class="add-menu" role="dialog" aria-label="Add a node">
+					<TypePicker autofocus onpick={add} />
+				</div>
+			{/if}
+		{/if}
 	</main>
 	{#if !narrow}
 		<aside class="right">
-			{#if selectedNode}<Inspector node={selectedNode} tags={tagByKey} />{/if}
+			{#if selectedNode}<Inspector node={selectedNode} tags={tagByKey} {editable} onchange={changeNode} onfieldend={() => working.history.endGroup()} ondelete={remove} onduplicate={duplicate} />{/if}
 			{@render history()}
 		</aside>
 	{/if}
@@ -192,7 +291,7 @@
 				<span class="t-label">{moving ? 'Moving' : 'Move'}</span><span class="t-value">{moving ? 'Drag anywhere · tap to stop' : selectedNode.name}</span>
 			</button>
 			<button type="button" onclick={() => (sheet = 'details')}>
-				<span class="t-label">Details</span><span class="t-value">{selectedNode.type}</span>
+				<span class="t-label">{editable ? 'Edit' : 'Details'}</span><span class="t-value">{selectedNode.type}</span>
 			</button>
 			<button type="button" class="done" aria-label="Done with {selectedNode.name}" onclick={() => select(null)}>
 				<span class="t-label">Done</span><span class="t-value">×</span>
@@ -213,8 +312,11 @@
 	{/if}
 	<Sheet open={sheet === 'views'} title="Views and tags" onclose={() => (sheet = null)}>{@render tags()}</Sheet>
 	<Sheet open={sheet === 'history'} title="History" onclose={() => (sheet = null)}>{@render history()}</Sheet>
+	<Sheet open={sheet === 'add'} title="Add a node" onclose={() => (sheet = null)}>
+		<div class="add-sheet"><TypePicker onpick={add} /></div>
+	</Sheet>
 	<Sheet open={sheet === 'details' && !!selectedNode} title="Node details" onclose={() => (sheet = null)}>
-		{#if selectedNode}<Inspector node={selectedNode} tags={tagByKey} />{/if}
+		{#if selectedNode}<Inspector node={selectedNode} tags={tagByKey} {editable} onchange={changeNode} onfieldend={() => working.history.endGroup()} ondelete={remove} onduplicate={duplicate} />{/if}
 	</Sheet>
 {/if}
 
@@ -274,6 +376,66 @@
 		flex: 1;
 		min-width: 0;
 		position: relative;
+	}
+	.tools {
+		position: absolute;
+		top: 10px;
+		left: 10px;
+		display: flex;
+		gap: 2px;
+		padding: 3px;
+		border-radius: 10px;
+		border: 1px solid var(--color-divider);
+		background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+		box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.3));
+	}
+	.tool {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 5px;
+		min-width: 38px;
+		height: 38px;
+		padding: 0 10px;
+		border: none;
+		border-radius: 7px;
+		background: transparent;
+		color: var(--color-neutral-300);
+		font: inherit;
+		font-size: 13px;
+		cursor: pointer;
+	}
+	.tool:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--color-text) 8%, transparent);
+	}
+	.tool:disabled {
+		color: var(--color-neutral-700);
+		cursor: default;
+	}
+	.tool.add {
+		color: var(--color-accent);
+	}
+	.tool.add span {
+		font-size: 17px;
+		line-height: 1;
+	}
+	.add-menu {
+		position: absolute;
+		top: 58px;
+		left: 10px;
+		width: min(340px, calc(100% - 20px));
+		max-height: calc(100% - 70px);
+		overflow-y: auto;
+		box-sizing: border-box;
+		padding: 10px;
+		border-radius: 10px;
+		border: 1px solid var(--color-divider);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.4));
+		z-index: 2;
+	}
+	.add-sheet {
+		padding: 10px 16px 16px;
 	}
 	.right {
 		width: 260px;
