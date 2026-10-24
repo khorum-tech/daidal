@@ -1,10 +1,10 @@
 /**
  * Write seed.sql: clear the app tables and insert the stage diagrams (stage/diagrams.ts) owned by STAGE_OWNER_EMAIL.
  *
- *   STAGE_OWNER_EMAIL=you@example.com npx tsx scripts/stage-seed.ts
+ *   STAGE_OWNER_EMAIL=you@example.com npm run stage-seed
  *
- * Run with tsx (a devDependency): the Worker sources it imports use extensionless imports and TypeScript
- * syntax that Node's own type stripping does not accept.
+ * The script runs the locked tsx devDependency (never `npx tsx`, which could fetch an unpinned one): the Worker
+ * sources it imports use extensionless imports and TypeScript syntax that Node's own type stripping does not accept.
  */
 import { writeFileSync } from "node:fs";
 import { buildSeed } from "../stage/seed";

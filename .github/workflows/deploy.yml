@@ -89,7 +89,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - if: steps.setup.outputs.ready == 'true'
         name: Generate seed.sql
-        run: npx tsx scripts/stage-seed.ts
+        run: npm run stage-seed
         env:
           STAGE_OWNER_EMAIL: ${{ secrets.STAGE_OWNER_EMAIL }}
       - if: steps.setup.outputs.ready == 'true'

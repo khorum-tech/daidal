@@ -6,7 +6,8 @@
     "dev": "wrangler dev",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "stage-seed": "tsx scripts/stage-seed.ts"
   },
   "dependencies": {
     "jose": "^6.2.12"

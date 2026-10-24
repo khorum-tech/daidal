@@ -37,7 +37,7 @@ what does is `scripts/stage-config.mjs`, which refuses to run if the stage datab
 To load the stage data into your local database (this clears every table in it first):
 
 ```sh
-STAGE_OWNER_EMAIL=you@example.com npx tsx scripts/stage-seed.ts && npx wrangler d1 execute skope --local --file seed.sql
+STAGE_OWNER_EMAIL=you@example.com npm run stage-seed && npx wrangler d1 execute skope --local --file seed.sql
 ```
 
 Run `npx wrangler d1 migrations apply skope --local` first on a fresh checkout. Then
