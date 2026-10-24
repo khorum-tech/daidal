@@ -1,5 +1,8 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+	import { beforeNavigate, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { createApi } from '#lib/api.ts';
 	import AppHeader from '#lib/components/AppHeader.svelte';
 	import DiagramCanvas from '#lib/components/DiagramCanvas.svelte';
 	import HistoryPanel from '#lib/components/HistoryPanel.svelte';
@@ -9,25 +12,43 @@
 	import TagPanel from '#lib/components/TagPanel.svelte';
 	import { tagsOn, toScene } from '#lib/diagram/model.ts';
 	import { followState } from '#lib/follow.ts';
+	import { Saver } from '#lib/saver.svelte.ts';
+	import type { Diagram } from '#lib/types.ts';
 	import { ago } from '#lib/time.ts';
 
 	let { data } = $props();
 
 	const workspace = $derived(data.workspaces.find(w => w.id === data.diagram.workspaceId));
+	const api = createApi(fetch);
+
+	// The working copy as edited here, and what saves it. Both start over whenever a diagram (re)loads.
+	const start = (d: Diagram) => ({ doc: structuredClone(d.doc), saver: new Saver((rev, doc) => api.save(d.id, { rev, doc }), d.rev) });
+	let loaded = untrack(() => data.diagram);
+	let working = $state(start(loaded));
 	// The snapshot being replayed, or null for the working copy.
 	let replaying = $state<string | null>(null);
+	$effect.pre(() => {
+		if (data.diagram === loaded) return;
+		loaded = data.diagram;
+		working = start(loaded);
+		replaying = null;
+	});
 	const replayed = $derived(replaying ? data.snapshots.find(s => s.id === replaying) : undefined);
-	const scene = $derived(toScene(replayed?.doc ?? data.diagram.doc));
+	const scene = $derived(toScene(replayed?.doc ?? working.doc));
 
 	// View and tag switches are only what this browser shows; nothing is saved.
 	let view = $state<string | null>(null);
 	let on = $state<Record<string, boolean>>({});
 	let selected = $state<string | null>(null);
 	$effect.pre(() => {
-		// A new diagram or snapshot starts from its own saved view.
-		view = scene.initialView;
-		on = tagsOn(scene, scene.initialView);
-		selected = null;
+		// A new diagram or snapshot starts from its own saved view. Moving a node changes the scene too, but keeps
+		// the view, so this reads which document is shown, not the scene itself.
+		void [replaying, working];
+		untrack(() => {
+			view = scene.initialView;
+			on = tagsOn(scene, scene.initialView);
+			selected = null;
+		});
 	});
 
 	const tagByKey = $derived(Object.fromEntries(scene.tags.map(t => [t.key, t])));
@@ -35,6 +56,25 @@
 	const follow = $derived(followState(data.diagram, data.lead));
 	const mine = $derived(data.diagram.ownerEmail === data.me.email);
 	const now = Date.now();
+
+	// Moving nodes is the one edit so far: only on your own diagram, and not while replaying history.
+	const editable = $derived(mine && !replayed && working.saver.state !== 'conflict');
+	function moveNode(id: string, x: number, y: number) {
+		const node = working.doc.nodes?.find(n => n.id === id);
+		if (!node) return;
+		node.layout = { ...(node.layout ?? { x, y }), x, y };
+		working.saver.queue($state.snapshot(working.doc));
+	}
+	// Don't let a change go unsaved by leaving: save it on the way to another page, and ask before a reload or close.
+	beforeNavigate(() => {
+		if (working.saver.state === 'pending') void working.saver.flush();
+	});
+	$effect(() => {
+		if (!working.saver.unsaved) return;
+		const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+		addEventListener('beforeunload', warn);
+		return () => removeEventListener('beforeunload', warn);
+	});
 
 	// Phones and small tablets get the canvas full width; views, history and details open as sheets from a toolbar.
 	const NARROW = '(max-width: 900px)';
@@ -78,8 +118,23 @@
 
 <div class="strip">
 	<span class="meta">
-		{#if !mine}Owned by {data.diagram.ownerEmail} · {/if}Updated {ago(data.diagram.updatedAt, now)} · revision {data.diagram.rev}
+		{#if !mine}Owned by {data.diagram.ownerEmail} · read-only · {/if}Updated {ago(data.diagram.updatedAt, now)}
 	</span>
+	{#if mine}
+		<span class="save" data-testid="save-status" aria-live="polite">
+			{#if working.saver.state === 'pending' || working.saver.state === 'saving'}
+				Saving…
+			{:else if working.saver.state === 'error'}
+				Couldn't save. <button type="button" class="link" onclick={() => working.saver.flush()}>Try again</button>
+			{:else if working.saver.state === 'conflict'}
+				This diagram changed somewhere else. <button type="button" class="link" onclick={() => invalidateAll()}>Load the latest</button>
+			{:else if replayed}
+				Replaying history: go back to the working copy to move nodes
+			{:else}
+				Saved · drag a node to move it
+			{/if}
+		</span>
+	{/if}
 	{#if follow.kind === 'following'}
 		<span class="follow" data-testid="follow">
 			<Icon name="follow" size={12} />
@@ -109,7 +164,7 @@
 <div class="body">
 	{#if !narrow}{@render tags()}{/if}
 	<main class="stage" aria-label="Diagram">
-		<DiagramCanvas {scene} {on} {selected} onselect={select} />
+		<DiagramCanvas {scene} {on} {selected} onselect={select} {editable} onmove={moveNode} />
 	</main>
 	{#if !narrow}
 		<aside class="right">
@@ -157,6 +212,19 @@
 	}
 	.follow.gone {
 		color: var(--color-neutral-500);
+	}
+	.save {
+		margin-left: auto;
+		color: var(--color-neutral-500);
+	}
+	.link {
+		font: inherit;
+		padding: 0;
+		border: none;
+		background: none;
+		color: var(--color-accent);
+		text-decoration: underline;
+		cursor: pointer;
 	}
 	.replay {
 		display: flex;

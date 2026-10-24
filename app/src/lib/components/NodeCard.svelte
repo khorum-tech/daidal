@@ -10,6 +10,7 @@
 		ghosted = false,
 		ghostOpacity = 0.22,
 		selected = false,
+		dragging = false,
 		onselect
 	}: {
 		node: SceneNode;
@@ -17,6 +18,7 @@
 		ghosted?: boolean;
 		ghostOpacity?: number;
 		selected?: boolean;
+		dragging?: boolean;
 		onselect?: (id: string) => void;
 	} = $props();
 
@@ -39,6 +41,8 @@
 	class:text={node.isText}
 	class:ghost={ghosted}
 	class:selected
+	class:dragging
+	data-node={node.id}
 	style:left="{node.x}px"
 	style:top="{node.y}px"
 	style:width="{node.w}px"
@@ -46,7 +50,10 @@
 	style:opacity={ghosted ? ghostOpacity : 1}
 	aria-pressed={selected}
 	aria-label="{node.type}: {node.name}"
-	onclick={() => onselect?.(node.id)}
+	onclick={e => {
+		// Pointer taps are the canvas's to read (it tells a tap from a drag); this is Enter or Space on a focused node.
+		if (e.detail === 0) onselect?.(node.id);
+	}}
 >
 	{#if node.isText}
 		<span class="text-name">{node.name}</span>
@@ -93,6 +100,13 @@
 		box-shadow:
 			0 0 0 1px var(--color-accent),
 			0 0 24px rgba(145, 132, 217, 0.25);
+	}
+	.node.dragging {
+		z-index: 2;
+		transition: none;
+		box-shadow:
+			0 0 0 1px var(--color-accent),
+			0 12px 32px rgba(0, 0, 0, 0.45);
 	}
 	.node:focus-visible {
 		outline: 2px solid var(--color-accent);

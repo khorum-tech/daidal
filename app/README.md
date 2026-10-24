@@ -1,17 +1,23 @@
 # Skope app (SvelteKit)
 
-The SvelteKit port of the prototype, served under **`/app`** beside the prototype at `/`. For now it is
-**read-only** and reads everything from the Worker's API:
+The SvelteKit port of the prototype, served under **`/app`** beside the prototype at `/`. It reads everything from
+the Worker's API, and so far makes one edit: **moving nodes** on a diagram you own, which saves through the API.
 
 | Route | What it shows |
 |-------|---------------|
 | `/app/` | Your workspaces (yours and shared with you) and the diagrams in one (`?ws=<id>`, else your personal one), as the prototype's project cards |
 | `/app/d/:id` | One diagram on the canvas: views and tags (switching them only changes what you see), the selected node's details, the history (pick a snapshot to replay it), and where a follower stands against its lead |
 
+The canvas handles every gesture itself, the same for a finger or a mouse: drag to pan (from empty space, or from
+anywhere when nothing can be moved), drag a node to move it, pinch or ctrl+scroll to zoom, scroll to pan, tap to
+select; arrow keys, `+`, `-` and `0` when it has focus. The view is a transform (`src/lib/diagram/zoom.ts`), so it
+pans freely even at "fit", within limits that keep the diagram on screen. A move saves through `src/lib/saver.svelte.ts`
+with the diagram's revision: moves close together go as one save, and if someone else saved in between the page says
+so and offers to load theirs.
+
 On screens 900 px wide or less the canvas gets the full width and the panels move behind a bottom toolbar (View,
-History, Details), opening as sheets; tapping a node opens its details. The canvas fits the diagram to the view,
-pinches to zoom on touch screens (ctrl+scroll or a trackpad pinch on desktop) and pans with one finger. The e2e
-`phone` project (`e2e/mobile.spec.ts`) keeps this working.
+History, Details), opening as sheets; tapping a node opens its details. The e2e `phone` project
+(`e2e/mobile.spec.ts`) keeps this working.
 
 Components live in `src/lib/components/`. What they draw is worked out in `src/lib/diagram/`: `model.ts` turns a
 `.skope.json` document into a scene the way the prototype's config import does, and `geometry.ts` routes

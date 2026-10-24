@@ -8,6 +8,10 @@
 	let { open, title, onclose, children }: { open: boolean; title: string; onclose: () => void; children: Snippet } = $props();
 
 	let dialog = $state<HTMLDialogElement>();
+	// A backdrop tap closes the sheet only if the press began on the backdrop too. The tap that opened the sheet
+	// (on a node, say) ends with a click the browser sends afterwards, which would otherwise land on the brand-new
+	// backdrop and close it at once.
+	let pressedBackdrop = false;
 	$effect(() => {
 		if (!dialog) return;
 		if (open && !dialog.open) dialog.showModal();
@@ -20,9 +24,11 @@
 	class="sheet"
 	aria-label={title}
 	onclose={onclose}
+	onpointerdown={e => (pressedBackdrop = e.target === dialog)}
 	onclick={e => {
 		// The dialog element itself is only hit on the backdrop; the content sits in .body.
-		if (e.target === dialog) onclose();
+		if (e.target === dialog && pressedBackdrop) onclose();
+		pressedBackdrop = false;
 	}}
 >
 	<div class="body">

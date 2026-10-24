@@ -62,4 +62,42 @@ test.describe("the app at /app", () => {
     expect(res.status()).toBe(200);
     expect(await res.text()).toContain("Loading Skope");
   });
+
+  test("moves a node with the mouse and saves it", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await expect(page.getByTestId("save-status")).toContainText("Saved · drag a node to move it");
+    const box = (await page.locator('[data-node="journal"]').boundingBox())!;
+    const scale = await page.getByTestId("diagram-sheet").evaluate(el => Number(/scale\(([-\d.]+)\)/.exec((el as HTMLElement).style.transform)![1]));
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 50 * scale, box.y + box.height / 2 + 20 * scale, { steps: 6 });
+    await page.mouse.up();
+    await expect(page.getByTestId("save-status")).toContainText("Saved");
+    const saved = await (await request.get(`/api/diagrams/${id}`)).json();
+    // Journal DB starts at (900, 150).
+    expect(saved.doc.nodes.find((n: { id: string }) => n.id === "journal").layout).toMatchObject({ x: 950, y: 170 });
+    expect(saved.rev).toBe(2);
+  });
+
+  test("stops saving when someone else saved first, and picks up again after loading theirs", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await expect(page.getByTestId("save-status")).toContainText("Saved");
+    // Another tab saves first.
+    const theirs = await (await request.get(`/api/diagrams/${id}`)).json();
+    expect((await request.put(`/api/diagrams/${id}`, { data: { rev: theirs.rev, name: "renamed elsewhere" } })).status()).toBe(200);
+
+    const box = (await page.locator('[data-node="edge"]').boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 30, box.y + box.height / 2 + 30, { steps: 4 });
+    await page.mouse.up();
+    await expect(page.getByTestId("save-status")).toContainText("This diagram changed somewhere else");
+    await page.getByRole("button", { name: "Load the latest" }).click();
+    await expect(page.getByTestId("save-status")).toContainText("Saved · drag a node to move it");
+    await expect(page).toHaveTitle("renamed elsewhere · Skope");
+  });
 });

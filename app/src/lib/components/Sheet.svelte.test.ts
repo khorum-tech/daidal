@@ -24,3 +24,16 @@ describe('a bottom sheet', () => {
 		expect(closed).toBe(2);
 	});
 });
+
+describe('closing from the backdrop', () => {
+	it('ignores a click that did not start on the backdrop, like the one that ends the tap opening it', async () => {
+		let closed = 0;
+		render(Sheet, { open: true, title: 'Details', onclose: () => closed++, children: content });
+		const dialog = page.getByRole('dialog').element() as HTMLDialogElement;
+		dialog.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		expect(closed).toBe(0);
+		dialog.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+		dialog.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		expect(closed).toBe(1);
+	});
+});

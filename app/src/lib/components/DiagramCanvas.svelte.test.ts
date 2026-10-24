@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import DiagramCanvas from './DiagramCanvas.svelte';
 import { tagsOn, toScene } from '../diagram/model';
@@ -16,10 +16,33 @@ beforeEach(() => {
 	document.body.replaceChildren(stage);
 });
 
-function mount(view: string | null = null, selected: string | null = null) {
+function mount(view: string | null = null, selected: string | null = null, editable = false) {
 	const picked: (string | null)[] = [];
-	const r = render(DiagramCanvas, { target: stage, props: { scene, on: tagsOn(scene, view), selected, onselect: id => picked.push(id) } });
-	return { ...r, picked };
+	const moved: [string, number, number][] = [];
+	const r = render(DiagramCanvas, {
+		target: stage,
+		props: { scene, on: tagsOn(scene, view), selected, onselect: id => picked.push(id), editable, onmove: (id, x, y) => moved.push([id, x, y]) }
+	});
+	return { ...r, picked, moved };
+}
+
+/** The sheet's current offset and scale, from its transform. */
+function sheet() {
+	const m = /translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([-\d.]+)\)/.exec((document.querySelector('[data-testid=diagram-sheet]') as HTMLElement).style.transform)!;
+	return { tx: Number(m[1]), ty: Number(m[2]), s: Number(m[3]) };
+}
+
+/** Drag with the mouse from the centre of [el] by (dx, dy), in steps, as a hand would. */
+async function drag(el: Element, dx: number, dy: number) {
+	const r = el.getBoundingClientRect();
+	const x = r.left + r.width / 2;
+	const y = r.top + r.height / 2;
+	const fire = (type: string, px: number, py: number) =>
+		el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0, buttons: type === 'pointerup' ? 0 : 1, clientX: px, clientY: py }));
+	fire('pointerdown', x, y);
+	for (let i = 1; i <= 5; i++) fire('pointermove', x + (dx * i) / 5, y + (dy * i) / 5);
+	fire('pointerup', x + dx, y + dy);
+	await new Promise(r => requestAnimationFrame(() => r(null)));
 }
 
 describe('the canvas', () => {
@@ -75,5 +98,51 @@ describe('the canvas', () => {
 		await expect.element(fit).not.toHaveTextContent(before);
 		await fit.click();
 		await expect.element(fit).toHaveTextContent(before);
+	});
+
+	it('pans when dragging empty space, and stops before the diagram leaves the view', async () => {
+		mount();
+		const canvas = document.querySelector('.canvas')!;
+		const before = sheet();
+		// Grab a spot clear of the nodes: the canvas's top-left corner area.
+		const r = canvas.getBoundingClientRect();
+		const spot = document.elementFromPoint(r.left + 5, r.top + 5)!;
+		await drag(spot, 120, 40);
+		// The browser rounds the transform it writes back, so compare to a few decimals.
+		const after = sheet();
+		expect(after.tx).toBeCloseTo(before.tx + 120, 2);
+		expect(after.ty).toBeCloseTo(before.ty + 40, 2);
+		expect(after.s).toBe(before.s);
+		await drag(spot, 5000, 0);
+		expect(sheet().tx).toBeLessThan(before.tx + 1100);
+	});
+
+	it('moves a node when editing is on, and says where it went', async () => {
+		const { moved, picked } = mount(null, null, true);
+		const gw = document.querySelector('[data-node="gw"]')!;
+		const { s } = sheet();
+		await drag(gw, 100 * s, 50 * s);
+		// Gateway starts at (340, 150); the drag was 100 × 50 in diagram units.
+		expect(moved).toEqual([['gw', 440, 200]]);
+		expect(picked).toEqual([]); // a drag is not a tap
+	});
+
+	it('pans instead when editing is off, even from a node', async () => {
+		const { moved } = mount();
+		const before = sheet();
+		await drag(document.querySelector('[data-node="gw"]')!, 60, 0);
+		expect(moved).toEqual([]);
+		expect(sheet().tx).toBeCloseTo(before.tx + 60, 2);
+	});
+
+	it('pans with the arrow keys and fits again with 0', async () => {
+		mount();
+		const canvas = page.getByRole('application');
+		const before = sheet();
+		(canvas.element() as HTMLElement).focus();
+		await userEvent.keyboard('{ArrowLeft}');
+		expect(sheet().tx).toBeCloseTo(before.tx + 60, 2);
+		await userEvent.keyboard('0');
+		expect(sheet()).toEqual(before);
 	});
 });

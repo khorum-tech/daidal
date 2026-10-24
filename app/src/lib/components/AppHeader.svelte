@@ -21,7 +21,7 @@
 			{/each}
 		</nav>
 	{/if}
-	<span class="readonly tag tag-outline" title="This preview reads from the server; editing still happens in the prototype">Read-only preview</span>
+	<span class="readonly tag tag-outline" title="Moving nodes saves here; everything else is still edited in the prototype">Preview</span>
 	<div class="user">
 		<button type="button" class="who" aria-expanded={open} aria-haspopup="menu" onclick={() => (open = !open)}>
 			<span class="avatar" aria-hidden="true">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>
