@@ -11,7 +11,8 @@
 		ghostOpacity = 0.22,
 		selected = false,
 		dragging = false,
-		onselect
+		onselect,
+		ondetails
 	}: {
 		node: SceneNode;
 		tags: Record<string, SceneTag>;
@@ -20,6 +21,7 @@
 		selected?: boolean;
 		dragging?: boolean;
 		onselect?: (id: string) => void;
+		ondetails?: (id: string) => void;
 	} = $props();
 
 	const first = $derived(node.tags[0] ? tags[node.tags[0]] : undefined);
@@ -51,8 +53,10 @@
 	aria-pressed={selected}
 	aria-label="{node.type}: {node.name}"
 	onclick={e => {
-		// Pointer taps are the canvas's to read (it tells a tap from a drag); this is Enter or Space on a focused node.
-		if (e.detail === 0) onselect?.(node.id);
+		// The browser's own tap detection, so a tap works wherever a click does. Enter on the selected node (a click
+		// with no pointer behind it) asks for its details.
+		if (e.detail === 0 && selected) ondetails?.(node.id);
+		else onselect?.(node.id);
 	}}
 >
 	{#if node.isText}

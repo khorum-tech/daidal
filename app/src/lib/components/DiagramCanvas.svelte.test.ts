@@ -16,7 +16,7 @@ beforeEach(() => {
 	document.body.replaceChildren(stage);
 });
 
-function mount(view: string | null = null, selected: string | null = null, editable = false) {
+function mount(view: string | null = null, selected: string | null = null, editable = false, moving = false) {
 	const picked: (string | null)[] = [];
 	const moved: [string, number, number][] = [];
 	const details: string[] = [];
@@ -28,6 +28,7 @@ function mount(view: string | null = null, selected: string | null = null, edita
 			selected,
 			onselect: id => picked.push(id),
 			editable,
+			moving,
 			onmove: (id, x, y) => moved.push([id, x, y]),
 			ondetails: id => details.push(id)
 		}
@@ -89,19 +90,28 @@ describe('the canvas', () => {
 		expect(Number(container.querySelector('path[data-edge="gw>db"]')!.getAttribute('opacity'))).toBeCloseTo(0.154);
 	});
 
-	it('selects a node with a tap, asks for its details on a second, and clears on empty space', async () => {
+	it('selects a node with a tap, keeps it on a second, and clears on empty space', async () => {
 		const { picked, details, rerender } = mount();
 		const gw = page.getByRole('button', { name: 'API Gateway: Gateway' });
 		await gw.click();
 		expect(picked).toEqual(['gw']);
-		expect(details).toEqual([]);
 		await rerender({ selected: 'gw' });
 		await expect.element(gw).toHaveAttribute('aria-pressed', 'true');
 		await gw.click();
-		expect(details).toEqual(['gw']);
+		expect(picked).toEqual(['gw', 'gw']);
+		expect(details).toEqual([]);
 		const r = document.querySelector('.canvas')!.getBoundingClientRect();
 		await page.elementLocator(document.elementFromPoint(r.left + 5, r.top + 5)!).click();
 		expect(picked.at(-1)).toBeNull();
+	});
+
+	it('does not take the click that ends a drag for a tap', async () => {
+		const { picked, moved } = mount(null, null, true);
+		const gw = document.querySelector('[data-node="gw"]')!;
+		await drag(gw, 40, 0, { altKey: true });
+		gw.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+		expect(moved).toHaveLength(1);
+		expect(picked).toEqual([]);
 	});
 
 	it('asks for details from the keyboard when Enter is pressed on the selected node', async () => {
@@ -169,18 +179,36 @@ describe('the canvas', () => {
 		expect(document.querySelectorAll('line.guide')).toHaveLength(0);
 	});
 
-	it('lets a finger move only the selected node; a swipe from any other pans', async () => {
-		const unselected = mount(null, null, true);
+	it('pans under a finger, even one that starts on a node, unless moving mode is on', async () => {
+		const plain = mount(null, 'gw', true);
 		const before = sheet();
 		await drag(document.querySelector('[data-node="gw"]')!, 50, 0, { pointerType: 'touch' });
-		expect(unselected.moved).toEqual([]);
+		expect(plain.moved).toEqual([]);
 		expect(sheet().tx).toBeCloseTo(before.tx + 50, 2);
-		unselected.unmount();
+		plain.unmount();
 
-		const chosen = mount(null, 'gw', true);
+		// Moving mode: a drag from anywhere, empty space included, moves the selected node.
+		const moving = mount(null, 'gw', true, true);
 		const { s } = sheet();
-		await drag(document.querySelector('[data-node="gw"]')!, 0, 160 * s, { pointerType: 'touch', altKey: true });
-		expect(chosen.moved).toEqual([['gw', 340, 310]]);
+		const r = document.querySelector('.canvas')!.getBoundingClientRect();
+		const empty = document.elementFromPoint(r.left + 5, r.top + 5)!;
+		await drag(empty, 0, 160 * s, { pointerType: 'touch', altKey: true });
+		expect(moving.moved).toEqual([['gw', 340, 310]]);
+		expect(sheet().tx).toBeCloseTo(before.tx, 2); // and the view stayed put
+	});
+
+	it('never captures a touch pointer (WebKit throws on it), only a mouse', async () => {
+		mount(null, 'gw', true, true);
+		const canvas = document.querySelector('.canvas') as HTMLElement;
+		const calls: string[] = [];
+		canvas.setPointerCapture = (id: number) => {
+			calls.push(String(id));
+			throw new DOMException('The object can not be found here.', 'NotFoundError');
+		};
+		await drag(document.querySelector('[data-node="gw"]')!, 30, 0, { pointerType: 'touch' });
+		expect(calls).toEqual([]);
+		await drag(document.querySelector('[data-node="gw"]')!, 30, 0); // a mouse: captured, and the throw is survived
+		expect(calls).toEqual(['1']);
 	});
 
 	it('pans instead when editing is off, even from a node', async () => {

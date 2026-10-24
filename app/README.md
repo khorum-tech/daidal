@@ -9,17 +9,20 @@ the Worker's API, and so far makes one edit: **moving nodes** on a diagram you o
 | `/app/d/:id` | One diagram on the canvas: views and tags (switching them only changes what you see), the selected node's details, the history (pick a snapshot to replay it), and where a follower stands against its lead |
 
 The canvas handles every gesture itself, the same for a finger or a mouse: drag to pan, pinch or ctrl+scroll to zoom,
-scroll to pan; arrow keys, `+`, `-` and `0` when it has focus. A tap selects a node and a second tap (or Enter on the
-selected node) opens its details. A mouse drags any node; a finger drags only the selected one, so a swipe that
-starts on another node pans. A dragged node snaps into line with its neighbours (`src/lib/diagram/snap.ts`, the
-prototype's rule), with a wider reach for a finger than a mouse; Alt places it freely. The view is a transform (`src/lib/diagram/zoom.ts`), so it
+scroll to pan; arrow keys, `+`, `-` and `0` when it has focus. A tap (the browser's own click, which is what works
+everywhere, Safari included) selects a node; a tap on empty space clears it. A mouse drags any node to move it. A
+finger moves one through **Move** in the node menu: then a drag from anywhere moves the selected node, two fingers
+still pan or pinch, and Done (or a tap on empty space) goes back to panning. A dragged node snaps into line with
+its neighbours (`src/lib/diagram/snap.ts`, the prototype's rule), with a wider reach for a finger than a mouse;
+Alt places it freely. Touch pointers are never captured: WebKit throws on `setPointerCapture` for them, and a
+mouse is captured only once its drag has begun, so the click after a plain press still reaches the node. The view is a transform (`src/lib/diagram/zoom.ts`), so it
 pans freely even at "fit", within limits that keep the diagram on screen. A move saves through `src/lib/saver.svelte.ts`
 with the diagram's revision: moves close together go as one save, and if someone else saved in between the page says
 so and offers to load theirs.
 
 On screens 900 px wide or less the canvas gets the full width and the panels move behind a bottom toolbar (View,
-History, Details), opening as sheets; tapping a node opens its details. The e2e `phone` project
-(`e2e/mobile.spec.ts`) keeps this working.
+History), opening as sheets. While a node is selected the toolbar becomes the node menu: Move, Details (a sheet)
+and Done. The e2e `phone` project (`e2e/mobile.spec.ts`) keeps this working.
 
 Components live in `src/lib/components/`. What they draw is worked out in `src/lib/diagram/`: `model.ts` turns a
 `.skope.json` document into a scene the way the prototype's config import does, and `geometry.ts` routes

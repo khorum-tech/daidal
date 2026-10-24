@@ -10,10 +10,10 @@
 	 * nodes. Switching tags off ghosts what they cover instead of hiding it.
 	 *
 	 * The canvas handles every gesture itself, the same with a finger or a mouse: drag to pan, pinch or ctrl+scroll
-	 * to zoom, scroll to pan. A tap selects a node; a second tap on it asks for its details ([ondetails]). With
-	 * [editable] on, dragging a node moves it, snapping to the nodes around it, and reports the new spot through
-	 * [onmove]. A mouse can drag any node; a finger only the selected one, so a swipe across the diagram pans it
-	 * rather than moving whatever it started on.
+	 * to zoom, scroll to pan. A tap (the browser's own click) selects a node, or clears the selection on empty space.
+	 * With [editable] on, a mouse drags any node to move it; in [moving] mode a drag anywhere moves the selected
+	 * node instead of panning, which is how a finger moves one. Moves snap to the nodes around and are reported
+	 * through [onmove]. Enter on the selected node asks for its details ([ondetails]).
 	 */
 	let {
 		scene,
@@ -21,6 +21,7 @@
 		selected = null,
 		onselect,
 		editable = false,
+		moving = false,
 		onmove,
 		ondetails,
 		ghostOpacity = 0.22,
@@ -31,6 +32,8 @@
 		selected?: string | null;
 		onselect?: (id: string | null) => void;
 		editable?: boolean;
+		/** Drag anywhere moves the selected node (needs [editable] and a selection). */
+		moving?: boolean;
 		onmove?: (id: string, x: number, y: number) => void;
 		ondetails?: (id: string) => void;
 		ghostOpacity?: number;
@@ -51,9 +54,6 @@
 	const PAD = 48;
 	/** How far a press may wander and still count as a tap. */
 	const TAP_SLOP = 5;
-	/** Two taps on the same node this close in time and space are a double tap. */
-	const DOUBLE_TAP_MS = 350;
-	const DOUBLE_TAP_PX = 24;
 
 	// A node being dragged is drawn at its new spot (and its connections follow) before the move is reported.
 	let dragged = $state<{ id: string; x: number; y: number } | null>(null);
@@ -113,13 +113,14 @@
 
 	// Pointer gestures. Every pointer on the canvas is tracked; one decides between a pan and a node drag, two pinch.
 	type Gesture =
-		| { kind: 'pan'; pointer: number; start: Point; last: Point; node: string | null; moved: boolean }
+		| { kind: 'pan'; pointer: number; start: Point; last: Point; moved: boolean }
 		| { kind: 'node'; pointer: number; start: Point; node: SceneNode; moved: boolean; touch: boolean }
 		| { kind: 'pinch'; dist: number; mid: Point; from: View };
-	let lastTap: { node: string; at: number; p: Point } | null = null;
 	const pointers = new Map<number, Point>();
 	let gesture: Gesture | null = null;
 	let panning = $state(false);
+	// Whether the last press turned into a drag: the click the browser sends after it is then not a tap.
+	let dragJustEnded = false;
 
 	const spread = () => {
 		const [a, b] = [...pointers.values()];
@@ -130,7 +131,7 @@
 		if (e.pointerType === 'mouse' && e.button !== 0) return;
 		const target = e.target as Element;
 		if (target.closest('.zoom')) return; // the zoom buttons are plain buttons
-		canvas!.setPointerCapture(e.pointerId);
+		dragJustEnded = false;
 		const p = local(e);
 		pointers.set(e.pointerId, p);
 		if (pointers.size === 2) {
@@ -141,13 +142,13 @@
 			return;
 		}
 		if (pointers.size > 2) return;
-		const id = target.closest<HTMLElement>('[data-node]')?.dataset.node ?? null;
-		const node = id ? scene.nodes.find(n => n.id === id) : undefined;
-		const touch = e.pointerType === 'touch';
-		const movable = editable && node && (!touch || selected === node.id);
-		gesture = movable
+		const touch = e.pointerType !== 'mouse';
+		// In moving mode the selected node follows a drag from anywhere; otherwise a mouse drags the node under it.
+		const id = moving ? selected : touch ? null : (target.closest<HTMLElement>('[data-node]')?.dataset.node ?? null);
+		const node = editable && id ? scene.nodes.find(n => n.id === id) : undefined;
+		gesture = node
 			? { kind: 'node', pointer: e.pointerId, start: p, node, moved: false, touch }
-			: { kind: 'pan', pointer: e.pointerId, start: p, last: p, node: id, moved: false };
+			: { kind: 'pan', pointer: e.pointerId, start: p, last: p, moved: false };
 	}
 
 	function move(e: PointerEvent) {
@@ -163,6 +164,17 @@
 		}
 		if (e.pointerId !== gesture.pointer) return;
 		if (!gesture.moved && Math.hypot(p.x - gesture.start.x, p.y - gesture.start.y) < TAP_SLOP) return;
+		if (!gesture.moved && e.pointerType === 'mouse') {
+			// A mouse drag may leave the canvas, so its pointer is captured, and only now: captured from the press, the
+			// click that ends a plain tap would go to the canvas instead of the node. A touch stays with its element on
+			// its own, and WebKit throws on capturing one ("The object can not be found here"), which stopped every
+			// gesture there.
+			try {
+				canvas!.setPointerCapture(e.pointerId);
+			} catch {
+				// Then the drag ends at the canvas edge, which is fine.
+			}
+		}
 		gesture.moved = true;
 		if (gesture.kind === 'pan') {
 			panning = true;
@@ -192,22 +204,16 @@
 		gesture = null;
 		panning = false;
 		guides = [];
-		if (g.kind === 'node' && g.moved && dragged) {
-			const d = dragged;
-			dragged = null;
-			if (!cancelled) onmove?.(d.id, Math.round(d.x), Math.round(d.y));
-			return;
-		}
+		dragJustEnded = g.moved;
+		const d = dragged;
 		dragged = null;
-		if (cancelled || g.moved) return;
-		// A tap: on a node it selects it, and a second tap on the same node asks for its details; on empty space it
-		// clears the selection.
-		const id = g.kind === 'node' ? g.node.id : g.node;
-		const p = local(e);
-		const double = !!id && !!lastTap && lastTap.node === id && e.timeStamp - lastTap.at < DOUBLE_TAP_MS && Math.hypot(p.x - lastTap.p.x, p.y - lastTap.p.y) < DOUBLE_TAP_PX;
-		lastTap = id && !double ? { node: id, at: e.timeStamp, p } : null;
-		onselect?.(id);
-		if (double) ondetails?.(id!);
+		if (g.kind === 'node' && g.moved && d && !cancelled) onmove?.(d.id, Math.round(d.x), Math.round(d.y));
+	}
+
+	/** A tap on empty space clears the selection. Nodes handle their own taps (NodeCard). */
+	function tapEmpty(e: MouseEvent) {
+		if (dragJustEnded || (e.target as Element).closest('[data-node], .zoom')) return;
+		onselect?.(null);
 	}
 
 	// The keyboard can do what the pointer does, once the canvas has focus.
@@ -231,9 +237,11 @@
 	class="canvas"
 	class:panning
 	class:editable
+	class:moving={moving && editable && !!selected}
 	role="application"
 	aria-label="Diagram canvas. Drag or use the arrow keys to move around; pinch, ctrl+scroll or plus and minus to zoom; 0 fits the diagram{editable ? '. Drag a node to move it' : ''}."
 	tabindex="0"
+	onclick={tapEmpty}
 	bind:this={canvas}
 	bind:clientWidth={viewW}
 	bind:clientHeight={viewH}
@@ -301,7 +309,10 @@
 				{ghostOpacity}
 				selected={selected === n.id}
 				dragging={dragged?.id === n.id}
-				onselect={id => (selected === id ? ondetails?.(id) : onselect?.(id))}
+				onselect={id => {
+					if (!dragJustEnded) onselect?.(id);
+				}}
+				ondetails={id => ondetails?.(id)}
 			/>
 		{/each}
 	</div>
@@ -338,6 +349,9 @@
 		cursor: grabbing;
 	}
 	.canvas.editable :global(.node:not(.dragging)) {
+		cursor: move;
+	}
+	.canvas.moving {
 		cursor: move;
 	}
 	.sheet {

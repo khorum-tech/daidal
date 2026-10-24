@@ -86,9 +86,15 @@
 		return () => mq.removeEventListener('change', update);
 	});
 	let sheet = $state<'views' | 'history' | 'details' | null>(null);
-	const select = (id: string | null) => (selected = id);
-	// A double tap (or Enter on a selected node) asks for the details: on a phone they are out of sight, so that
-	// brings the sheet up; on a wide screen they are already beside the canvas.
+	// Moving mode: a drag anywhere on the canvas moves the selected node. It is how a finger moves a node (a mouse
+	// can drag one directly), chosen from the node menu, and ends with the selection.
+	let moving = $state(false);
+	function select(id: string | null) {
+		if (id !== selected) moving = false;
+		selected = id;
+	}
+	// Enter on the selected node asks for the details: on a phone they are out of sight, so that brings the sheet
+	// up; on a wide screen they are already beside the canvas.
 	function details(id: string) {
 		selected = id;
 		if (narrow) sheet = 'details';
@@ -132,8 +138,10 @@
 				This diagram changed somewhere else. <button type="button" class="link" onclick={() => invalidateAll()}>Load the latest</button>
 			{:else if replayed}
 				Replaying history: go back to the working copy to move nodes
+			{:else if moving && selectedNode}
+				Drag anywhere to move “{selectedNode.name}” · two fingers pan
 			{:else}
-				Saved · {narrow ? 'tap a node, then drag it' : 'drag a node to move it'}
+				Saved · {narrow ? 'tap a node to move it' : 'drag a node to move it'}
 			{/if}
 		</span>
 	{/if}
@@ -166,7 +174,7 @@
 <div class="body">
 	{#if !narrow}{@render tags()}{/if}
 	<main class="stage" aria-label="Diagram">
-		<DiagramCanvas {scene} {on} {selected} onselect={select} ondetails={details} {editable} onmove={moveNode} />
+		<DiagramCanvas {scene} {on} {selected} onselect={select} ondetails={details} {editable} moving={moving && editable} onmove={moveNode} />
 	</main>
 	{#if !narrow}
 		<aside class="right">
@@ -177,17 +185,32 @@
 </div>
 
 {#if narrow}
-	<nav class="toolbar" aria-label="Diagram panels">
-		<button type="button" onclick={() => (sheet = 'views')}>
-			<span class="t-label">View</span><span class="t-value">{view ?? (scene.views.length ? 'Everything' : 'Tags')}</span>
-		</button>
-		<button type="button" onclick={() => (sheet = 'history')}>
-			<span class="t-label">History</span><span class="t-value">{replayed ? replayed.label : `${data.snapshots.length} ${data.snapshots.length === 1 ? 'snapshot' : 'snapshots'}`}</span>
-		</button>
-		<button type="button" disabled={!selectedNode} onclick={() => (sheet = 'details')}>
-			<span class="t-label">Details</span><span class="t-value">{selectedNode ? selectedNode.name : 'Double-tap a node'}</span>
-		</button>
-	</nav>
+	{#if selectedNode}
+		<!-- The node menu takes the toolbar's place while a node is selected. -->
+		<nav class="toolbar node-menu" aria-label="Selected node" data-testid="node-menu">
+			<button type="button" class:active={moving} aria-pressed={moving} disabled={!editable} title={editable ? '' : replayed ? 'Go back to the working copy to move nodes' : 'Only the owner can move nodes'} onclick={() => (moving = !moving)}>
+				<span class="t-label">{moving ? 'Moving' : 'Move'}</span><span class="t-value">{moving ? 'Drag anywhere · tap to stop' : selectedNode.name}</span>
+			</button>
+			<button type="button" onclick={() => (sheet = 'details')}>
+				<span class="t-label">Details</span><span class="t-value">{selectedNode.type}</span>
+			</button>
+			<button type="button" class="done" aria-label="Done with {selectedNode.name}" onclick={() => select(null)}>
+				<span class="t-label">Done</span><span class="t-value">×</span>
+			</button>
+		</nav>
+	{:else}
+		<nav class="toolbar" aria-label="Diagram panels">
+			<button type="button" onclick={() => (sheet = 'views')}>
+				<span class="t-label">View</span><span class="t-value">{view ?? (scene.views.length ? 'Everything' : 'Tags')}</span>
+			</button>
+			<button type="button" onclick={() => (sheet = 'history')}>
+				<span class="t-label">History</span><span class="t-value">{replayed ? replayed.label : `${data.snapshots.length} ${data.snapshots.length === 1 ? 'snapshot' : 'snapshots'}`}</span>
+			</button>
+			<button type="button" disabled>
+				<span class="t-label">Node</span><span class="t-value">Tap one</span>
+			</button>
+		</nav>
+	{/if}
 	<Sheet open={sheet === 'views'} title="Views and tags" onclose={() => (sheet = null)}>{@render tags()}</Sheet>
 	<Sheet open={sheet === 'history'} title="History" onclose={() => (sheet = null)}>{@render history()}</Sheet>
 	<Sheet open={sheet === 'details' && !!selectedNode} title="Node details" onclose={() => (sheet = null)}>
@@ -288,6 +311,19 @@
 	.toolbar button:disabled {
 		cursor: default;
 		opacity: 0.55;
+	}
+	.node-menu {
+		border-top-color: var(--color-accent-700);
+	}
+	.node-menu button.active {
+		background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+		color: var(--color-accent-200);
+	}
+	.node-menu button.active .t-label {
+		color: var(--color-accent-300);
+	}
+	.node-menu .done {
+		flex: 0 0 72px;
 	}
 	.t-label {
 		font-size: 10px;

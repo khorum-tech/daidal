@@ -50,19 +50,20 @@ test.describe("the app on a phone", () => {
     await expect(toolbar).toContainText("Write path");
     await expect(page.getByRole("button", { name: "Telemetry: Collector" })).toHaveCSS("opacity", "0.22");
 
-    // One tap selects; it doesn't cover the canvas with a sheet.
+    // One tap selects, and the node menu takes the toolbar's place; no sheet covers the canvas.
     const journal = page.getByRole("button", { name: "Database: Journal DB" });
     await journal.tap();
     await expect(journal).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(toolbar).toContainText("Journal DB");
-    // A double tap brings the details up. Wait out the double-tap window first, or the tap above counts as half of it.
-    await page.waitForTimeout(400);
-    await journal.tap();
-    await journal.tap();
+    const menu = page.getByTestId("node-menu");
+    await expect(menu).toContainText("Journal DB");
+    await menu.getByRole("button", { name: /^Details/ }).tap();
     await expect(page.getByRole("dialog", { name: "Node details" })).toContainText("Append-only journal");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
+    await menu.getByRole("button", { name: /^Done/ }).tap();
+    await expect(menu).toHaveCount(0);
+    await expect(journal).toHaveAttribute("aria-pressed", "false");
 
     await toolbar.getByRole("button", { name: /History/ }).tap();
     await page.getByRole("dialog", { name: "History" }).getByRole("button", { name: /Container view/ }).tap();
@@ -99,28 +100,35 @@ test.describe("the app on a phone", () => {
     expect(await page.evaluate(() => scrollX + scrollY)).toBe(0);
   });
 
-  test("a swipe that starts on a node pans until that node is selected", async ({ page, request }) => {
+  test("a swipe that starts on a node pans, selected or not, until Move is chosen", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
-    await expect(page.getByTestId("save-status")).toContainText("tap a node, then drag it");
+    await expect(page.getByTestId("save-status")).toContainText("tap a node to move it");
+    const postings = page.locator('[data-node="postings"]');
+    await postings.tap();
+    await expect(postings).toHaveAttribute("aria-pressed", "true");
     const before = await sheet(page);
     const start = await middle(page, '[data-node="postings"]');
     await swipe(page, start.x, start.y, 0, 80);
     expect((await sheet(page)).ty).toBeCloseTo(before.ty + 80, 0);
-    expect(await page.locator('[data-node="postings"]').evaluate(el => (el as HTMLElement).style.top)).toBe("150px");
+    expect(await postings.evaluate(el => (el as HTMLElement).style.top)).toBe("150px");
+    await expect(postings).toHaveAttribute("aria-pressed", "true"); // the pan didn't deselect it
   });
 
-  test("drags a node with a finger once it's selected, and it stays there after a reload", async ({ page, request }) => {
+  test("moves the selected node with a drag from anywhere in Move, and it stays there after a reload", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];
     await page.goto(`/app/d/${id}`);
     await expect(page.getByTestId("save-status")).toContainText("Saved");
     const { s } = await sheet(page);
     await page.locator('[data-node="collector"]').tap();
-    await expect(page.locator('[data-node="collector"]')).toHaveAttribute("aria-pressed", "true");
-    const start = await middle(page, '[data-node="collector"]');
-    await swipe(page, start.x, start.y, 40 * s, -30 * s, true);
-    await expect(page.getByTestId("save-status")).toContainText("Saved");
+    await page.getByTestId("node-menu").getByRole("button", { name: /^Move/ }).tap();
+    await expect(page.getByTestId("save-status")).toContainText("Drag anywhere to move “Collector”");
+    // The drag starts on empty canvas, well away from the node.
+    const canvas = (await page.locator(".canvas").boundingBox())!;
+    await swipe(page, canvas.x + canvas.width - 40, canvas.y + canvas.height - 60, 40 * s, -30 * s, true);
+    // The strip keeps the Move hint while Move is on; the save shows as "Saving…" passing through it.
+    await expect(page.getByTestId("save-status")).not.toContainText("Saving");
     // Collector starts at (60, 480); the swipe was 40 × -30 in diagram units.
     const saved = await (await request.get(`/api/diagrams/${id}`)).json();
     expect(saved.doc.nodes.find((n: { id: string }) => n.id === "collector").layout).toMatchObject({ x: 100, y: 450 });
