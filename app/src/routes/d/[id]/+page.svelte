@@ -86,10 +86,12 @@
 		return () => mq.removeEventListener('change', update);
 	});
 	let sheet = $state<'views' | 'history' | 'details' | null>(null);
-	function select(id: string | null) {
+	const select = (id: string | null) => (selected = id);
+	// A double tap (or Enter on a selected node) asks for the details: on a phone they are out of sight, so that
+	// brings the sheet up; on a wide screen they are already beside the canvas.
+	function details(id: string) {
 		selected = id;
-		// On a phone the details are out of sight, so tapping a node brings them up.
-		if (narrow && id) sheet = 'details';
+		if (narrow) sheet = 'details';
 	}
 	const setView = (v: string | null) => {
 		view = v;
@@ -131,7 +133,7 @@
 			{:else if replayed}
 				Replaying history: go back to the working copy to move nodes
 			{:else}
-				Saved · drag a node to move it
+				Saved · {narrow ? 'tap a node, then drag it' : 'drag a node to move it'}
 			{/if}
 		</span>
 	{/if}
@@ -164,7 +166,7 @@
 <div class="body">
 	{#if !narrow}{@render tags()}{/if}
 	<main class="stage" aria-label="Diagram">
-		<DiagramCanvas {scene} {on} {selected} onselect={select} {editable} onmove={moveNode} />
+		<DiagramCanvas {scene} {on} {selected} onselect={select} ondetails={details} {editable} onmove={moveNode} />
 	</main>
 	{#if !narrow}
 		<aside class="right">
@@ -183,7 +185,7 @@
 			<span class="t-label">History</span><span class="t-value">{replayed ? replayed.label : `${data.snapshots.length} ${data.snapshots.length === 1 ? 'snapshot' : 'snapshots'}`}</span>
 		</button>
 		<button type="button" disabled={!selectedNode} onclick={() => (sheet = 'details')}>
-			<span class="t-label">Details</span><span class="t-value">{selectedNode ? selectedNode.name : 'Tap a node'}</span>
+			<span class="t-label">Details</span><span class="t-value">{selectedNode ? selectedNode.name : 'Double-tap a node'}</span>
 		</button>
 	</nav>
 	<Sheet open={sheet === 'views'} title="Views and tags" onclose={() => (sheet = null)}>{@render tags()}</Sheet>

@@ -2,15 +2,18 @@
 	import { bounds, isHidden, SHEET_H, SHEET_W, type Scene, type SceneNode } from '../diagram/model';
 	import { edgePath, type Box } from '../diagram/geometry';
 	import { clampView, fitView, panBy, zoomAt, type Point, type View } from '../diagram/zoom';
+	import { SNAP_PX, snapBox, type Guide } from '../diagram/snap';
 	import NodeCard from './NodeCard.svelte';
 
 	/**
 	 * A diagram drawn the way the prototype's canvas draws it: containers, connections with their labels, then
 	 * nodes. Switching tags off ghosts what they cover instead of hiding it.
 	 *
-	 * The canvas handles every gesture itself, the same with a finger or a mouse: drag to pan (anywhere when
-	 * [editable] is off, on empty space when it is on), pinch or ctrl+scroll to zoom, scroll to pan, tap to select.
-	 * With [editable] on, dragging a node moves it and reports the new spot through [onmove].
+	 * The canvas handles every gesture itself, the same with a finger or a mouse: drag to pan, pinch or ctrl+scroll
+	 * to zoom, scroll to pan. A tap selects a node; a second tap on it asks for its details ([ondetails]). With
+	 * [editable] on, dragging a node moves it, snapping to the nodes around it, and reports the new spot through
+	 * [onmove]. A mouse can drag any node; a finger only the selected one, so a swipe across the diagram pans it
+	 * rather than moving whatever it started on.
 	 */
 	let {
 		scene,
@@ -19,6 +22,7 @@
 		onselect,
 		editable = false,
 		onmove,
+		ondetails,
 		ghostOpacity = 0.22,
 		edgeStyle = 'curved'
 	}: {
@@ -28,6 +32,7 @@
 		onselect?: (id: string | null) => void;
 		editable?: boolean;
 		onmove?: (id: string, x: number, y: number) => void;
+		ondetails?: (id: string) => void;
 		ghostOpacity?: number;
 		edgeStyle?: 'curved' | 'straight' | 'angled';
 	} = $props();
@@ -46,9 +51,13 @@
 	const PAD = 48;
 	/** How far a press may wander and still count as a tap. */
 	const TAP_SLOP = 5;
+	/** Two taps on the same node this close in time and space are a double tap. */
+	const DOUBLE_TAP_MS = 350;
+	const DOUBLE_TAP_PX = 24;
 
 	// A node being dragged is drawn at its new spot (and its connections follow) before the move is reported.
 	let dragged = $state<{ id: string; x: number; y: number } | null>(null);
+	let guides = $state<Guide[]>([]);
 	const nodes = $derived<SceneNode[]>(scene.nodes.map(n => (dragged && n.id === dragged.id ? { ...n, x: dragged.x, y: dragged.y } : n)));
 
 	const tagByKey = $derived(Object.fromEntries(scene.tags.map(t => [t.key, t])));
@@ -105,8 +114,9 @@
 	// Pointer gestures. Every pointer on the canvas is tracked; one decides between a pan and a node drag, two pinch.
 	type Gesture =
 		| { kind: 'pan'; pointer: number; start: Point; last: Point; node: string | null; moved: boolean }
-		| { kind: 'node'; pointer: number; start: Point; node: SceneNode; moved: boolean }
+		| { kind: 'node'; pointer: number; start: Point; node: SceneNode; moved: boolean; touch: boolean }
 		| { kind: 'pinch'; dist: number; mid: Point; from: View };
+	let lastTap: { node: string; at: number; p: Point } | null = null;
 	const pointers = new Map<number, Point>();
 	let gesture: Gesture | null = null;
 	let panning = $state(false);
@@ -133,7 +143,11 @@
 		if (pointers.size > 2) return;
 		const id = target.closest<HTMLElement>('[data-node]')?.dataset.node ?? null;
 		const node = id ? scene.nodes.find(n => n.id === id) : undefined;
-		gesture = editable && node ? { kind: 'node', pointer: e.pointerId, start: p, node, moved: false } : { kind: 'pan', pointer: e.pointerId, start: p, last: p, node: id, moved: false };
+		const touch = e.pointerType === 'touch';
+		const movable = editable && node && (!touch || selected === node.id);
+		gesture = movable
+			? { kind: 'node', pointer: e.pointerId, start: p, node, moved: false, touch }
+			: { kind: 'pan', pointer: e.pointerId, start: p, last: p, node: id, moved: false };
 	}
 
 	function move(e: PointerEvent) {
@@ -156,7 +170,13 @@
 			gesture.last = p;
 		} else {
 			const n = gesture.node;
-			dragged = { id: n.id, x: n.x + (p.x - gesture.start.x) / view.s, y: n.y + (p.y - gesture.start.y) / view.s };
+			const box = { x: n.x + (p.x - gesture.start.x) / view.s, y: n.y + (p.y - gesture.start.y) / view.s, w: n.w, h: n.h };
+			// Alt places a node freely, as in the prototype.
+			const snapped = e.altKey
+				? { x: box.x, y: box.y, guides: [] }
+				: snapBox(box, scene.nodes.filter(o => o.id !== n.id), SNAP_PX[gesture.touch ? 'touch' : 'mouse'] / view.s);
+			dragged = { id: n.id, x: snapped.x, y: snapped.y };
+			guides = snapped.guides;
 		}
 	}
 
@@ -171,6 +191,7 @@
 		if (!g || e.pointerId !== g.pointer) return;
 		gesture = null;
 		panning = false;
+		guides = [];
 		if (g.kind === 'node' && g.moved && dragged) {
 			const d = dragged;
 			dragged = null;
@@ -179,9 +200,14 @@
 		}
 		dragged = null;
 		if (cancelled || g.moved) return;
-		// A tap: on a node it toggles the selection, on empty space it clears it.
+		// A tap: on a node it selects it, and a second tap on the same node asks for its details; on empty space it
+		// clears the selection.
 		const id = g.kind === 'node' ? g.node.id : g.node;
-		onselect?.(id && selected !== id ? id : null);
+		const p = local(e);
+		const double = !!id && !!lastTap && lastTap.node === id && e.timeStamp - lastTap.at < DOUBLE_TAP_MS && Math.hypot(p.x - lastTap.p.x, p.y - lastTap.p.y) < DOUBLE_TAP_PX;
+		lastTap = id && !double ? { node: id, at: e.timeStamp, p } : null;
+		onselect?.(id);
+		if (double) ondetails?.(id!);
 	}
 
 	// The keyboard can do what the pointer does, once the canvas has focus.
@@ -242,6 +268,9 @@
 					</marker>
 				{/each}
 			</defs>
+			{#each guides as g, i (i)}
+				<line class="guide" x1={g.x1} y1={g.y1} x2={g.x2} y2={g.y2} vector-effect="non-scaling-stroke" />
+			{/each}
 			{#each edges as { e, p, op } (e.key)}
 				<path
 					d={p.d}
@@ -272,7 +301,7 @@
 				{ghostOpacity}
 				selected={selected === n.id}
 				dragging={dragged?.id === n.id}
-				onselect={id => onselect?.(selected === id ? null : id)}
+				onselect={id => (selected === id ? ondetails?.(id) : onselect?.(id))}
 			/>
 		{/each}
 	</div>
@@ -339,6 +368,11 @@
 		top: 0;
 		overflow: visible;
 		pointer-events: none;
+	}
+	.guide {
+		stroke: var(--color-accent-2-300, var(--color-accent-300));
+		stroke-width: 1;
+		stroke-dasharray: 3 4;
 	}
 	.e-label {
 		position: absolute;

@@ -12,12 +12,13 @@ async function pinchOut(page: Page) {
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
 }
 
-/** One finger from (x, y) by (dx, dy), in steps, as raw touch events. */
-async function swipe(page: Page, x: number, y: number, dx: number, dy: number) {
+/** One finger from (x, y) by (dx, dy), in steps, as raw touch events. With [alt], Alt is held (no snapping). */
+async function swipe(page: Page, x: number, y: number, dx: number, dy: number, alt = false) {
   const cdp = await page.context().newCDPSession(page);
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }] });
-  for (let i = 1; i <= 8; i++) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x + (dx * i) / 8, y: y + (dy * i) / 8, id: 1 }] });
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  const modifiers = alt ? 1 : 0;
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }], modifiers });
+  for (let i = 1; i <= 8; i++) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x + (dx * i) / 8, y: y + (dy * i) / 8, id: 1 }], modifiers });
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [], modifiers });
 }
 
 /** The canvas's current offset and scale. */
@@ -49,8 +50,16 @@ test.describe("the app on a phone", () => {
     await expect(toolbar).toContainText("Write path");
     await expect(page.getByRole("button", { name: "Telemetry: Collector" })).toHaveCSS("opacity", "0.22");
 
-    // Tapping a node brings its details up.
-    await page.getByRole("button", { name: "Database: Journal DB" }).tap();
+    // One tap selects; it doesn't cover the canvas with a sheet.
+    const journal = page.getByRole("button", { name: "Database: Journal DB" });
+    await journal.tap();
+    await expect(journal).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(toolbar).toContainText("Journal DB");
+    // A double tap brings the details up. Wait out the double-tap window first, or the tap above counts as half of it.
+    await page.waitForTimeout(400);
+    await journal.tap();
+    await journal.tap();
     await expect(page.getByRole("dialog", { name: "Node details" })).toContainText("Append-only journal");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -90,14 +99,27 @@ test.describe("the app on a phone", () => {
     expect(await page.evaluate(() => scrollX + scrollY)).toBe(0);
   });
 
-  test("drags a node with a finger, and it stays there after a reload", async ({ page, request }) => {
+  test("a swipe that starts on a node pans until that node is selected", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await expect(page.getByTestId("save-status")).toContainText("tap a node, then drag it");
+    const before = await sheet(page);
+    const start = await middle(page, '[data-node="postings"]');
+    await swipe(page, start.x, start.y, 0, 80);
+    expect((await sheet(page)).ty).toBeCloseTo(before.ty + 80, 0);
+    expect(await page.locator('[data-node="postings"]').evaluate(el => (el as HTMLElement).style.top)).toBe("150px");
+  });
+
+  test("drags a node with a finger once it's selected, and it stays there after a reload", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];
     await page.goto(`/app/d/${id}`);
     await expect(page.getByTestId("save-status")).toContainText("Saved");
     const { s } = await sheet(page);
+    await page.locator('[data-node="collector"]').tap();
+    await expect(page.locator('[data-node="collector"]')).toHaveAttribute("aria-pressed", "true");
     const start = await middle(page, '[data-node="collector"]');
-    await swipe(page, start.x, start.y, 40 * s, -30 * s);
+    await swipe(page, start.x, start.y, 40 * s, -30 * s, true);
     await expect(page.getByTestId("save-status")).toContainText("Saved");
     // Collector starts at (60, 480); the swipe was 40 × -30 in diagram units.
     const saved = await (await request.get(`/api/diagrams/${id}`)).json();

@@ -8,9 +8,11 @@ the Worker's API, and so far makes one edit: **moving nodes** on a diagram you o
 | `/app/` | Your workspaces (yours and shared with you) and the diagrams in one (`?ws=<id>`, else your personal one), as the prototype's project cards |
 | `/app/d/:id` | One diagram on the canvas: views and tags (switching them only changes what you see), the selected node's details, the history (pick a snapshot to replay it), and where a follower stands against its lead |
 
-The canvas handles every gesture itself, the same for a finger or a mouse: drag to pan (from empty space, or from
-anywhere when nothing can be moved), drag a node to move it, pinch or ctrl+scroll to zoom, scroll to pan, tap to
-select; arrow keys, `+`, `-` and `0` when it has focus. The view is a transform (`src/lib/diagram/zoom.ts`), so it
+The canvas handles every gesture itself, the same for a finger or a mouse: drag to pan, pinch or ctrl+scroll to zoom,
+scroll to pan; arrow keys, `+`, `-` and `0` when it has focus. A tap selects a node and a second tap (or Enter on the
+selected node) opens its details. A mouse drags any node; a finger drags only the selected one, so a swipe that
+starts on another node pans. A dragged node snaps into line with its neighbours (`src/lib/diagram/snap.ts`, the
+prototype's rule), with a wider reach for a finger than a mouse; Alt places it freely. The view is a transform (`src/lib/diagram/zoom.ts`), so it
 pans freely even at "fit", within limits that keep the diagram on screen. A move saves through `src/lib/saver.svelte.ts`
 with the diagram's revision: moves close together go as one save, and if someone else saved in between the page says
 so and offers to load theirs.
