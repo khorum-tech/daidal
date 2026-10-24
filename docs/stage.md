@@ -1,7 +1,7 @@
 # Stage
 
 Every push to a pull request from this repository deploys that branch to **https://skope-stage.khorum-oss.org**
-and resets its database to invented stage data from [`scripts/stage-seed.mjs`](../scripts/stage-seed.mjs). The
+and resets its database to the invented stage diagrams in [`stage/diagrams.ts`](../stage/diagrams.ts). The
 `stage` job in [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) does it, after `test` passes.
 
 - **One shared stage.** A Worker `skope-stage`, a D1 `skope-stage`, one hostname. Two PRs pushed close together
@@ -37,7 +37,7 @@ what does is `scripts/stage-config.mjs`, which refuses to run if the stage datab
 To load the stage data into your local database (this clears every table in it first):
 
 ```sh
-STAGE_OWNER_EMAIL=you@example.com node scripts/stage-seed.mjs && npx wrangler d1 execute skope --local --file seed.sql
+STAGE_OWNER_EMAIL=you@example.com npm run stage-seed && npx wrangler d1 execute skope --local --file seed.sql
 ```
 
 Run `npx wrangler d1 migrations apply skope --local` first on a fresh checkout. Then
@@ -46,11 +46,34 @@ Run `npx wrangler d1 migrations apply skope --local` first on a fresh checkout. 
 `node scripts/stage-config.mjs` (with `STAGE_D1_ID` and `STAGE_ACCESS_AUD` set) writes `wrangler.stage.jsonc`.
 Neither generated file is committed.
 
+## How the seed is made
+
+[`stage/seed.ts`](../stage/seed.ts) runs the real importer (`worker/src/importer.ts`, the code behind
+`POST /api/workspaces/import`) against a fake D1 that records each statement and writes it out as SQL. The seed
+therefore always matches the tables. The stage owner imports their personal workspace and the *Platform team*;
+an invented teammate, `priya@example.com`, imports *Payments*. Only what an import cannot carry is written
+directly, through the same renderer: profiles, and the members who share each team.
+
+The stage data is a `skope-backup` file, the same format `GET /api/workspaces/:id/export` writes, so anything on
+stage can be exported and re-imported.
+
 ## Keeping the data whole
 
-The stage data is there so every feature has something to show: a filled-in owner profile, two invented
-teammates, everyone's personal workspace, a team the owner runs and a workspace a teammate shares with them.
-`worker/test/stage-seed.test.ts` applies the seed to a real D1 and reads it back through the API.
+The stage data is there so every feature has something to show:
 
-**When a feature adds a table (diagrams, follows, …), add it to `APP_TABLES` in children-first order and extend
-`stageRows` so stage shows it.** Keep names original and addresses on `example.com`.
+| Feature | What stage has |
+|---|---|
+| Profiles | The owner (Rowan Ellery) and two invented teammates, all with names and titles |
+| Workspaces | The owner's personal workspace, a team they run with both teammates, and a workspace Priya shares with them |
+| Diagram kinds | C4, infra and freeform |
+| Document options | Subtitles, flags, notes, links, sized nodes; labelled, dashed, dotted, two-way, routed, anchored, thin and hidden-label edges; nested and styled boundaries, and an edge that ends on a boundary |
+| History | Diagrams with one to three snapshots, and a working copy with an edit not yet snapshotted |
+| Follow | A follower in another workspace with upstream changes waiting and one change already skipped; a paused follower that is up to date |
+| Read-only | Priya's diagrams, which the owner can open and clone but not change |
+| Empty-ish | A two-node scratch diagram with no tags or edges |
+
+`worker/test/stage-seed.test.ts` applies the seed to a real D1 and reads it back through the API, and checks the
+table above.
+
+**When a feature adds a table or something to a diagram, extend `stage/diagrams.ts` (and `APP_TABLES` in
+`stage/seed.ts`, children first) so stage shows it.** Keep names original and addresses on `example.com`.
