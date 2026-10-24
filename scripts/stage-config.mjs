@@ -59,7 +59,7 @@ export function parseJsonc(text) {
  */
 export const KNOWN_KEYS = new Set([
   "$schema", "name", "main", "compatibility_date", "compatibility_flags", "workers_dev", "preview_urls",
-  "routes", "dev", "assets", "d1_databases", "vars", "observability",
+  "routes", "dev", "assets", "build", "d1_databases", "vars", "observability",
 ]);
 
 /** The stage config built from the prod one. Throws when a value is missing, or could touch prod. */

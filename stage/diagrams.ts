@@ -57,12 +57,12 @@ const ledgerViews = [
 
 const ledgerNodes = [
   node("console", "Ledger Console", "web-app", 60, 150, ["web"], { subtitle: "Svelte · TypeScript", notes: "Where finance staff reconcile accounts and approve adjustments.", links: [{ label: "Runbook", url: "https://example.com/runbooks/ledger-console" }] }),
-  node("edge", "Edge Router", "service", 340, 150, ["service"], { subtitle: "Envoy", flags: ["public"] }),
+  node("edge", "Edge Router", "service", 340, 150, ["service"], { subtitle: "Envoy" }),
   node("identity", "Identity", "service", 340, 360, ["service", "auth"], { subtitle: "OIDC broker", notes: "Issues short-lived tokens; every internal call carries one." }),
   node("postings", "Postings Service", "service", 620, 150, ["service"], { subtitle: "Kotlin · Ktor", notes: "Double-entry postings. Rejects any batch that does not balance." }),
-  node("balances", "Balances Service", "service", 620, 360, ["service", "async"], { subtitle: "Rust", flags: ["critical"] }),
+  node("balances", "Balances Service", "service", 620, 360, ["service", "async"], { subtitle: "Rust", flags: ["cache", "mq"] }),
   node("stream", "Ledger Stream", "queue", 560, 570, ["data", "async"], { subtitle: "8 partitions", layout: { x: 560, y: 570, w: 310 } }),
-  node("journal", "Journal DB", "database", 900, 150, ["data"], { subtitle: "PostgreSQL", notes: "Append-only journal; corrections are new rows, never updates." }),
+  node("journal", "Journal DB", "database", 900, 150, ["data"], { subtitle: "PostgreSQL", flags: ["db"], notes: "Append-only journal; corrections are new rows, never updates." }),
   node("snapshots", "Balance Cache", "database", 900, 360, ["data"], { subtitle: "In-memory" }),
   node("collector", "Collector", "telemetry", 60, 480, ["obs"], { subtitle: "OpenTelemetry", layout: { x: 60, y: 480, w: 190, h: 90 } }),
 ];
@@ -113,7 +113,7 @@ const ingress = (step: 1 | 2 | 3 | 4) => {
     nodes.push(node("pool-b", "Web Pool B", "compute", 600, 300, ["compute"], { subtitle: "second region" }));
     edges.push(edge("lb", "pool-b", "HTTP"));
   }
-  if (step >= 4) nodes.push(node("health", "Health Checker", "service", 320, 420, ["compute"], { flags: ["draft"] }));
+  if (step >= 4) nodes.push(node("health", "Health Checker", "service", 320, 420, ["compute"]));
   return diagramDoc("edge-ingress", "edge-ingress", "infra", "All", {
     tags: ingressTags,
     views: [{ name: "All", tags: Object.keys(ingressTags) }, { name: "Security", tags: ["edge", "security"] }],
@@ -141,7 +141,7 @@ const paymentFlow = (version: number) =>
     nodes: [
       node("checkout", "Checkout Page", "web-app", 60, 160, ["client"]),
       node("intents", "Payment Intents", "service", 340, 160, ["core"], { notes: "One intent per order; retries reuse the same intent id." }),
-      node("acquirer", "Card Acquirer", "external", 620, 80, ["partner"], { flags: ["third-party"] }),
+      node("acquirer", "Card Acquirer", "external", 620, 80, ["partner"]),
       ...(version >= 2 ? [node("wallets", "Wallet Gateway", "external", 620, 260, ["partner"])] : []),
     ],
     edges: [

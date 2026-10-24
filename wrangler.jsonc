@@ -9,7 +9,10 @@
   // Without this, `wrangler dev` presents requests as coming to the route's hostname,
   // and the Worker's localhost-only DEV_USER_EMAIL sign-in would never apply.
   "dev": { "host": "localhost" },
-  "assets": { "directory": "./web", "binding": "ASSETS" },
+  // dist/ is web/ (the prototype, at the site root) plus the SvelteKit build under /app; wrangler dev and deploy
+  // build it first.
+  "assets": { "directory": "./dist", "binding": "ASSETS" },
+  "build": { "command": "npm run build" },
   "d1_databases": [
     // database_id: the id printed by `wrangler d1 create skope`
     { "binding": "DB", "database_name": "skope", "database_id": "085c59a3-2e05-4ebe-95a5-e786c67fed16", "migrations_dir": "migrations" }

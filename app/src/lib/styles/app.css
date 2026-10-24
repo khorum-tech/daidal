@@ -1,0 +1,22 @@
+/* Page basics for the app; the look itself comes from nocturne.css (the design system the prototype uses). */
+html,
+body {
+	height: 100%;
+	margin: 0;
+	background: var(--color-bg);
+	color: var(--color-text);
+	font-family: var(--font-body, Inter, system-ui, sans-serif);
+	font-size: 14px;
+}
+body {
+	overflow: hidden;
+}
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-neutral-700) transparent;
+}
+.app {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+}

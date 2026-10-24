@@ -1,0 +1,15 @@
+{
+  // The end-to-end tests run in Node and, inside page scripts, in the browser — so they need the DOM and Node types
+  // the Worker code must not have.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": [".", "../playwright.config.ts"]
+}

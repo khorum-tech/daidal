@@ -42,3 +42,34 @@ describe("handleRequest", () => {
     expect(await res.json()).toEqual({ error: "internal error" });
   });
 });
+
+describe("serving the app", () => {
+  // A stand-in for the assets binding: these paths exist, everything else is a 404. Like the real one, it serves a
+  // folder's index.html at the folder's own path.
+  const files: Record<string, string> = { "/": "prototype", "/app/": "the app", "/app/_app/x.js": "js" };
+  const assets = {
+    fetch: async (input: Request | string) => {
+      const path = new URL(typeof input === "string" ? input : input.url).pathname;
+      return path in files ? new Response(files[path]) : new Response("missing", { status: 404 });
+    },
+  } as unknown as Fetcher;
+  const get = (path: string) => handleRequest(request(path), { ...env, ASSETS: assets }, signer.getKeys);
+
+  it("serves the app's page for its routes", async () => {
+    for (const path of ["/app", "/app/", "/app/d/123", "/app/d/abc?x=1"]) {
+      const res = await get(path);
+      expect(await res.text(), path).toBe("the app");
+    }
+  });
+
+  it("serves files as they are, and keeps missing files and build assets a 404", async () => {
+    expect(await (await get("/app/_app/x.js")).text()).toBe("js");
+    expect((await get("/app/_app/missing.js")).status).toBe(404);
+    expect((await get("/app/favicon.png")).status).toBe(404);
+  });
+
+  it("leaves the prototype's paths alone", async () => {
+    expect((await get("/somewhere")).status).toBe(404);
+    expect(await (await get("/")).text()).toBe("prototype");
+  });
+});
