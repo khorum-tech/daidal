@@ -14,8 +14,10 @@ const NEW_WIDTH: Record<string, number> = { Note: 200, Text: 230 };
 /** An id no node in [doc] has yet, in the prototype's style ("n" and a timestamp). */
 export function newNodeId(doc: SkopeDoc, now = Date.now()): string {
 	const taken = new Set((doc.nodes ?? []).map(n => n.id));
-	let id = `n${now.toString(36)}`;
-	for (let i = 2; taken.has(id); i++) id = `n${now.toString(36)}${i}`;
+	const stem = `n${now.toString(36)}`;
+	let id = stem;
+	let n = 1;
+	while (taken.has(id)) id = `${stem}${++n}`;
 	return id;
 }
 
