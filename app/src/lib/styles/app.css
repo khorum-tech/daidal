@@ -18,5 +18,8 @@ body {
 .app {
 	display: flex;
 	flex-direction: column;
+	/* The height Safari on iOS actually shows: 100vh there is the full screen, bar included, so a page laid out
+	   to it keeps its bottom (the toolbar) under Safari's own bar. dvh follows the bar as it shows and hides. */
 	height: 100vh;
+	height: 100dvh;
 }
