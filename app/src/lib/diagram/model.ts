@@ -92,7 +92,8 @@ export function slug(s: unknown): string {
 			.trim()
 			.toLowerCase()
 			.replace(/[^a-z0-9]+/g, '-')
-			.replace(/^-+|-+$/g, '') || 'unspecified'
+			// Runs are already single dashes, so at most one sits at either end.
+			.replace(/^-|-$/g, '') || 'unspecified'
 	);
 }
 
@@ -113,7 +114,7 @@ export function parseAnchor(value: unknown): Anchor | null {
 	const [side, at] = value.split(':');
 	const s = SIDE_IN[side.trim().toLowerCase()];
 	if (!s) return null;
-	const t = parseFloat(at);
+	const t = Number.parseFloat(at);
 	return { side: s, t: Math.max(0, Math.min(1, Number.isNaN(t) ? 0.5 : t)) };
 }
 
@@ -192,8 +193,8 @@ export function toScene(doc: SkopeDoc): Scene {
 		views,
 		initialView: views.some(v => v.label === want) ? want! : null,
 		nodes: (doc.nodes ?? []).map((n, i) => node(n, i, tagKeys)),
-		edges: (doc.edges ?? []).map(edge),
-		boundaries: (doc.boundaries ?? []).map(boundary)
+		edges: (doc.edges ?? []).map((e, i) => edge(e, i)),
+		boundaries: (doc.boundaries ?? []).map((b, i) => boundary(b, i))
 	};
 }
 
