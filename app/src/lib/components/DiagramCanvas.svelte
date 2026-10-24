@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { bounds, isHidden, SHEET_H, SHEET_W, type Scene } from '../diagram/model';
 	import { edgePath, type Box } from '../diagram/geometry';
+	import { clampZoom, zoomAround } from '../diagram/zoom';
 	import NodeCard from './NodeCard.svelte';
 
 	/**
@@ -54,29 +56,84 @@
 		})
 	);
 
-	// The drawing area: the prototype's sheet, grown to whatever spills past it.
+	// The drawing area: the diagram itself with a margin, so fitting it fills the view (a phone included) rather
+	// than shrinking the prototype's whole 1240 × 800 sheet.
 	const box = $derived.by(() => {
 		const b = bounds(scene);
-		const x0 = Math.min(0, b.x) - PAD;
-		const y0 = Math.min(0, b.y) - PAD;
-		return { x0, y0, w: Math.max(SHEET_W, b.x + b.w) - x0 + PAD, h: Math.max(SHEET_H, b.y + b.h) - y0 + PAD };
+		return { x0: b.x - PAD, y0: b.y - PAD, w: b.w + 2 * PAD, h: b.h + 2 * PAD };
 	});
 
 	let viewW = $state(0);
 	let viewH = $state(0);
 	let zoom = $state<number | null>(null); // null = fit to the view
-	const fit = $derived(viewW && viewH ? Math.min(viewW / box.w, viewH / box.h, 1.5) : 1);
+	const fit = $derived(viewW && viewH ? Math.min(viewW / box.w, viewH / box.h, 1.25) : 1);
 	const scale = $derived(zoom ?? fit);
-	const step = (f: number) => (zoom = Math.max(0.25, Math.min(2.5, Math.round(scale * f * 100) / 100)));
+
+	let scroller = $state<HTMLDivElement>();
+	/** Zoom to [next], holding the content under [point] (relative to the view) still. */
+	async function zoomTo(next: number, point = { x: viewW / 2, y: viewH / 2 }) {
+		if (!scroller) return;
+		const z = zoomAround(scale, Math.round(clampZoom(next) * 100) / 100, point, { left: scroller.scrollLeft, top: scroller.scrollTop });
+		zoom = z.scale;
+		await tick(); // the room has its new size; now the scroll can reach the new offsets
+		scroller.scrollLeft = z.left;
+		scroller.scrollTop = z.top;
+	}
+	const step = (f: number) => zoomTo(scale * f);
+
+	// Trackpad pinch and ctrl+scroll zoom around the cursor. Registered by hand: Svelte's wheel handlers are passive,
+	// and the page's own zoom must be held back.
+	$effect(() => {
+		const el = scroller;
+		if (!el) return;
+		const onWheel = (e: WheelEvent) => {
+			if (!e.ctrlKey) return;
+			e.preventDefault();
+			const r = el.getBoundingClientRect();
+			zoomTo(scale * Math.exp(-Math.max(-40, Math.min(40, e.deltaY)) * 0.01), { x: e.clientX - r.left, y: e.clientY - r.top });
+		};
+		el.addEventListener('wheel', onWheel, { passive: false });
+		return () => el.removeEventListener('wheel', onWheel);
+	});
+
+	// Two-finger pinch on a touch screen; one finger still scrolls the canvas natively.
+	const touches = new Map<number, { x: number; y: number }>();
+	let pinch: { dist: number; scale: number } | null = null;
+	const spread = () => {
+		const [a, b] = [...touches.values()];
+		return { dist: Math.hypot(a.x - b.x, a.y - b.y), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
+	};
+	function touchDown(e: PointerEvent) {
+		if (e.pointerType !== 'touch') return;
+		touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+		if (touches.size === 2) pinch = { dist: spread().dist, scale };
+	}
+	function touchMove(e: PointerEvent) {
+		if (!touches.has(e.pointerId)) return;
+		touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+		if (!pinch || touches.size !== 2 || !scroller) return;
+		const { dist, mid } = spread();
+		const r = scroller.getBoundingClientRect();
+		zoomTo(pinch.scale * (dist / (pinch.dist || 1)), { x: mid.x - r.left, y: mid.y - r.top });
+	}
+	function touchUp(e: PointerEvent) {
+		touches.delete(e.pointerId);
+		if (touches.size < 2) pinch = null;
+	}
 </script>
 
 <div class="canvas" bind:clientWidth={viewW} bind:clientHeight={viewH}>
 	<div
 		class="scroll"
 		role="presentation"
+		bind:this={scroller}
 		onclick={e => {
 			if (e.target === e.currentTarget) onselect?.(null);
 		}}
+		onpointerdown={touchDown}
+		onpointermove={touchMove}
+		onpointerup={touchUp}
+		onpointercancel={touchUp}
 	>
 		<div class="room" style:width="{box.w * scale}px" style:height="{box.h * scale}px">
 			<div
@@ -148,7 +205,7 @@
 
 	<div class="zoom" role="group" aria-label="Zoom">
 		<button type="button" onclick={() => step(1 / 1.2)} aria-label="Zoom out">−</button>
-		<button type="button" class="pct" onclick={() => (zoom = null)} title="Fit to view">{Math.round(scale * 100)}%</button>
+		<button type="button" class="pct" onclick={() => (zoom = null)} title="Fit to view" aria-label="Fit to view, now {Math.round(scale * 100)}%">{Math.round(scale * 100)}%</button>
 		<button type="button" onclick={() => step(1.2)} aria-label="Zoom in">+</button>
 	</div>
 </div>
@@ -168,9 +225,14 @@
 		position: absolute;
 		inset: 0;
 		overflow: auto;
+		/* One finger pans natively; a pinch is ours, so the page itself doesn't zoom. */
+		touch-action: pan-x pan-y;
 	}
 	.room {
 		position: relative;
+		/* The sheet is scaled with a transform, which changes how it looks but not the space it takes: unclipped,
+		   its unscaled size would stretch the scroll area past the drawing. */
+		overflow: hidden;
 	}
 	.sheet {
 		position: absolute;
@@ -225,8 +287,8 @@
 		box-shadow: var(--shadow-md);
 	}
 	.zoom button {
-		min-width: 28px;
-		height: 26px;
+		min-width: 32px;
+		height: 30px;
 		border: none;
 		border-radius: 6px;
 		background: transparent;

@@ -14,7 +14,11 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: { baseURL: `http://localhost:${PORT}`, trace: "retain-on-failure" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
+  projects: [
+    { name: "chromium", testIgnore: /mobile\.spec\.ts/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    // A touch phone on Chromium (Pixel 7: 412 px wide), for the layout and gestures phones get.
+    { name: "phone", testMatch: /mobile\.spec\.ts/, use: { ...devices["Pixel 7"] } },
+  ],
   webServer: {
     command: `npx wrangler d1 migrations apply skope --local && npx wrangler dev --port ${PORT} --var DEV_USER_EMAIL:${OWNER}`,
     url: `http://localhost:${PORT}/api/me`,

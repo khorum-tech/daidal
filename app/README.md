@@ -8,6 +8,11 @@ The SvelteKit port of the prototype, served under **`/app`** beside the prototyp
 | `/app/` | Your workspaces (yours and shared with you) and the diagrams in one (`?ws=<id>`, else your personal one), as the prototype's project cards |
 | `/app/d/:id` | One diagram on the canvas: views and tags (switching them only changes what you see), the selected node's details, the history (pick a snapshot to replay it), and where a follower stands against its lead |
 
+On screens 900 px wide or less the canvas gets the full width and the panels move behind a bottom toolbar (View,
+History, Details), opening as sheets; tapping a node opens its details. The canvas fits the diagram to the view,
+pinches to zoom on touch screens (ctrl+scroll or a trackpad pinch on desktop) and pans with one finger. The e2e
+`phone` project (`e2e/mobile.spec.ts`) keeps this working.
+
 Components live in `src/lib/components/`. What they draw is worked out in `src/lib/diagram/`: `model.ts` turns a
 `.skope.json` document into a scene the way the prototype's config import does, and `geometry.ts` routes
 connections the way the prototype's canvas does. `icons.ts` is generated from the prototype's own tables.

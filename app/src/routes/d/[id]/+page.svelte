@@ -5,6 +5,7 @@
 	import HistoryPanel from '#lib/components/HistoryPanel.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import Inspector from '#lib/components/Inspector.svelte';
+	import Sheet from '#lib/components/Sheet.svelte';
 	import TagPanel from '#lib/components/TagPanel.svelte';
 	import { tagsOn, toScene } from '#lib/diagram/model.ts';
 	import { followState } from '#lib/follow.ts';
@@ -34,6 +35,34 @@
 	const follow = $derived(followState(data.diagram, data.lead));
 	const mine = $derived(data.diagram.ownerEmail === data.me.email);
 	const now = Date.now();
+
+	// Phones and small tablets get the canvas full width; views, history and details open as sheets from a toolbar.
+	const NARROW = '(max-width: 900px)';
+	let narrow = $state(typeof matchMedia === 'function' && matchMedia(NARROW).matches);
+	$effect(() => {
+		const mq = matchMedia(NARROW);
+		const update = () => (narrow = mq.matches);
+		mq.addEventListener('change', update);
+		return () => mq.removeEventListener('change', update);
+	});
+	let sheet = $state<'views' | 'history' | 'details' | null>(null);
+	function select(id: string | null) {
+		selected = id;
+		// On a phone the details are out of sight, so tapping a node brings them up.
+		if (narrow && id) sheet = 'details';
+	}
+	const setView = (v: string | null) => {
+		view = v;
+		on = tagsOn(scene, v);
+	};
+	const toggleTag = (k: string) => {
+		on = { ...on, [k]: !on[k] };
+		view = null;
+	};
+	const pick = (id: string | null) => {
+		replaying = id;
+		sheet = null;
+	};
 </script>
 
 <svelte:head><title>{data.diagram.name} · Skope</title></svelte:head>
@@ -70,28 +99,44 @@
 	</div>
 {/if}
 
+{#snippet tags()}
+	<TagPanel {scene} {on} {view} onview={setView} ontoggle={toggleTag} />
+{/snippet}
+{#snippet history()}
+	<HistoryPanel snapshots={data.snapshots} current={replaying} onpick={pick} {now} />
+{/snippet}
+
 <div class="body">
-	<TagPanel
-		{scene}
-		{on}
-		{view}
-		onview={v => {
-			view = v;
-			on = tagsOn(scene, v);
-		}}
-		ontoggle={k => {
-			on = { ...on, [k]: !on[k] };
-			view = null;
-		}}
-	/>
+	{#if !narrow}{@render tags()}{/if}
 	<main class="stage" aria-label="Diagram">
-		<DiagramCanvas {scene} {on} {selected} onselect={id => (selected = id)} />
+		<DiagramCanvas {scene} {on} {selected} onselect={select} />
 	</main>
-	<aside class="right">
-		{#if selectedNode}<Inspector node={selectedNode} tags={tagByKey} />{/if}
-		<HistoryPanel snapshots={data.snapshots} current={replaying} onpick={id => (replaying = id)} {now} />
-	</aside>
+	{#if !narrow}
+		<aside class="right">
+			{#if selectedNode}<Inspector node={selectedNode} tags={tagByKey} />{/if}
+			{@render history()}
+		</aside>
+	{/if}
 </div>
+
+{#if narrow}
+	<nav class="toolbar" aria-label="Diagram panels">
+		<button type="button" onclick={() => (sheet = 'views')}>
+			<span class="t-label">View</span><span class="t-value">{view ?? (scene.views.length ? 'Everything' : 'Tags')}</span>
+		</button>
+		<button type="button" onclick={() => (sheet = 'history')}>
+			<span class="t-label">History</span><span class="t-value">{replayed ? replayed.label : `${data.snapshots.length} ${data.snapshots.length === 1 ? 'snapshot' : 'snapshots'}`}</span>
+		</button>
+		<button type="button" disabled={!selectedNode} onclick={() => (sheet = 'details')}>
+			<span class="t-label">Details</span><span class="t-value">{selectedNode ? selectedNode.name : 'Tap a node'}</span>
+		</button>
+	</nav>
+	<Sheet open={sheet === 'views'} title="Views and tags" onclose={() => (sheet = null)}>{@render tags()}</Sheet>
+	<Sheet open={sheet === 'history'} title="History" onclose={() => (sheet = null)}>{@render history()}</Sheet>
+	<Sheet open={sheet === 'details' && !!selectedNode} title="Node details" onclose={() => (sheet = null)}>
+		{#if selectedNode}<Inspector node={selectedNode} tags={tagByKey} />{/if}
+	</Sheet>
+{/if}
 
 <style>
 	.strip {
@@ -143,14 +188,58 @@
 		overflow-y: auto;
 		border-left: 1px solid var(--color-divider);
 	}
-	@media (max-width: 900px) {
-		.right {
-			display: none;
-		}
+	.toolbar {
+		display: flex;
+		flex: none;
+		border-top: 1px solid var(--color-divider);
+		background: var(--color-surface);
+		padding-bottom: env(safe-area-inset-bottom);
 	}
-	@media (max-width: 720px) {
-		.body :global(.panel) {
-			display: none;
+	.toolbar button {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 2px;
+		padding: 9px 12px;
+		min-height: 52px;
+		border: none;
+		border-right: 1px solid var(--color-divider);
+		background: transparent;
+		color: var(--color-text);
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+	.toolbar button:last-child {
+		border-right: none;
+	}
+	.toolbar button:disabled {
+		cursor: default;
+		opacity: 0.55;
+	}
+	.t-label {
+		font-size: 10px;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--color-neutral-500);
+	}
+	.t-value {
+		max-width: 100%;
+		font-size: 13px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	@media (max-width: 600px) {
+		.strip,
+		.replay {
+			padding: 7px 12px;
+			gap: 6px 12px;
+		}
+		.replay {
+			flex-wrap: wrap;
 		}
 	}
 </style>
