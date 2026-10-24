@@ -43,7 +43,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   # Stage: every push to a PR from this repository re-deploys https://skope-stage.khorum-oss.org and resets its
-  # data to invented stage data (scripts/stage-seed.mjs). One shared stage, so the last push wins. Fork PRs never get it:
+  # data to invented stage data (stage/diagrams.ts). One shared stage, so the last push wins. Fork PRs never get it:
   # GitHub gives them no secrets, and this job never runs their code with the Cloudflare token
   # (never switch to pull_request_target). One-time setup: docs/stage.md.
   stage:
@@ -89,7 +89,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - if: steps.setup.outputs.ready == 'true'
         name: Generate seed.sql
-        run: node scripts/stage-seed.mjs
+        run: npx tsx scripts/stage-seed.ts
         env:
           STAGE_OWNER_EMAIL: ${{ secrets.STAGE_OWNER_EMAIL }}
       - if: steps.setup.outputs.ready == 'true'

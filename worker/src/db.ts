@@ -31,9 +31,10 @@ async function getUser(db: D1Database, email: string): Promise<User> {
   return { email: row.email, name: row.name, title: row.title, settings: JSON.parse(row.settings) };
 }
 
-export async function ensureUser(db: D1Database, email: string, now = Date.now()): Promise<User> {
+/** The writes that make sure [email] has a user row and a personal workspace. Safe to repeat; batch them with others. */
+export function ensureUserStatements(db: D1Database, email: string, now = Date.now()): D1PreparedStatement[] {
   const workspaceId = personalWorkspaceId(email);
-  await db.batch([
+  return [
     db
       .prepare("INSERT OR IGNORE INTO users (email, name, created_at) VALUES (?, ?, ?)")
       .bind(email, email.split("@")[0], now),
@@ -43,7 +44,11 @@ export async function ensureUser(db: D1Database, email: string, now = Date.now()
     db
       .prepare("INSERT OR IGNORE INTO workspace_members (workspace_id, email, added_at) VALUES (?, ?, ?)")
       .bind(workspaceId, email, now),
-  ]);
+  ];
+}
+
+export async function ensureUser(db: D1Database, email: string, now = Date.now()): Promise<User> {
+  await db.batch(ensureUserStatements(db, email, now));
   return getUser(db, email);
 }
 

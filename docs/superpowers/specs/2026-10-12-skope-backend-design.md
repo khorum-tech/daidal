@@ -197,6 +197,8 @@ All bodies are JSON. Errors are `{ "error": "<message>" }`.
 | `DELETE /api/diagrams/:id` | diagram owner | Delete with its snapshots |
 | `GET /api/diagrams/:id/snapshots` | member | History, newest last; documents included |
 | `POST /api/diagrams/:id/snapshots` | diagram owner | Append `{label, doc}` |
+| `POST /api/workspaces/import` | self | Create workspaces from a `skope-backup` file (added 2026-10-24) |
+| `GET /api/workspaces/:id/export` | member | The workspace as a `skope-backup` file (added 2026-10-24) |
 
 Rules:
 
@@ -249,6 +251,13 @@ Behaviour:
 ## Build order
 
 Each step is deployed before the next starts. Each gets its own plan.
+
+> **Changed 2026-10-24:** the server's data layer was built ahead of the port, as a step of its own, matching
+> Storybild's order ("Server data"). Migration `0002_diagrams.sql`, the workspace, diagram, snapshot, clone and
+> follow routes in the API table, and an import/export of whole workspaces (`skope-backup`, see
+> `worker/src/importer.ts`) are live; the stage seed runs that importer (`docs/stage.md`). Steps 4 and 5 below
+> are therefore done on the server and remain for the client. The prototype still keeps diagrams in
+> `localStorage`; the SvelteKit port wires each screen to the API.
 
 1. **Pipeline and login.** Deploy the prototype bundle behind Access.
    `/api/me` replaces the mock login screen and the hard-coded profile.
