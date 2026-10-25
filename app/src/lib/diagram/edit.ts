@@ -252,29 +252,38 @@ export interface BoundaryChange {
 	moveContents?: boolean;
 }
 
+/** The border after [change]: only the fields it names change. */
+function mergedBorder(b: DocBoundary, change: BoundaryChange): DocBoundary['border'] {
+	const border = { ...b.border };
+	if (change.borderWidth !== undefined) border.width = change.borderWidth;
+	if (change.borderStyle !== undefined) border.style = change.borderStyle;
+	return border;
+}
+
+/** Defaults stay out of the document, as the prototype's export leaves them out. */
+function withoutBoxDefaults(b: DocBoundary): DocBoundary {
+	const next: DocBoundary = { ...b };
+	if (next.label === '') delete next.label;
+	if (next.labelPosition === 'inside-bl') delete next.labelPosition;
+	if (next.moveContents === true) delete next.moveContents;
+	if (!next.border) return next;
+	const border = { ...next.border };
+	if (border.width === 1) delete border.width;
+	if (border.style === 'dashed') delete border.style;
+	if (Object.keys(border).length) next.border = border;
+	else delete next.border;
+	return next;
+}
+
 export function updateBoundary(doc: SkopeDoc, id: string, change: BoundaryChange): SkopeDoc {
+	const { label, labelPosition, moveContents } = change;
+	const fields = Object.fromEntries(Object.entries({ label, labelPosition, moveContents }).filter(([, v]) => v !== undefined));
+	const touchesBorder = change.borderWidth !== undefined || change.borderStyle !== undefined;
 	return {
 		...doc,
-		boundaries: (doc.boundaries ?? []).map(b => {
-			if (b.id !== id) return b;
-			const next: DocBoundary = { ...b };
-			if (change.label !== undefined) next.label = change.label;
-			if (change.labelPosition !== undefined) next.labelPosition = change.labelPosition;
-			if (change.moveContents !== undefined) next.moveContents = change.moveContents;
-			if (change.borderWidth !== undefined || change.borderStyle !== undefined) {
-				next.border = { ...b.border, ...(change.borderWidth === undefined ? {} : { width: change.borderWidth }), ...(change.borderStyle === undefined ? {} : { style: change.borderStyle }) };
-			}
-			// Defaults stay out of the document, as the prototype's export leaves them out.
-			if (next.label === '') delete next.label;
-			if (next.labelPosition === 'inside-bl') delete next.labelPosition;
-			if (next.moveContents === true) delete next.moveContents;
-			if (next.border) {
-				if (next.border.width === 1) delete next.border.width;
-				if (next.border.style === 'dashed') delete next.border.style;
-				if (!Object.keys(next.border).length) delete next.border;
-			}
-			return next;
-		})
+		boundaries: (doc.boundaries ?? []).map(b =>
+			b.id === id ? withoutBoxDefaults({ ...b, ...fields, ...(touchesBorder ? { border: mergedBorder(b, change) } : {}) }) : b
+		)
 	};
 }
 
