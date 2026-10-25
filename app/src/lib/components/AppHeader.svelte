@@ -21,7 +21,7 @@
 			{/each}
 		</nav>
 	{/if}
-	<span class="readonly tag tag-outline" title="Nodes and connections are edited and saved here; containers, tags and views are still edited in the prototype">Preview</span>
+	<span class="readonly tag tag-outline" title="Nodes, connections and containers are edited and saved here; tags and views are still edited in the prototype">Preview</span>
 	<div class="user">
 		<button type="button" class="who" aria-expanded={open} aria-haspopup="menu" onclick={() => (open = !open)}>
 			<span class="avatar" aria-hidden="true">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>

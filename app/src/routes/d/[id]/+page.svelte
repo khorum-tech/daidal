@@ -7,21 +7,29 @@
 	import DiagramCanvas from '#lib/components/DiagramCanvas.svelte';
 	import HistoryPanel from '#lib/components/HistoryPanel.svelte';
 	import Icon from '#lib/components/Icon.svelte';
+	import BoxInspector from '#lib/components/BoxInspector.svelte';
 	import EdgeInspector from '#lib/components/EdgeInspector.svelte';
 	import Inspector from '#lib/components/Inspector.svelte';
 	import Sheet from '#lib/components/Sheet.svelte';
 	import TagPanel from '#lib/components/TagPanel.svelte';
 	import TypePicker from '#lib/components/TypePicker.svelte';
 	import {
+		addBoundary,
 		addEdge,
 		addNode,
 		connectToNew,
+		duplicateBoundary,
 		duplicateNode,
+		moveBoundary,
+		removeBoundary,
 		removeEdge,
 		removeNode,
+		resizeBoundary,
 		reverseEdge,
+		updateBoundary,
 		updateEdge,
 		updateNode,
+		type BoundaryChange,
 		type EdgeChange,
 		type NodeChange
 	} from '#lib/diagram/edit.ts';
@@ -65,6 +73,9 @@
 	let selectedEdge = $state<number | null>(null);
 	// A connection being made from this node; the next node tapped is its other end.
 	let connectFrom = $state<string | null>(null);
+	// The selected container, and on a phone whether a drag moves or resizes it.
+	let selectedBox = $state<string | null>(null);
+	let boxMode = $state<'move' | 'resize' | null>(null);
 	$effect.pre(() => {
 		// A new diagram or snapshot starts from its own saved view. Moving a node changes the scene too, but keeps
 		// the view, so this reads which document is shown, not the scene itself.
@@ -75,11 +86,14 @@
 			selected = null;
 			selectedEdge = null;
 			connectFrom = null;
+			selectedBox = null;
+			boxMode = null;
 		});
 	});
 
 	const tagByKey = $derived(Object.fromEntries(scene.tags.map(t => [t.key, t])));
 	const selectedNode = $derived(selected ? scene.nodes.find(n => n.id === selected) : undefined);
+	const selectedBoxScene = $derived(selectedBox ? scene.boundaries.find(b => b.id === selectedBox) : undefined);
 	const selectedEdgeScene = $derived(selectedEdge === null ? undefined : scene.edges[selectedEdge]);
 	// What a connection's end is called: a node's name, or a container's label.
 	const nameOf = (id: string) => scene.nodes.find(n => n.id === id)?.name ?? scene.boundaries.find(b => b.id === id)?.label ?? id;
@@ -97,6 +111,15 @@
 
 	// Nodes can be edited on your own diagram, and not while replaying history.
 	const editable = $derived(mine && !replayed && working.saver.state !== 'conflict');
+	// What a mode in progress asks of you. Wide screens show it in the strip; a phone floats it over the canvas,
+	// so it never wraps the strip (and moves everything below) as it comes and goes.
+	const modeHint = $derived.by(() => {
+		if (!mine || replayed || working.saver.state === 'conflict' || working.saver.state === 'error') return '';
+		if (connectFrom) return `${narrow ? 'Tap' : 'Click'} the node to connect “${nameOf(connectFrom)}” to · ${narrow ? 'tap empty space' : 'Esc'} to cancel`;
+		if (boxMode && selectedBoxScene) return `Drag anywhere to ${boxMode} “${selectedBoxScene.label || 'the container'}” · two fingers pan`;
+		if (moving && selectedNode) return `Drag anywhere to move “${selectedNode.name}” · two fingers pan`;
+		return '';
+	});
 
 	// Every edit goes through here: the document as it was goes on the undo history, the new one is shown and saved.
 	const current = () => $state.snapshot(working.doc) as SkopeDoc;
@@ -106,10 +129,12 @@
 		show(next);
 	}
 	function show(doc: SkopeDoc) {
+		canvasRef?.hold();
 		working.doc = doc;
 		working.saver.queue(doc);
 		if (selected && !doc.nodes?.some(n => n.id === selected)) select(null);
 		if (selectedEdge !== null && selectedEdge >= (doc.edges?.length ?? 0)) selectedEdge = null;
+		if (selectedBox && !doc.boundaries?.some(b => b.id === selectedBox)) selectBox(null);
 	}
 	function undo() {
 		const doc = editable && working.history.undo(current());
@@ -186,6 +211,43 @@
 		selectedEdge = null;
 		apply(removeEdge(before, at), before, 'Delete connection');
 	}
+	function addBox() {
+		adding = false;
+		sheet = null;
+		const before = current();
+		const made = addBoundary(before, canvasRef?.center() ?? { x: 400, y: 300 });
+		apply(made.doc, before, 'Add container');
+		selectBox(made.id);
+	}
+	const moveBox = (id: string, x: number, y: number) => {
+		const before = current();
+		apply(moveBoundary(before, id, x, y), before, 'Move container');
+	};
+	const resizeBox = (id: string, w: number, h: number) => {
+		const before = current();
+		apply(resizeBoundary(before, id, w, h), before, 'Resize container');
+	};
+	function changeBox(change: BoundaryChange, label: string, group?: string) {
+		if (!selectedBox) return;
+		const before = current();
+		apply(updateBoundary(before, selectedBox, change), before, label, group);
+	}
+	function duplicateBox() {
+		if (!selectedBox) return;
+		const before = current();
+		const made = duplicateBoundary(before, selectedBox);
+		if (!made) return;
+		apply(made.doc, before, 'Duplicate container');
+		selectBox(made.id);
+	}
+	function removeBox() {
+		if (!selectedBox) return;
+		const before = current();
+		const id = selectedBox;
+		sheet = null;
+		selectBox(null);
+		apply(removeBoundary(before, id), before, 'Delete container');
+	}
 	function remove() {
 		if (!selected) return;
 		const before = current();
@@ -203,8 +265,10 @@
 		if (meta && k === 'z') e.shiftKey ? redo() : undo();
 		else if (meta && k === 'y') redo();
 		else if (meta && k === 'd' && selected) duplicate();
+		else if (meta && k === 'd' && selectedBox) duplicateBox();
 		else if ((k === 'delete' || k === 'backspace') && selected && !meta) remove();
 		else if ((k === 'delete' || k === 'backspace') && selectedEdge !== null && !meta) disconnect();
+		else if ((k === 'delete' || k === 'backspace') && selectedBox && !meta) removeBox();
 		else if (k === 'escape' && connectFrom) connectFrom = null;
 		else if (k === 'escape' && adding) adding = false;
 		else return;
@@ -230,7 +294,7 @@
 		mq.addEventListener('change', update);
 		return () => mq.removeEventListener('change', update);
 	});
-	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | null>(null);
+	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | 'box' | null>(null);
 	// Moving mode: a drag anywhere on the canvas moves the selected node. It is how a finger moves a node (a mouse
 	// can drag one directly), chosen from the node menu, and ends with the selection.
 	let moving = $state(false);
@@ -239,12 +303,19 @@
 		selected = id;
 		selectedEdge = null;
 		connectFrom = null;
+		selectedBox = null;
+		boxMode = null;
 	}
 	function selectEdge(index: number) {
-		moving = false;
-		connectFrom = null;
-		selected = null;
+		select(null);
 		selectedEdge = index;
+	}
+	function selectBox(id: string | null) {
+		if (id !== selectedBox) boxMode = null;
+		const keep = boxMode;
+		select(null);
+		selectedBox = id;
+		boxMode = keep;
 	}
 	// Enter on the selected node asks for the details: on a phone they are out of sight, so that brings the sheet
 	// up; on a wide screen they are already beside the canvas.
@@ -293,17 +364,15 @@
 			{#if working.saver.state === 'pending' || working.saver.state === 'saving'}
 				Saving…
 			{:else if working.saver.state === 'error'}
-				Couldn't save. <button type="button" class="link" onclick={() => working.saver.flush()}>Try again</button>
+				Couldn't save · <button type="button" class="link" onclick={() => working.saver.flush()}>Try again</button>
 			{:else if working.saver.state === 'conflict'}
-				This diagram changed somewhere else. <button type="button" class="link" onclick={() => invalidateAll()}>Load the latest</button>
+				{narrow ? 'Changed elsewhere' : 'This diagram changed somewhere else'} · <button type="button" class="link" onclick={() => invalidateAll()}>Load the latest</button>
 			{:else if replayed}
-				Replaying history: go back to the working copy to edit
-			{:else if connectFrom}
-				{narrow ? 'Tap' : 'Click'} the node to connect “{nameOf(connectFrom)}” to · {narrow ? 'tap empty space' : 'Esc'} to cancel
-			{:else if moving && selectedNode}
-				Drag anywhere to move “{selectedNode.name}” · two fingers pan
+				{narrow ? 'Replaying' : 'Replaying history: go back to the working copy to edit'}
+			{:else if modeHint && !narrow}
+				{modeHint}
 			{:else}
-				Saved{working.history.undoLabel ? '' : narrow ? ' · tap a node to edit it' : ' · drag a node to move it, click one to edit it'}
+				Saved{working.history.undoLabel || narrow ? '' : ' · drag a node to move it, click one to edit it'}
 			{/if}
 		</span>
 	{/if}
@@ -311,7 +380,7 @@
 		<span class="follow" data-testid="follow">
 			<Icon name="follow" size={12} />
 			Follows <a href={resolve('/d/[id]', { id: follow.leadId })}>{follow.leadName}</a>
-			· {follow.syncedLabel ? `synced to “${follow.syncedLabel}”` : 'not synced yet'}
+			{#if !narrow}· {follow.syncedLabel ? `synced to “${follow.syncedLabel}”` : 'not synced yet'}{/if}
 			{#if follow.paused}· paused{:else if follow.newer > 0}· {follow.newer} newer {follow.newer === 1 ? 'snapshot' : 'snapshots'} to review{:else}· up to date{/if}
 		</span>
 	{:else if follow.kind === 'gone'}
@@ -342,6 +411,15 @@
 				if (narrow) sheet = 'edge';
 			}}
 		/>
+	{/if}
+{/snippet}
+{#snippet addChoices(focus: boolean)}
+	<button type="button" class="add-box" onclick={addBox}><Icon name="frameCorners" size={15} />Container<span>a labelled box to group nodes</span></button>
+	<TypePicker autofocus={focus} onpick={add} />
+{/snippet}
+{#snippet boxInspector()}
+	{#if selectedBoxScene}
+		<BoxInspector box={selectedBoxScene} {editable} onchange={changeBox} onfieldend={() => working.history.endGroup()} onduplicate={duplicateBox} ondelete={removeBox} />
 	{/if}
 {/snippet}
 {#snippet edgeInspector()}
@@ -383,7 +461,15 @@
 			{connectFrom}
 			onconnect={connect}
 			onconnectstart={startConnect}
+			{selectedBox}
+			onselectbox={selectBox}
+			onmovebox={moveBox}
+			onresizebox={resizeBox}
+			boxMode={editable ? boxMode : null}
 		/>
+		{#if narrow && modeHint}
+			<p class="mode-hint" data-testid="mode-hint">{modeHint}</p>
+		{/if}
 		{#if editable}
 			<div class="tools" role="toolbar" aria-label="Edit">
 				<button type="button" class="tool add" aria-expanded={narrow ? sheet === 'add' : adding} onclick={() => (narrow ? (sheet = 'add') : (adding = !adding))}>
@@ -398,7 +484,7 @@
 			</div>
 			{#if adding && !narrow}
 				<div class="add-menu" role="dialog" aria-label="Add a node">
-					<TypePicker autofocus onpick={add} />
+					{@render addChoices(true)}
 				</div>
 			{/if}
 		{/if}
@@ -407,6 +493,7 @@
 		<aside class="right">
 			{@render nodeInspector()}
 			{@render edgeInspector()}
+			{@render boxInspector()}
 			{@render history()}
 		</aside>
 	{/if}
@@ -428,6 +515,23 @@
 				<span class="t-label">{editable ? 'Edit' : 'Details'}</span><span class="t-value">{selectedNode.type}</span>
 			</button>
 			<button type="button" class="done" aria-label="Done with {selectedNode.name}" onclick={() => select(null)}>
+				<span class="t-label">Done</span><span class="t-value">×</span>
+			</button>
+		</nav>
+	{:else if selectedBoxScene}
+		<!-- A selected container: a finger moves or resizes it from anywhere once one is chosen. -->
+		<nav class="toolbar node-menu" aria-label="Selected container" data-testid="box-menu">
+			{#if editable}
+				{#each [['move', 'Move', 'Moving'], ['resize', 'Resize', 'Resizing']] as const as [mode, label, active] (mode)}
+					<button type="button" class:active={boxMode === mode} aria-pressed={boxMode === mode} onclick={() => (boxMode = boxMode === mode ? null : mode)}>
+						<span class="t-label">{boxMode === mode ? active : label}</span><span class="t-value">{boxMode === mode ? 'Drag anywhere' : selectedBoxScene.label || 'Container'}</span>
+					</button>
+				{/each}
+			{/if}
+			<button type="button" onclick={() => (sheet = 'box')}>
+				<span class="t-label">{editable ? 'Edit' : 'Details'}</span><span class="t-value">Container</span>
+			</button>
+			<button type="button" class="done" aria-label="Done with the container" onclick={() => selectBox(null)}>
 				<span class="t-label">Done</span><span class="t-value">×</span>
 			</button>
 		</nav>
@@ -462,10 +566,13 @@
 	<Sheet open={sheet === 'views'} title="Views and tags" onclose={() => (sheet = null)}>{@render tags()}</Sheet>
 	<Sheet open={sheet === 'history'} title="History" onclose={() => (sheet = null)}>{@render history()}</Sheet>
 	<Sheet open={sheet === 'add'} title="Add a node" onclose={() => (sheet = null)}>
-		<div class="add-sheet"><TypePicker onpick={add} /></div>
+		<div class="add-sheet">{@render addChoices(false)}</div>
 	</Sheet>
 	<Sheet open={sheet === 'details' && !!selectedNode} title="Node details" onclose={() => (sheet = null)}>
 		{@render nodeInspector()}
+	</Sheet>
+	<Sheet open={sheet === 'box' && !!selectedBoxScene} title="Container" onclose={() => (sheet = null)}>
+		{@render boxInspector()}
 	</Sheet>
 	<Sheet open={sheet === 'edge' && !!selectedEdgeScene} title="Connection" onclose={() => (sheet = null)}>
 		{@render edgeInspector()}
@@ -473,28 +580,64 @@
 {/if}
 
 <style>
+	/* One line, always: its pieces shorten with an ellipsis rather than wrap, so the canvas below never moves as
+	   the save status changes. */
 	.strip {
 		display: flex;
 		align-items: center;
 		gap: 16px;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
+		white-space: nowrap;
+		overflow: hidden;
+		min-height: 18px;
 		padding: 8px 16px;
 		border-bottom: 1px solid var(--color-divider);
 		font-size: 12px;
 		color: var(--color-neutral-500);
 	}
+	.meta,
+	.follow,
+	.save {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	/* When space runs out, "Updated…" gives way first and the save status never does. */
+	.meta {
+		flex: 0 3 auto;
+	}
 	.follow {
-		display: flex;
-		align-items: center;
-		gap: 5px;
+		flex: 0 1 auto;
 		color: var(--color-accent-300);
+	}
+	.follow :global(svg) {
+		vertical-align: -2px;
 	}
 	.follow.gone {
 		color: var(--color-neutral-500);
 	}
 	.save {
+		flex: none;
 		margin-left: auto;
 		color: var(--color-neutral-500);
+	}
+	.mode-hint {
+		position: absolute;
+		top: 60px;
+		left: 50%;
+		transform: translateX(-50%);
+		max-width: calc(100% - 24px);
+		box-sizing: border-box;
+		margin: 0;
+		padding: 6px 12px;
+		border-radius: 999px;
+		border: 1px solid var(--color-accent-700);
+		background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+		color: var(--color-accent-200);
+		font-size: 12.5px;
+		text-align: center;
+		pointer-events: none;
+		z-index: 1;
 	}
 	.link {
 		font: inherit;
@@ -585,6 +728,34 @@
 		background: var(--color-surface);
 		box-shadow: var(--shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.4));
 		z-index: 2;
+	}
+	.add-box {
+		width: 100%;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 10px;
+		padding: 8px 10px;
+		min-height: 40px;
+		border-radius: 8px;
+		border: 1px dashed var(--color-neutral-700);
+		background: transparent;
+		color: var(--color-text);
+		font: inherit;
+		font-size: 13px;
+		text-align: left;
+		cursor: pointer;
+	}
+	.add-box :global(svg) {
+		color: var(--color-accent);
+	}
+	.add-box span {
+		margin-left: auto;
+		font-size: 11.5px;
+		color: var(--color-neutral-500);
+	}
+	.add-box:hover {
+		border-color: var(--color-accent-700);
 	}
 	.add-sheet {
 		padding: 10px 16px 16px;

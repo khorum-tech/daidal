@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { bounds, isHidden, type Scene, type SceneNode } from '../diagram/model';
+	import { bounds, isHidden, type Scene, type SceneBoundary, type SceneNode } from '../diagram/model';
+	import { contentsOf, MIN_BOX } from '../diagram/edit';
 	import { edgePath, type Box } from '../diagram/geometry';
 	import { clampView, fitView, panBy, toContent, zoomAt, type Point, type View } from '../diagram/zoom';
 	import { SNAP_PX, snapBox, type Guide } from '../diagram/snap';
@@ -18,6 +19,10 @@
 	 * Connections are tapped like nodes ([onselectedge]). With [editable] on, the selected node shows a port: drag
 	 * it to another node to connect them, or onto empty canvas for a new node ([onconnect]), or click it to start
 	 * connecting ([onconnectstart]). While [connectFrom] is set, the next node tapped is the other end.
+	 *
+	 * Containers are picked by their border or label ([onselectbox]). A mouse drags the border to move one, with
+	 * what sits wholly inside unless it moves alone ([onmovebox]), and the corner handle to resize it
+	 * ([onresizebox]); a finger does either from anywhere once [boxMode] is chosen.
 	 */
 	let {
 		scene,
@@ -33,6 +38,11 @@
 		connectFrom = null,
 		onconnect,
 		onconnectstart,
+		selectedBox = null,
+		onselectbox,
+		onmovebox,
+		onresizebox,
+		boxMode = null,
 		ghostOpacity = 0.22,
 		edgeStyle = 'curved'
 	}: {
@@ -53,6 +63,12 @@
 		/** A connection made: to another node, or (with [to] null) to a new one at [at]. */
 		onconnect?: (from: string, to: string | null, at: Point) => void;
 		onconnectstart?: (from: string) => void;
+		selectedBox?: string | null;
+		onselectbox?: (id: string) => void;
+		onmovebox?: (id: string, x: number, y: number) => void;
+		onresizebox?: (id: string, w: number, h: number) => void;
+		/** A drag anywhere moves or resizes the selected container: how a finger does it. */
+		boxMode?: 'move' | 'resize' | null;
 		ghostOpacity?: number;
 		edgeStyle?: 'curved' | 'straight' | 'angled';
 	} = $props();
@@ -75,13 +91,29 @@
 	// A node being dragged is drawn at its new spot (and its connections follow) before the move is reported.
 	let dragged = $state<{ id: string; x: number; y: number } | null>(null);
 	let guides = $state<Guide[]>([]);
-	const nodes = $derived<SceneNode[]>(scene.nodes.map(n => (dragged && n.id === dragged.id ? { ...n, x: dragged.x, y: dragged.y } : n)));
+	// A container being moved or resized is drawn as it goes, with what it carries.
+	let draggedBox = $state<{ id: string; x: number; y: number; w: number; h: number; dx: number; dy: number; kids: { nodes: string[]; boxes: string[] } } | null>(null);
+	const nodes = $derived<SceneNode[]>(
+		scene.nodes.map(n => {
+			if (dragged && n.id === dragged.id) return { ...n, x: dragged.x, y: dragged.y };
+			if (draggedBox?.kids.nodes.includes(n.id)) return { ...n, x: n.x + draggedBox.dx, y: n.y + draggedBox.dy };
+			return n;
+		})
+	);
+	const boundaries = $derived<SceneBoundary[]>(
+		scene.boundaries.map(b => {
+			if (!draggedBox) return b;
+			if (b.id === draggedBox.id) return { ...b, x: draggedBox.x, y: draggedBox.y, w: draggedBox.w, h: draggedBox.h };
+			if (draggedBox.kids.boxes.includes(b.id)) return { ...b, x: b.x + draggedBox.dx, y: b.y + draggedBox.dy };
+			return b;
+		})
+	);
 
 	const tagByKey = $derived(Object.fromEntries(scene.tags.map(t => [t.key, t])));
 	// Connections may end on a container as well as a node.
 	const boxes = $derived.by(() => {
 		const out = new Map<string, Box & { tags: string[] }>();
-		for (const b of scene.boundaries) out.set(b.id, { ...b, tags: [] });
+		for (const b of boundaries) out.set(b.id, { ...b, tags: [] });
 		for (const n of nodes) out.set(n.id, n);
 		return out;
 	});
@@ -121,6 +153,14 @@
 	const setView = (v: View) => (chosen = clampView(v, area, viewW, viewH));
 	const zoomBy = (f: number, p: Point = { x: viewW / 2, y: viewH / 2 }) => setView(zoomAt(view, Math.round(view.s * f * 100) / 100, p));
 
+	/**
+	 * Keep the view where it is from now on: called before an edit, so a diagram that grows or shrinks doesn't refit
+	 * (and rescale under the pointer). The zoom's fit button fits again on request.
+	 */
+	export function hold(): void {
+		if (chosen === null) chosen = view;
+	}
+
 	/** The diagram point at the middle of the canvas: where a node added now should go. */
 	export function center(): Point {
 		return toContent(view, { x: viewW / 2, y: viewH / 2 });
@@ -151,6 +191,7 @@
 		| { kind: 'pan'; pointer: number; start: Point; last: Point; moved: boolean }
 		| { kind: 'node'; pointer: number; start: Point; node: SceneNode; moved: boolean; touch: boolean }
 		| { kind: 'connect'; pointer: number; start: Point; from: string; moved: boolean }
+		| { kind: 'box'; mode: 'move' | 'resize'; pointer: number; start: Point; box: SceneBoundary; kids: { nodes: string[]; boxes: string[] }; moved: boolean }
 		| { kind: 'pinch'; dist: number; mid: Point; from: View };
 	const pointers = new Map<number, Point>();
 	let gesture: Gesture | null = null;
@@ -184,12 +225,31 @@
 			gestureFrom = port.id;
 			return;
 		}
+		// Containers: in a box mode a drag anywhere works on the selected one; a mouse drags a border or the handle.
+		const boxGesture = editable && !connectFrom ? boxPress(target, touch) : null;
+		if (boxGesture) {
+			gesture = { ...boxGesture, pointer: e.pointerId, start: p, moved: false };
+			return;
+		}
 		// In moving mode the selected node follows a drag from anywhere; otherwise a mouse drags the node under it.
 		const id = moving ? selected : touch || connectFrom ? null : (target.closest<HTMLElement>('[data-node]')?.dataset.node ?? null);
 		const node = editable && id ? scene.nodes.find(n => n.id === id) : undefined;
 		gesture = node
 			? { kind: 'node', pointer: e.pointerId, start: p, node, moved: false, touch }
 			: { kind: 'pan', pointer: e.pointerId, start: p, last: p, moved: false };
+	}
+
+	/** What a press starts on a container, if anything. */
+	function boxPress(target: Element, touch: boolean) {
+		let mode: 'move' | 'resize' | null = null;
+		let id: string | null = null;
+		if (boxMode && selectedBox) [mode, id] = [boxMode, selectedBox];
+		else if (!touch && selectedBox && target.closest('.resize')) [mode, id] = ['resize', selectedBox];
+		else if (!touch) [mode, id] = ['move', target.closest<HTMLElement>('[data-box]')?.dataset.box ?? null];
+		const box = mode && id ? scene.boundaries.find(b => b.id === id) : undefined;
+		if (!box || !mode) return null;
+		const kids = mode === 'move' && box.moveContents ? contentsOf(scene, box.id) : { nodes: [], boxes: [] };
+		return { kind: 'box' as const, mode, box, kids };
 	}
 
 	function move(e: PointerEvent) {
@@ -221,6 +281,14 @@
 		gesture.moved = true;
 		if (gesture.kind === 'connect') {
 			loose = toContent(view, p);
+		} else if (gesture.kind === 'box') {
+			const b = gesture.box;
+			const dx = (p.x - gesture.start.x) / view.s;
+			const dy = (p.y - gesture.start.y) / view.s;
+			draggedBox =
+				gesture.mode === 'move'
+					? { id: b.id, x: b.x + dx, y: b.y + dy, w: b.w, h: b.h, dx, dy, kids: gesture.kids }
+					: { id: b.id, x: b.x, y: b.y, w: Math.max(MIN_BOX.w, b.w + dx), h: Math.max(MIN_BOX.h, b.h + dy), dx: 0, dy: 0, kids: gesture.kids };
 		} else if (gesture.kind === 'pan') {
 			panning = true;
 			setView(panBy(view, p.x - gesture.last.x, p.y - gesture.last.y));
@@ -253,6 +321,13 @@
 		const d = dragged;
 		dragged = null;
 		if (g.kind === 'node' && g.moved && d && !cancelled) onmove?.(d.id, Math.round(d.x), Math.round(d.y));
+		if (g.kind === 'box') {
+			const d = draggedBox;
+			draggedBox = null;
+			if (!g.moved || !d || cancelled) return;
+			if (g.mode === 'move') onmovebox?.(d.id, Math.round(d.x), Math.round(d.y));
+			else onresizebox?.(d.id, Math.round(d.w), Math.round(d.h));
+		}
 		if (g.kind === 'connect') {
 			gestureFrom = '';
 			loose = null;
@@ -269,13 +344,19 @@
 
 	/** A tap on empty space clears the selection. Nodes handle their own taps (NodeCard). */
 	function tapEmpty(e: MouseEvent) {
-		if (dragJustEnded || (e.target as Element).closest('[data-node], [data-hit], .zoom, .port')) return;
+		if (dragJustEnded || (e.target as Element).closest('[data-node], [data-hit], [data-box], .zoom, .port, .resize')) return;
 		loose = null;
 		onselect?.(null);
 	}
 	$effect(() => {
 		if (!connectFrom) loose = null;
 	});
+	/** A tap on a container's border or label picks it, or ends a connection being made there. */
+	function tapBox(b: SceneBoundary) {
+		if (dragJustEnded) return;
+		if (connectFrom) onconnect?.(connectFrom, b.id, { x: b.x, y: b.y });
+		else onselectbox?.(b.id);
+	}
 
 	// The keyboard can do what the pointer does, once the canvas has focus.
 	function keys(e: KeyboardEvent) {
@@ -313,16 +394,28 @@
 	onkeydown={keys}
 >
 	<div class="sheet" data-testid="diagram-sheet" style:transform="translate({view.tx}px, {view.ty}px) scale({view.s})">
-		{#each scene.boundaries as b (b.id)}
+		{#each boundaries as b (b.id)}
 			<div
 				class="boundary"
+				class:selected={selectedBox === b.id}
+				class:editable
 				style:left="{b.x}px"
 				style:top="{b.y}px"
 				style:width="{b.w}px"
 				style:height="{b.h}px"
-				style:border="{b.bw}px {b.bs} var(--color-neutral-800)"
+				style:border="{b.bw}px {b.bs} {selectedBox === b.id ? 'var(--color-accent)' : 'var(--color-neutral-800)'}"
 			>
-				{#if b.label}<span class="b-label" style={LP[b.pos]}>{b.label}</span>{/if}
+				<!-- The border takes taps along each side; the inside lets them through to the canvas. -->
+				{#each ['t', 'r', 'b', 'l'] as side (side)}
+					<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+					<span class="b-hit {side}" data-box={b.id} onclick={() => tapBox(b)}></span>
+				{/each}
+				{#if b.label}
+					<button type="button" class="b-label" style={LP[b.pos]} data-box={b.id} aria-label="Container: {b.label}" onclick={() => tapBox(b)}>{b.label}</button>
+				{/if}
+				{#if editable && selectedBox === b.id}
+					<span class="resize" title="Drag to resize" aria-hidden="true"></span>
+				{/if}
 			</div>
 		{/each}
 
@@ -468,7 +561,74 @@
 		border-radius: 12px;
 		pointer-events: none;
 	}
+	.b-hit {
+		position: absolute;
+		pointer-events: auto;
+		cursor: pointer;
+		--hit: 14px;
+	}
+	.boundary.editable .b-hit {
+		cursor: move;
+	}
+	.b-hit.t,
+	.b-hit.b {
+		left: 0;
+		right: 0;
+		height: var(--hit);
+	}
+	.b-hit.t {
+		top: calc(var(--hit) / -2);
+	}
+	.b-hit.b {
+		bottom: calc(var(--hit) / -2);
+	}
+	.b-hit.l,
+	.b-hit.r {
+		top: 0;
+		bottom: 0;
+		width: var(--hit);
+	}
+	.b-hit.l {
+		left: calc(var(--hit) / -2);
+	}
+	.b-hit.r {
+		right: calc(var(--hit) / -2);
+	}
+	@media (pointer: coarse) {
+		.b-hit {
+			--hit: 26px;
+		}
+	}
+	.boundary.selected .b-label {
+		color: var(--color-accent-200);
+	}
+	.resize {
+		position: absolute;
+		right: -7px;
+		bottom: -7px;
+		width: 14px;
+		height: 14px;
+		box-sizing: border-box;
+		border-radius: 3px;
+		border: 1px solid var(--color-accent);
+		background: var(--color-surface);
+		pointer-events: auto;
+		cursor: nwse-resize;
+	}
+	@media (pointer: coarse) {
+		.resize {
+			width: 24px;
+			height: 24px;
+			right: -12px;
+			bottom: -12px;
+		}
+	}
 	.b-label {
+		pointer-events: auto;
+		cursor: pointer;
+		border: none;
+		font-family: inherit;
+		line-height: normal;
 		position: absolute;
 		font-size: 10px;
 		letter-spacing: 0.12em;
