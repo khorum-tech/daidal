@@ -46,3 +46,26 @@ describe('saving', () => {
 		expect(err).toMatchObject({ status: 409, body: { diagram: { rev: 5 } } });
 	});
 });
+
+describe('diagrams and snapshots', () => {
+	it('creates a diagram, from a document or as a copy', async () => {
+		const fetchFn = respond(201, { id: 'n' });
+		const api = createApi(fetchFn);
+		await api.createDiagram({ workspace: 'w', name: 'New', doc: { version: 1 } });
+		expect(fetchFn).toHaveBeenLastCalledWith('/api/diagrams', expect.objectContaining({ method: 'POST', body: JSON.stringify({ workspace: 'w', name: 'New', doc: { version: 1 } }) }));
+		await api.createDiagram({ workspace: 'w', from: 'd', follow: true });
+		expect(fetchFn).toHaveBeenLastCalledWith('/api/diagrams', expect.objectContaining({ body: JSON.stringify({ workspace: 'w', from: 'd', follow: true }) }));
+	});
+
+	it('deletes a diagram, which answers with no body', async () => {
+		const fetchFn = vi.fn(async () => new Response(null, { status: 204 }));
+		await expect(createApi(fetchFn).deleteDiagram('a/b')).resolves.toBeUndefined();
+		expect(fetchFn).toHaveBeenCalledWith('/api/diagrams/a%2Fb', expect.objectContaining({ method: 'DELETE' }));
+	});
+
+	it('takes a snapshot of a document', async () => {
+		const fetchFn = respond(201, { id: 's', label: 'v1' });
+		await expect(createApi(fetchFn).createSnapshot('d', { label: 'v1', doc: { version: 1 } })).resolves.toEqual({ id: 's', label: 'v1' });
+		expect(fetchFn).toHaveBeenCalledWith('/api/diagrams/d/snapshots', expect.objectContaining({ method: 'POST', body: JSON.stringify({ label: 'v1', doc: { version: 1 } }) }));
+	});
+});

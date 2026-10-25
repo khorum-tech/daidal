@@ -32,3 +32,20 @@ describe('history', () => {
 		await expect.element(page.getByText('No snapshots yet.')).toBeVisible();
 	});
 });
+
+describe('taking a snapshot', () => {
+	it('records a description, and is offered only when it can be taken', async () => {
+		const taken: string[] = [];
+		render(HistoryPanel, { snapshots: [], current: null, onpick: () => {}, ontake: async l => void taken.push(l) });
+		await page.getByRole('button', { name: '+ Take a snapshot' }).click();
+		await page.getByLabelText('Snapshot description').fill('Before the cut-over');
+		await page.getByRole('button', { name: 'Save snapshot' }).click();
+		expect(taken).toEqual(['Before the cut-over']);
+		await expect.element(page.getByRole('button', { name: '+ Take a snapshot' })).toBeVisible();
+	});
+
+	it('is not offered without a way to take one', async () => {
+		render(HistoryPanel, { snapshots: [], current: null, onpick: () => {} });
+		expect(page.getByRole('button', { name: '+ Take a snapshot' }).elements()).toHaveLength(0);
+	});
+});

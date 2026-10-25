@@ -1,8 +1,11 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { createApi } from '#lib/api.ts';
 	import AppHeader from '#lib/components/AppHeader.svelte';
 	import DiagramCard from '#lib/components/DiagramCard.svelte';
 	import Icon from '#lib/components/Icon.svelte';
+	import Sheet from '#lib/components/Sheet.svelte';
 	import type { Workspace } from '#lib/types.ts';
 
 	let { data } = $props();
@@ -11,6 +14,30 @@
 	const shared = $derived(data.workspaces.filter(w => w.ownerEmail !== data.me.email));
 	const wsHref = (w: Workspace) => `${resolve('/')}?ws=${encodeURIComponent(w.id)}`;
 	const now = Date.now();
+
+	// A new, empty diagram in the workspace on show; it opens straight away, ready for + Add.
+	const api = createApi(fetch);
+	let creating = $state(false);
+	let newName = $state('');
+	let busy = $state(false);
+	let failed = $state('');
+	async function create(e: SubmitEvent) {
+		e.preventDefault();
+		const name = newName.trim();
+		if (!name || !data.workspace) return;
+		busy = true;
+		failed = '';
+		try {
+			const made = await api.createDiagram({ workspace: data.workspace.id, name, doc: { version: 1, diagram: { name } } });
+			creating = false;
+			newName = '';
+			await goto(resolve('/d/[id]', { id: made.id }));
+		} catch (err) {
+			failed = err instanceof Error ? err.message : "Couldn't create the diagram";
+		} finally {
+			busy = false;
+		}
+	}
 </script>
 
 <AppHeader me={data.me} homeHref={resolve('/')} crumbs={data.workspace ? [{ label: data.workspace.name }] : []} />
@@ -49,6 +76,7 @@
 				<h1>{data.workspace.name}</h1>
 				<span class="n">{data.diagrams.length} {data.diagrams.length === 1 ? 'diagram' : 'diagrams'}</span>
 				{#if data.workspace.ownerEmail !== data.me.email}<span class="tag tag-outline">Shared by {data.workspace.ownerEmail}</span>{/if}
+				<button type="button" class="btn btn-primary new" onclick={() => (creating = true)}>+ New diagram</button>
 			</div>
 			{#if data.diagrams.length}
 				<div class="grid">
@@ -60,12 +88,25 @@
 				<div class="empty">
 					<span class="empty-icon"><Icon name="folder" size={30} /></span>
 					<h2>No diagrams here yet</h2>
-					<p>Diagrams are still created in the prototype. Once they're saved to the server, they show up here.</p>
+					<p>Start one with <strong>+ New diagram</strong>, or copy one from another workspace from its name in the header.</p>
 				</div>
 			{/if}
 		{/if}
 	</main>
 </div>
+
+<Sheet open={creating} title="New diagram" onclose={() => (creating = false)}>
+	<form class="create" onsubmit={create}>
+		<label>
+			<span>Name</span>
+			<!-- svelte-ignore a11y_autofocus -->
+			<input class="input" maxlength="100" placeholder="e.g. checkout-platform" autofocus bind:value={newName} />
+		</label>
+		<p class="where">In <strong>{data.workspace?.name}</strong>. It opens empty, ready for <strong>+ Add</strong>.</p>
+		{#if failed}<p class="error" role="alert">{failed}</p>{/if}
+		<button type="submit" class="btn btn-primary" disabled={busy || !newName.trim()}>Create diagram</button>
+	</form>
+</Sheet>
 
 <style>
 	.body {
@@ -143,6 +184,7 @@
 	}
 	.heading {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: baseline;
 		gap: 10px;
 		margin-bottom: 18px;
@@ -216,6 +258,48 @@
 		}
 		.list {
 			padding: 18px 16px;
+		}
+	}
+	.heading .new {
+		margin-left: auto;
+		font-size: 13px;
+		padding: 6px 12px;
+	}
+	.create {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		padding: 12px 16px 18px;
+	}
+	.create label {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+		font-size: 11.5px;
+		color: var(--color-neutral-500);
+	}
+	.create .input {
+		width: 100%;
+		box-sizing: border-box;
+		min-height: 36px;
+		font-size: 13.5px;
+	}
+	.where,
+	.error {
+		margin: 0;
+		font-size: 12px;
+		color: var(--color-neutral-400);
+	}
+	.error {
+		color: var(--color-danger, #e5767b);
+	}
+	.create .btn {
+		align-self: flex-start;
+	}
+	/* Safari on iOS zooms the page into any field set smaller than 16px. */
+	@media (pointer: coarse) {
+		.create .input {
+			font-size: 16px;
 		}
 	}
 </style>

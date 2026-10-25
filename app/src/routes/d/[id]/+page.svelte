@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { beforeNavigate, invalidateAll } from '$app/navigation';
+	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { createApi } from '#lib/api.ts';
 	import AppHeader from '#lib/components/AppHeader.svelte';
@@ -8,6 +8,7 @@
 	import HistoryPanel from '#lib/components/HistoryPanel.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import BoxInspector from '#lib/components/BoxInspector.svelte';
+	import DiagramSheet from '#lib/components/DiagramSheet.svelte';
 	import EdgeInspector from '#lib/components/EdgeInspector.svelte';
 	import Inspector from '#lib/components/Inspector.svelte';
 	import Sheet from '#lib/components/Sheet.svelte';
@@ -46,7 +47,7 @@
 	import { tagsOn, toScene } from '#lib/diagram/model.ts';
 	import { followState } from '#lib/follow.ts';
 	import { Saver } from '#lib/saver.svelte.ts';
-	import type { Diagram, SkopeDoc } from '#lib/types.ts';
+	import type { Diagram, SkopeDoc, Snapshot } from '#lib/types.ts';
 	import { ago } from '#lib/time.ts';
 
 	let { data } = $props();
@@ -56,13 +57,24 @@
 
 	// The working copy as edited here, what saves it, and its undo history. All start over whenever a diagram
 	// (re)loads.
-	const start = (d: Diagram) => ({
+	// The name rides along with every save, so a rename has the same conflict check as an edit.
+	interface Working {
+		doc: SkopeDoc;
+		name: string;
+		saver: Saver;
+		history: History;
+		snapshots: Snapshot[];
+	}
+	const start = (d: Diagram): Working => ({
 		doc: structuredClone(d.doc),
-		saver: new Saver((rev, doc) => api.save(d.id, { rev, doc }), d.rev),
-		history: new History()
+		name: d.name,
+		saver: new Saver((rev, doc) => api.save(d.id, { rev, doc, name: working.name }), d.rev),
+		history: new History(),
+		// Snapshots taken here join the history straight away.
+		snapshots: d.id === data.diagram.id ? [...data.snapshots] : []
 	});
 	let loaded = untrack(() => data.diagram);
-	let working = $state(start(loaded));
+	let working = $state<Working>(start(loaded));
 	// The snapshot being replayed, or null for the working copy.
 	let replaying = $state<string | null>(null);
 	$effect.pre(() => {
@@ -71,7 +83,7 @@
 		working = start(loaded);
 		replaying = null;
 	});
-	const replayed = $derived(replaying ? data.snapshots.find(s => s.id === replaying) : undefined);
+	const replayed = $derived(replaying ? working.snapshots.find(s => s.id === replaying) : undefined);
 	const scene = $derived(toScene(replayed?.doc ?? working.doc));
 
 	// View and tag switches are only what this browser shows; nothing is saved.
@@ -289,10 +301,38 @@
 	}
 	// Don't let a change go unsaved by leaving: save it on the way to another page, and ask before a reload or close.
 	beforeNavigate(() => {
-		if (working.saver.state === 'pending') void working.saver.flush();
+		if (working.saver.state === 'pending' && !deleted) void working.saver.flush();
 	});
+
+	// The diagram as a whole: rename, copy, delete, snapshot.
+	let deleted = false;
+	function rename(name: string) {
+		if (!mine) return;
+		working.name = name;
+		const doc = current();
+		working.doc = { ...doc, diagram: { ...doc.diagram, name } };
+		working.saver.queue($state.snapshot(working.doc) as SkopeDoc);
+	}
+	async function copy({ workspace, name, follow }: { workspace: string; name: string; follow: boolean }) {
+		// A duplicate is the diagram as it is now; a follower starts from its latest snapshot, as the server makes one.
+		const made = follow
+			? await api.createDiagram({ workspace, name, from: data.diagram.id, follow: true })
+			: await api.createDiagram({ workspace, name, doc: { ...current(), diagram: { ...current().diagram, name } } });
+		sheet = null;
+		await goto(resolve('/d/[id]', { id: made.id }));
+	}
+	async function destroy() {
+		await api.deleteDiagram(data.diagram.id);
+		deleted = true;
+		sheet = null;
+		await goto(`${resolve('/')}?ws=${encodeURIComponent(data.diagram.workspaceId)}`, { invalidateAll: true });
+	}
+	async function takeSnapshot(label: string) {
+		const made = await api.createSnapshot(data.diagram.id, { label, doc: current() });
+		working.snapshots = [...working.snapshots, made];
+	}
 	$effect(() => {
-		if (!working.saver.unsaved) return;
+		if (!working.saver.unsaved || deleted) return;
 		const warn = (e: BeforeUnloadEvent) => e.preventDefault();
 		addEventListener('beforeunload', warn);
 		return () => removeEventListener('beforeunload', warn);
@@ -307,7 +347,7 @@
 		mq.addEventListener('change', update);
 		return () => mq.removeEventListener('change', update);
 	});
-	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | 'box' | 'tags' | null>(null);
+	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | 'box' | 'tags' | 'diagram' | null>(null);
 	// Moving mode: a drag anywhere on the canvas moves the selected node. It is how a finger moves a node (a mouse
 	// can drag one directly), chosen from the node menu, and ends with the selection.
 	let moving = $state(false);
@@ -423,7 +463,7 @@
 	};
 </script>
 
-<svelte:head><title>{data.diagram.name} · Skope</title></svelte:head>
+<svelte:head><title>{working.name} · Skope</title></svelte:head>
 <svelte:window
 	onkeydown={shortcut}
 	onpointerdown={e => {
@@ -437,7 +477,7 @@
 	homeHref={resolve('/')}
 	crumbs={[
 		...(workspace ? [{ label: workspace.name, href: `${resolve('/')}?ws=${encodeURIComponent(workspace.id)}` }] : []),
-		{ label: data.diagram.name }
+		{ label: working.name, onclick: () => (sheet = 'diagram'), title: mine ? 'Rename, copy or delete this diagram' : 'Copy this diagram' }
 	]}
 />
 
@@ -542,7 +582,7 @@
 	/>
 {/snippet}
 {#snippet history()}
-	<HistoryPanel snapshots={data.snapshots} current={replaying} onpick={pick} {now} />
+	<HistoryPanel snapshots={working.snapshots} current={replaying} onpick={pick} {now} ontake={mine && editable ? takeSnapshot : undefined} />
 {/snippet}
 
 <div class="body">
@@ -659,7 +699,7 @@
 				<span class="t-label">View</span><span class="t-value">{view ?? (scene.views.length ? 'Everything' : 'Tags')}</span>
 			</button>
 			<button type="button" onclick={() => (sheet = 'history')}>
-				<span class="t-label">History</span><span class="t-value">{replayed ? replayed.label : `${data.snapshots.length} ${data.snapshots.length === 1 ? 'snapshot' : 'snapshots'}`}</span>
+				<span class="t-label">History</span><span class="t-value">{replayed ? replayed.label : `${working.snapshots.length} ${working.snapshots.length === 1 ? 'snapshot' : 'snapshots'}`}</span>
 			</button>
 			<button type="button" disabled>
 				<span class="t-label">Node</span><span class="t-value">Tap one</span>
@@ -681,6 +721,9 @@
 		{@render edgeInspector()}
 	</Sheet>
 {/if}
+<Sheet open={sheet === 'diagram'} title="Diagram" onclose={() => (sheet = null)}>
+	<DiagramSheet name={working.name} {mine} workspaces={data.workspaces} here={data.diagram.workspaceId} onrename={rename} oncopy={copy} ondelete={destroy} />
+</Sheet>
 <!-- The tag manager opens from the tags panel on any screen: a dialog on a wide one, a sheet on a phone. -->
 <Sheet open={sheet === 'tags' && editable} title="Manage tags" onclose={() => (sheet = null)}>
 	<TagManager tags={scene.tags} counts={tagCounts} onchange={changeTag} onfieldend={() => working.history.endGroup()} ondelete={deleteTag} onadd={newTag} />

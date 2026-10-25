@@ -13,8 +13,11 @@ phone, Move or Resize in its menu, then drag anywhere. Its inspector sets the la
 and whether it carries its contents. **Tags and views** too: the tags panel saves the tags on now as a view, and
 the chosen view can be renamed, re-saved with the tags on now, made the one the diagram opens on, or deleted;
 **Manage tags** adds, renames, recolours, regroups and deletes tags, and a node's tag picker can make a new one. Solo
-(the crosshair by a tag) shows one tag alone without saving anything. Workspaces, members, sharing and snapshots are
-still managed in the prototype.
+(the crosshair by a tag) shows one tag alone without saving anything. **Diagrams themselves** as well: **+ New
+diagram** on a workspace starts an empty one; the diagram's name in the header opens what can be done with it
+(rename, as its owner; copy it into a workspace of yours as a duplicate or as a follower of its snapshots; delete it,
+as its owner); and the History panel takes a snapshot of the working copy, with a description. Workspaces, members
+and sharing are still managed in the prototype.
 
 | Route | What it shows |
 |-------|---------------|

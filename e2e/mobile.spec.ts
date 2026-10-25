@@ -276,6 +276,30 @@ test.describe("the app on a phone", () => {
     expect(saved.doc.tags["hot-path"]).toMatchObject({ label: "Hot path" });
   });
 
+  test("renames a diagram from the header and takes a snapshot from the history sheet", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "ledger-platform" }).tap();
+    const sheet = page.getByRole("dialog", { name: "Diagram" });
+    await sheet.getByLabel("Name").fill("ledger-core");
+    await sheet.getByLabel("Name").blur();
+    await page.keyboard.press("Escape");
+    await expect(page).toHaveTitle("ledger-core · Skope");
+
+    await page.getByRole("navigation", { name: "Diagram panels" }).getByRole("button", { name: /^History/ }).tap();
+    const history = page.getByRole("dialog", { name: "History" });
+    await history.getByRole("button", { name: "+ Take a snapshot" }).tap();
+    await history.getByLabel("Snapshot description").fill("From my phone");
+    await history.getByRole("button", { name: "Save snapshot" }).tap();
+    await expect(history.getByRole("button", { name: /From my phone/ })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("navigation", { name: "Diagram panels" })).toContainText("3 snapshots");
+
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    expect((await (await request.get(`/api/diagrams/${id}`)).json()).name).toBe("ledger-core");
+  });
+
   test("never scrolls the page sideways", async ({ page, request }) => {
     const { team, diagrams } = await importStageData(request);
     for (const path of [`/app/?ws=${encodeURIComponent(team)}`, `/app/d/${diagrams["edge-ingress (platform copy)"]}`]) {

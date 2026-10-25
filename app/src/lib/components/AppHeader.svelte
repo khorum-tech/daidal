@@ -3,7 +3,16 @@
 	import Icon from './Icon.svelte';
 
 	/** The app's top bar: the mark, where you are, and who is signed in. Sign-out goes through Cloudflare Access. */
-	let { me, homeHref, crumbs = [] }: { me: Me; homeHref: string; crumbs?: { label: string; href?: string }[] } = $props();
+	let {
+		me,
+		homeHref,
+		crumbs = []
+	}: {
+		me: Me;
+		homeHref: string;
+		/** Where you are. A crumb with [onclick] is a button (the diagram's name opens what can be done with it). */
+		crumbs?: { label: string; href?: string; onclick?: () => void; title?: string }[];
+	} = $props();
 	let open = $state(false);
 </script>
 
@@ -17,11 +26,15 @@
 		<nav aria-label="Breadcrumb" class="crumbs">
 			{#each crumbs as c, i (i)}
 				{#if i > 0}<span aria-hidden="true" class="slash">/</span>{/if}
-				{#if c.href}<a href={c.href}>{c.label}</a>{:else}<span aria-current="page">{c.label}</span>{/if}
+				{#if c.href}<a href={c.href}>{c.label}</a>{:else if c.onclick}
+					<button type="button" class="crumb-btn" aria-current="page" aria-haspopup="dialog" title={c.title} onclick={c.onclick}>
+						<span>{c.label}</span><Icon name="caretDown" size={11} />
+					</button>
+				{:else}<span aria-current="page">{c.label}</span>{/if}
 			{/each}
 		</nav>
 	{/if}
-	<span class="readonly tag tag-outline" title="Diagrams are edited and saved here; workspaces, sharing and snapshots are still managed in the prototype">Preview</span>
+	<span class="readonly tag tag-outline" title="Diagrams are made, edited and saved here; workspaces, members and sharing are still managed in the prototype">Preview</span>
 	<div class="user">
 		<button type="button" class="who" aria-expanded={open} aria-haspopup="menu" onclick={() => (open = !open)}>
 			<span class="avatar" aria-hidden="true">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>
@@ -170,5 +183,30 @@
 	}
 	.menu a:hover {
 		background: color-mix(in srgb, var(--color-text) 8%, transparent);
+	}
+	.crumb-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-width: 0;
+		max-width: 100%;
+		padding: 4px 8px;
+		border: none;
+		border-radius: 7px;
+		background: transparent;
+		color: var(--color-text);
+		font: inherit;
+		cursor: pointer;
+	}
+	.crumb-btn span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.crumb-btn :global(svg) {
+		flex: none;
+		color: var(--color-neutral-500);
+	}
+	.crumb-btn:hover {
+		background: color-mix(in srgb, var(--color-text) 7%, transparent);
 	}
 </style>
