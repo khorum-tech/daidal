@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 
 	/**
-	 * A panel that slides up from the bottom on narrow screens. A native modal <dialog>, so it keeps focus inside,
+	 * A panel that slides up from the bottom on narrow screens (and opens in the middle on wide ones). A native modal <dialog>, so it keeps focus inside,
 	 * closes on Escape, and the page behind it can't be scrolled or tapped; a tap on the backdrop closes it too.
 	 */
 	let { open, title, onclose, children }: { open: boolean; title: string; onclose: () => void; children: Snippet } = $props();
@@ -23,7 +23,11 @@
 	bind:this={dialog}
 	class="sheet"
 	aria-label={title}
-	onclose={onclose}
+	onclose={() => {
+		// Only a close the person made (Escape, the backdrop, ×) is reported. When the page closes this sheet to open
+		// another, reporting it would close the new one too.
+		if (open) onclose();
+	}}
 	onpointerdown={e => (pressedBackdrop = e.target === dialog)}
 	onclick={e => {
 		// The dialog element itself is only hit on the backdrop; the content sits in .body.
@@ -56,6 +60,14 @@
 	}
 	.sheet[open] {
 		animation: up 0.18s ease-out;
+	}
+	/* On a wide screen it is a dialog in the middle rather than a sheet along the bottom. */
+	@media (min-width: 901px) {
+		.sheet {
+			margin: auto;
+			width: min(540px, calc(100% - 32px));
+			border-radius: 16px;
+		}
 	}
 	.sheet::backdrop {
 		background: rgba(8, 9, 16, 0.55);

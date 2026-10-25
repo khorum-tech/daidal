@@ -57,6 +57,8 @@ test.describe("the app on a phone", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     const menu = page.getByTestId("node-menu");
     await expect(menu).toContainText("Journal DB");
+    // Edit leads, as View leads the bar it replaces.
+    await expect(menu.getByRole("button").first()).toContainText(/^\s*Edit/);
     // The owner's details are the editable inspector.
     await menu.getByRole("button", { name: /^Edit/ }).tap();
     await expect(page.getByRole("dialog", { name: "Node details" }).getByLabel("Notes")).toHaveValue(/Append-only journal/);
@@ -247,6 +249,31 @@ test.describe("the app on a phone", () => {
     clearInterval(watch);
     expect((await strip.boundingBox())!.height).toBe(height);
     expect(new Set([top, ...tops, await canvasTop()])).toEqual(new Set([top]));
+  });
+
+  test("saves a view and adds a tag from the views sheet", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("navigation", { name: "Diagram panels" }).getByRole("button", { name: /^View/ }).tap();
+    const views = page.getByRole("dialog", { name: "Views and tags" });
+    await views.getByRole("checkbox", { name: /Observability/ }).tap();
+    await views.getByRole("button", { name: "+ Save the tags on now as a view" }).tap();
+    await expect(views.getByRole("button", { name: /^View 5/ })).toHaveAttribute("aria-pressed", "true");
+    // Saving a view doesn't spring its editor open.
+    await expect(views.getByRole("group", { name: /^Edit view/ })).toHaveCount(0);
+
+    await views.getByRole("button", { name: "Manage tags" }).tap();
+    const manager = page.getByRole("dialog", { name: "Manage tags" });
+    await manager.getByLabel("New tag name").fill("Hot path");
+    await manager.getByRole("button", { name: "Add tag" }).tap();
+    await expect(manager.getByLabel("Name of Hot path")).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    const saved = await (await request.get(`/api/diagrams/${id}`)).json();
+    expect(saved.doc.views.at(-1)).toEqual({ name: "View 5", tags: ["web", "service", "data", "auth", "async"] });
+    expect(saved.doc.tags["hot-path"]).toMatchObject({ label: "Hot path" });
   });
 
   test("never scrolls the page sideways", async ({ page, request }) => {

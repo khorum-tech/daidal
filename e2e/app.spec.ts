@@ -53,7 +53,17 @@ async function dragBy(page: Page, from: string, dx: number, dy: number) {
   await drag(page, from, { x: a.x + a.width / 2 + dx * s, y: a.y + a.height / 2 + dy * s });
 }
 
-async function saved(page: Page, request: APIRequestContext, id: string): Promise<{ rev: number; doc: { nodes: SavedNode[]; edges: SavedEdge[]; boundaries: SavedBox[] } }> {
+async function saved(page: Page, request: APIRequestContext, id: string): Promise<{
+  rev: number;
+  doc: {
+    nodes: SavedNode[];
+    edges: SavedEdge[];
+    boundaries: SavedBox[];
+    tags: Record<string, { label: string; color: string; group?: string }>;
+    views: { name: string; tags: string[] }[];
+    diagram: { view?: string };
+  };
+}> {
   await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
   return (await request.get(`/api/diagrams/${id}`)).json();
 }
@@ -77,7 +87,7 @@ test.describe("the app at /app", () => {
     await expect(page.locator("path[data-edge]")).toHaveCount(9);
 
     // The saved view is "Full system"; "Write path" leaves observability out, so the collector is ghosted.
-    await expect(page.getByRole("button", { name: "Full system" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: /^Full system/ })).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: "Write path" }).click();
     await expect(page.getByRole("button", { name: "Telemetry: Collector" })).toHaveCSS("opacity", "0.22");
 
@@ -389,5 +399,107 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("button", { name: "Container: Storage" })).toBeVisible();
     ({ doc } = await saved(page, request, id));
     expect(doc.edges.some(e => e.from === "collector" && e.to === "store")).toBe(true);
+  });
+
+  test("saves the tags on now as a view, then renames it, opens on it, re-saves it and deletes it", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    const panel = page.getByRole("complementary", { name: "Views and tags" });
+    await panel.getByRole("checkbox", { name: /Observability/ }).uncheck();
+    // Full system stays chosen, marked as changed.
+    await expect(panel.getByRole("button", { name: /^Full system/ })).toContainText("changed");
+    await panel.getByRole("button", { name: "+ Save the tags on now as a view" }).click();
+    await expect(panel.getByRole("button", { name: /^View 5/ })).toHaveAttribute("aria-pressed", "true");
+
+    // The editor waits to be asked for.
+    await expect(panel.getByRole("group", { name: "Edit view View 5" })).toHaveCount(0);
+    await panel.getByRole("button", { name: "Edit view View 5" }).click();
+    const editor = panel.getByRole("group", { name: "Edit view View 5" });
+    await editor.getByLabel("View name").fill("Quiet");
+    await editor.getByLabel("View name").press("Enter");
+    await panel.getByRole("group", { name: "Edit view Quiet" }).getByRole("checkbox", { name: /opens on this view/ }).check();
+    await expect(panel.getByRole("button", { name: /^Quiet/ })).toContainText("default");
+    let { doc } = await saved(page, request, id);
+    expect(doc.views.at(-1)).toEqual({ name: "Quiet", tags: ["web", "service", "data", "auth", "async"] });
+    expect(doc.diagram.view).toBe("Quiet");
+
+    // A name already in use is refused.
+    await panel.getByRole("group", { name: "Edit view Quiet" }).getByLabel("View name").fill("Events");
+    await panel.getByRole("group", { name: "Edit view Quiet" }).getByLabel("View name").press("Enter");
+    await expect(panel.getByRole("alert")).toContainText("Another view has that name");
+
+    await panel.getByRole("checkbox", { name: /Async/ }).uncheck();
+    await panel.getByRole("button", { name: "Save the tags on now", exact: true }).click();
+    await expect(panel.getByRole("button", { name: "Matches the tags on now" })).toBeDisabled();
+    ({ doc } = await saved(page, request, id));
+    expect(doc.views.find(v => v.name === "Quiet")!.tags).toEqual(["web", "service", "data", "auth"]);
+
+    await page.reload();
+    await expect(panel.getByRole("button", { name: /^Quiet/ })).toHaveAttribute("aria-pressed", "true");
+    await panel.getByRole("button", { name: "Edit view Quiet" }).click();
+    await panel.getByRole("button", { name: "Delete view" }).click();
+    await expect(panel.getByRole("button", { name: /^Quiet/ })).toHaveCount(0);
+    ({ doc } = await saved(page, request, id));
+    expect(doc.views.some(v => v.name === "Quiet")).toBe(false);
+    expect(doc.diagram.view).toBeUndefined();
+  });
+
+  test("manages tags: adds, renames, recolours, regroups and deletes them", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "Manage tags" }).click();
+    const manager = page.getByRole("dialog", { name: "Manage tags" });
+
+    await manager.getByLabel("New tag name").fill("Hot path");
+    await manager.getByLabel("New tag group").fill("Concern");
+    await manager.getByRole("button", { name: "Add tag" }).click();
+    await expect(manager.getByLabel("Name of Hot path")).toBeVisible();
+
+    await manager.getByLabel("Name of Async").fill("Event bus");
+    await manager.getByLabel("Colour of Event bus").click();
+    await manager.getByRole("button", { name: "Colour #e0707c" }).click();
+    await manager.getByLabel("Group of Auth").fill("Security");
+    await manager.getByLabel("Group of Auth").press("Enter");
+    await manager.getByRole("button", { name: "Delete tag Observability" }).click();
+    await page.keyboard.press("Escape");
+
+    const panel = page.getByRole("complementary", { name: "Views and tags" });
+    await expect(panel.getByRole("heading", { name: "Security" })).toBeVisible();
+    await expect(panel.getByRole("checkbox", { name: /Observability/ })).toHaveCount(0);
+    const { doc } = await saved(page, request, id);
+    expect(doc.tags["hot-path"]).toMatchObject({ label: "Hot path", group: "Concern" });
+    expect(doc.tags.async).toMatchObject({ label: "Event bus", color: "#e0707c" });
+    expect(doc.tags.auth.group).toBe("Security");
+    expect(doc.tags.obs).toBeUndefined();
+    expect(doc.nodes.find(n => n.id === "collector")!.tags ?? []).not.toContain("obs");
+    expect(doc.views.every(v => !v.tags.includes("obs"))).toBe(true);
+  });
+
+  test("tags a node with a new tag, and solos a tag without saving anything", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "Telemetry: Collector" }).click();
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    await inspector.getByLabel("Add a tag").selectOption("New tag…");
+    await inspector.getByLabel("New tag name").fill("Legacy");
+    await inspector.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(inspector.getByRole("button", { name: "Remove tag Legacy" })).toBeVisible();
+    let { doc } = await saved(page, request, id);
+    expect(doc.tags.legacy).toMatchObject({ label: "Legacy", group: "Unlabelled" });
+    expect(doc.nodes.find(n => n.id === "collector")!.tags).toContain("legacy");
+    const rev = (await saved(page, request, id)).rev;
+
+    const panel = page.getByRole("complementary", { name: "Views and tags" });
+    await panel.getByRole("button", { name: "Solo Legacy" }).click();
+    await expect(page.getByRole("button", { name: "Service: Edge Router" })).toHaveCSS("opacity", "0.22");
+    await expect(page.getByRole("button", { name: "Telemetry: Collector" })).toHaveCSS("opacity", "1");
+    await panel.getByRole("button", { name: "Stop soloing Legacy" }).click();
+    await expect(page.getByRole("button", { name: "Service: Edge Router" })).toHaveCSS("opacity", "1");
+    // Soloing only changes what this browser shows.
+    ({ doc } = await saved(page, request, id));
+    expect((await saved(page, request, id)).rev).toBe(rev);
   });
 });

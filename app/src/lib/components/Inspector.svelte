@@ -21,7 +21,8 @@
 		ondelete,
 		onduplicate,
 		connections = [],
-		onpickedge
+		onpickedge,
+		onnewtag
 	}: {
 		node: SceneNode;
 		tags: Record<string, SceneTag>;
@@ -33,7 +34,18 @@
 		/** The node's connections: [out] when it starts here, and the node at the other end. */
 		connections?: { index: number; out: boolean; name: string; label: string }[];
 		onpickedge?: (index: number) => void;
+		/** A tag made here, by name: it lands in "Unlabelled" and goes on this node. */
+		onnewtag?: (label: string) => void;
 	} = $props();
+	let naming = $state(false);
+	let tagName = $state('');
+	function newTag(e: SubmitEvent) {
+		e.preventDefault();
+		if (!tagName.trim()) return;
+		onnewtag?.(tagName.trim());
+		tagName = '';
+		naming = false;
+	}
 
 	let picking = $state(false);
 	let linkLabel = $state('');
@@ -44,6 +56,7 @@
 		if (node.id === shown) return;
 		shown = node.id;
 		picking = false;
+		naming = false;
 		linkLabel = '';
 		linkAddress = '';
 	});
@@ -150,7 +163,7 @@
 					<button type="button" class="x" aria-label="Remove tag {tags[key]?.label ?? key}" onclick={() => onchange?.({ tags: node.tags.filter(t => t !== key) }, 'Change tags')}>×</button>
 				</span>
 			{/each}
-			{#if addable.length}
+			{#if !naming}
 				<select
 					class="add-tag"
 					aria-label="Add a tag"
@@ -158,16 +171,24 @@
 					onchange={e => {
 						const key = e.currentTarget.value;
 						e.currentTarget.value = '';
-						if (key) onchange?.({ tags: [...node.tags, key] }, 'Change tags');
+						if (key === '+new') naming = true;
+						else if (key) onchange?.({ tags: [...node.tags, key] }, 'Change tags');
 					}}
 				>
 					<option value="" disabled>+ Tag</option>
 					{#each addable as t (t.key)}<option value={t.key}>{t.label}</option>{/each}
+					{#if onnewtag}<option value="+new">New tag…</option>{/if}
 				</select>
-			{:else if !node.tags.length}
-				<span class="hint">This diagram has no tags yet.</span>
 			{/if}
 		</div>
+		{#if naming}
+			<form class="new-tag" onsubmit={newTag}>
+				<!-- svelte-ignore a11y_autofocus -->
+				<input class="input" aria-label="New tag name" placeholder="New tag name…" autofocus bind:value={tagName} onkeydown={e => e.key === 'Escape' && (naming = false)} />
+				<button type="submit" class="btn btn-secondary" disabled={!tagName.trim()}>Add</button>
+				<button type="button" class="btn btn-ghost" onclick={() => (naming = false)}>Cancel</button>
+			</form>
+		{/if}
 
 		{@render links()}
 		<form class="link-form" onsubmit={addLink}>
@@ -441,9 +462,19 @@
 		background: var(--color-surface);
 		color: var(--color-text);
 	}
-	.hint {
-		font-size: 11.5px;
-		color: var(--color-neutral-600);
+	.new-tag {
+		display: flex;
+		gap: 6px;
+		margin-top: 6px;
+	}
+	.new-tag .input {
+		flex: 1;
+		margin-top: 0;
+	}
+	.new-tag .btn {
+		flex: none;
+		font-size: 12px;
+		padding: 4px 9px;
 	}
 	.link-form {
 		display: grid;
