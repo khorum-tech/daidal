@@ -111,6 +111,15 @@
 
 	// Nodes can be edited on your own diagram, and not while replaying history.
 	const editable = $derived(mine && !replayed && working.saver.state !== 'conflict');
+	// What a mode in progress asks of you. Wide screens show it in the strip; a phone floats it over the canvas,
+	// so it never wraps the strip (and moves everything below) as it comes and goes.
+	const modeHint = $derived.by(() => {
+		if (!mine || replayed || working.saver.state === 'conflict' || working.saver.state === 'error') return '';
+		if (connectFrom) return `${narrow ? 'Tap' : 'Click'} the node to connect “${nameOf(connectFrom)}” to · ${narrow ? 'tap empty space' : 'Esc'} to cancel`;
+		if (boxMode && selectedBoxScene) return `Drag anywhere to ${boxMode} “${selectedBoxScene.label || 'the container'}” · two fingers pan`;
+		if (moving && selectedNode) return `Drag anywhere to move “${selectedNode.name}” · two fingers pan`;
+		return '';
+	});
 
 	// Every edit goes through here: the document as it was goes on the undo history, the new one is shown and saved.
 	const current = () => $state.snapshot(working.doc) as SkopeDoc;
@@ -355,19 +364,15 @@
 			{#if working.saver.state === 'pending' || working.saver.state === 'saving'}
 				Saving…
 			{:else if working.saver.state === 'error'}
-				Couldn't save. <button type="button" class="link" onclick={() => working.saver.flush()}>Try again</button>
+				Couldn't save · <button type="button" class="link" onclick={() => working.saver.flush()}>Try again</button>
 			{:else if working.saver.state === 'conflict'}
-				This diagram changed somewhere else. <button type="button" class="link" onclick={() => invalidateAll()}>Load the latest</button>
+				{narrow ? 'Changed elsewhere' : 'This diagram changed somewhere else'} · <button type="button" class="link" onclick={() => invalidateAll()}>Load the latest</button>
 			{:else if replayed}
-				Replaying history: go back to the working copy to edit
-			{:else if connectFrom}
-				{narrow ? 'Tap' : 'Click'} the node to connect “{nameOf(connectFrom)}” to · {narrow ? 'tap empty space' : 'Esc'} to cancel
-			{:else if boxMode && selectedBoxScene}
-				Drag anywhere to {boxMode} “{selectedBoxScene.label || 'the container'}” · two fingers pan
-			{:else if moving && selectedNode}
-				Drag anywhere to move “{selectedNode.name}” · two fingers pan
+				{narrow ? 'Replaying' : 'Replaying history: go back to the working copy to edit'}
+			{:else if modeHint && !narrow}
+				{modeHint}
 			{:else}
-				Saved{working.history.undoLabel ? '' : narrow ? ' · tap a node to edit it' : ' · drag a node to move it, click one to edit it'}
+				Saved{working.history.undoLabel || narrow ? '' : ' · drag a node to move it, click one to edit it'}
 			{/if}
 		</span>
 	{/if}
@@ -375,7 +380,7 @@
 		<span class="follow" data-testid="follow">
 			<Icon name="follow" size={12} />
 			Follows <a href={resolve('/d/[id]', { id: follow.leadId })}>{follow.leadName}</a>
-			· {follow.syncedLabel ? `synced to “${follow.syncedLabel}”` : 'not synced yet'}
+			{#if !narrow}· {follow.syncedLabel ? `synced to “${follow.syncedLabel}”` : 'not synced yet'}{/if}
 			{#if follow.paused}· paused{:else if follow.newer > 0}· {follow.newer} newer {follow.newer === 1 ? 'snapshot' : 'snapshots'} to review{:else}· up to date{/if}
 		</span>
 	{:else if follow.kind === 'gone'}
@@ -462,6 +467,9 @@
 			onresizebox={resizeBox}
 			boxMode={editable ? boxMode : null}
 		/>
+		{#if narrow && modeHint}
+			<p class="mode-hint" data-testid="mode-hint">{modeHint}</p>
+		{/if}
 		{#if editable}
 			<div class="tools" role="toolbar" aria-label="Edit">
 				<button type="button" class="tool add" aria-expanded={narrow ? sheet === 'add' : adding} onclick={() => (narrow ? (sheet = 'add') : (adding = !adding))}>
@@ -572,28 +580,64 @@
 {/if}
 
 <style>
+	/* One line, always: its pieces shorten with an ellipsis rather than wrap, so the canvas below never moves as
+	   the save status changes. */
 	.strip {
 		display: flex;
 		align-items: center;
 		gap: 16px;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
+		white-space: nowrap;
+		overflow: hidden;
+		min-height: 18px;
 		padding: 8px 16px;
 		border-bottom: 1px solid var(--color-divider);
 		font-size: 12px;
 		color: var(--color-neutral-500);
 	}
+	.meta,
+	.follow,
+	.save {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	/* When space runs out, "Updated…" gives way first and the save status never does. */
+	.meta {
+		flex: 0 3 auto;
+	}
 	.follow {
-		display: flex;
-		align-items: center;
-		gap: 5px;
+		flex: 0 1 auto;
 		color: var(--color-accent-300);
+	}
+	.follow :global(svg) {
+		vertical-align: -2px;
 	}
 	.follow.gone {
 		color: var(--color-neutral-500);
 	}
 	.save {
+		flex: none;
 		margin-left: auto;
 		color: var(--color-neutral-500);
+	}
+	.mode-hint {
+		position: absolute;
+		top: 60px;
+		left: 50%;
+		transform: translateX(-50%);
+		max-width: calc(100% - 24px);
+		box-sizing: border-box;
+		margin: 0;
+		padding: 6px 12px;
+		border-radius: 999px;
+		border: 1px solid var(--color-accent-700);
+		background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+		color: var(--color-accent-200);
+		font-size: 12.5px;
+		text-align: center;
+		pointer-events: none;
+		z-index: 1;
 	}
 	.link {
 		font: inherit;

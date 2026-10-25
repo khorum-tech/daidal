@@ -91,7 +91,7 @@ test.describe("the app on a phone", () => {
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
     await page.getByRole("navigation", { name: "Diagram panels" }).getByRole("button", { name: /History/ }).tap();
     await page.getByRole("dialog", { name: "History" }).getByRole("button", { name: /Container view/ }).tap();
-    await expect(page.getByTestId("save-status")).toContainText("go back to the working copy to edit");
+    await expect(page.getByTestId("save-status")).toContainText("Replaying");
     const before = await sheet(page);
     const start = await middle(page, '[data-node="postings"]');
     await swipe(page, start.x, start.y, -90, 60);
@@ -104,7 +104,7 @@ test.describe("the app on a phone", () => {
   test("a swipe that starts on a node pans, selected or not, until Move is chosen", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
-    await expect(page.getByTestId("save-status")).toContainText("tap a node to edit it");
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved\s*$/);
     const postings = page.locator('[data-node="postings"]');
     await postings.tap();
     await expect(postings).toHaveAttribute("aria-pressed", "true");
@@ -124,12 +124,12 @@ test.describe("the app on a phone", () => {
     const { s } = await sheet(page);
     await page.locator('[data-node="collector"]').tap();
     await page.getByTestId("node-menu").getByRole("button", { name: /^Move/ }).tap();
-    await expect(page.getByTestId("save-status")).toContainText("Drag anywhere to move “Collector”");
+    await expect(page.getByTestId("mode-hint")).toHaveText("Drag anywhere to move “Collector” · two fingers pan");
     // The drag starts on empty canvas, well away from the node.
     const canvas = (await page.locator(".canvas").boundingBox())!;
     await swipe(page, canvas.x + canvas.width - 40, canvas.y + canvas.height - 60, 40 * s, -30 * s, true);
     // The strip keeps the Move hint while Move is on; the save shows as "Saving…" passing through it.
-    await expect(page.getByTestId("save-status")).not.toContainText("Saving");
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
     // Collector starts at (60, 480); the swipe was 40 × -30 in diagram units.
     const saved = await (await request.get(`/api/diagrams/${id}`)).json();
     expect(saved.doc.nodes.find((n: { id: string }) => n.id === "collector").layout).toMatchObject({ x: 100, y: 450 });
@@ -165,7 +165,7 @@ test.describe("the app on a phone", () => {
     await page.goto(`/app/d/${id}`);
     await page.locator('[data-node="collector"]').tap();
     await page.getByTestId("node-menu").getByRole("button", { name: /^Connect/ }).tap();
-    await expect(page.getByTestId("save-status")).toContainText("Tap the node to connect “Collector” to");
+    await expect(page.getByTestId("mode-hint")).toContainText("Tap the node to connect “Collector” to");
     await page.locator('[data-node="console"]').tap();
 
     const menu = page.getByTestId("edge-menu");
@@ -198,7 +198,7 @@ test.describe("the app on a phone", () => {
     const canvas = (await page.locator(".canvas").boundingBox())!;
 
     await menu.getByRole("button", { name: /^Resize/ }).tap();
-    await expect(page.getByTestId("save-status")).toContainText("Drag anywhere to resize “Storage”");
+    await expect(page.getByTestId("mode-hint")).toContainText("Drag anywhere to resize “Storage”");
     await swipe(page, canvas.x + 60, canvas.y + canvas.height - 80, 50 * s, 40 * s);
     await menu.getByRole("button", { name: /^Move/ }).tap();
     // The resize grew the diagram, but an edit never rescales the canvas under the finger.
@@ -217,6 +217,36 @@ test.describe("the app on a phone", () => {
     const box = saved.doc.boundaries.find((b: { id: string }) => b.id === "store");
     // Storage starts at (880, 120), 230 × 340.
     expect(box).toMatchObject({ label: "Data stores", layout: { x: 840, y: 140, w: 280, h: 380 } });
+  });
+
+  test("keeps the strip on one line, so the canvas never moves as the save status changes", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    const strip = page.locator(".strip");
+    const canvasTop = async () => (await page.locator(".canvas").boundingBox())!.y;
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved\s*$/);
+    const height = (await strip.boundingBox())!.height;
+    const top = await canvasTop();
+    // One line of text: no taller than its padding and a line.
+    expect(height).toBeLessThan(40);
+
+    // A mode's hint floats over the canvas instead of joining the strip.
+    await page.locator('[data-node="collector"]').tap();
+    await page.getByTestId("node-menu").getByRole("button", { name: /^Move/ }).tap();
+    await expect(page.getByTestId("mode-hint")).toBeVisible();
+    expect((await strip.boundingBox())!.height).toBe(height);
+
+    // Saving and saved again: the strip keeps its height and the canvas stays put.
+    const { s } = await sheet(page);
+    const canvas = (await page.locator(".canvas").boundingBox())!;
+    const tops: number[] = [];
+    const watch = setInterval(() => void canvasTop().then(t => tops.push(t)).catch(() => {}), 20);
+    await swipe(page, canvas.x + canvas.width - 40, canvas.y + canvas.height - 60, 30 * s, -20 * s, true);
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    clearInterval(watch);
+    expect((await strip.boundingBox())!.height).toBe(height);
+    expect(new Set([top, ...tops, await canvasTop()])).toEqual(new Set([top]));
   });
 
   test("never scrolls the page sideways", async ({ page, request }) => {
