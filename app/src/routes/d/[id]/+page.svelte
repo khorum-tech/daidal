@@ -11,12 +11,15 @@
 	import EdgeInspector from '#lib/components/EdgeInspector.svelte';
 	import Inspector from '#lib/components/Inspector.svelte';
 	import Sheet from '#lib/components/Sheet.svelte';
+	import TagManager from '#lib/components/TagManager.svelte';
 	import TagPanel from '#lib/components/TagPanel.svelte';
 	import TypePicker from '#lib/components/TypePicker.svelte';
 	import {
 		addBoundary,
 		addEdge,
 		addNode,
+		addTag,
+		addView,
 		connectToNew,
 		duplicateBoundary,
 		duplicateNode,
@@ -24,11 +27,17 @@
 		removeBoundary,
 		removeEdge,
 		removeNode,
+		removeTag,
+		removeView,
 		resizeBoundary,
 		reverseEdge,
+		setDefaultView,
 		updateBoundary,
 		updateEdge,
 		updateNode,
+		updateTag,
+		updateView,
+		viewNameFree,
 		type BoundaryChange,
 		type EdgeChange,
 		type NodeChange
@@ -68,6 +77,9 @@
 	// View and tag switches are only what this browser shows; nothing is saved.
 	let view = $state<string | null>(null);
 	let on = $state<Record<string, boolean>>({});
+	// A tag shown alone, and the switches to go back to when it stops.
+	let solo = $state<string | null>(null);
+	let beforeSolo: Record<string, boolean> | null = null;
 	let selected = $state<string | null>(null);
 	// A connection is selected by its place in the document; a node and a connection are never both selected.
 	let selectedEdge = $state<number | null>(null);
@@ -83,6 +95,7 @@
 		untrack(() => {
 			view = scene.initialView;
 			on = tagsOn(scene, scene.initialView);
+			solo = null;
 			selected = null;
 			selectedEdge = null;
 			connectFrom = null;
@@ -294,7 +307,7 @@
 		mq.addEventListener('change', update);
 		return () => mq.removeEventListener('change', update);
 	});
-	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | 'box' | null>(null);
+	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | 'box' | 'tags' | null>(null);
 	// Moving mode: a drag anywhere on the canvas moves the selected node. It is how a finger moves a node (a mouse
 	// can drag one directly), chosen from the node menu, and ends with the selection.
 	let moving = $state(false);
@@ -326,11 +339,84 @@
 	const setView = (v: string | null) => {
 		view = v;
 		on = tagsOn(scene, v);
+		solo = null;
 	};
+	// Switching a tag keeps the view chosen (the panel marks it changed), so its tags can be saved back into it.
 	const toggleTag = (k: string) => {
 		on = { ...on, [k]: !on[k] };
-		view = null;
+		solo = null;
 	};
+	// Solo shows one tag alone; again, or on another tag, and the switches come back as they were.
+	function soloTag(k: string) {
+		if (solo === k) {
+			on = beforeSolo ?? tagsOn(scene, null);
+			solo = null;
+			return;
+		}
+		if (!solo) beforeSolo = on;
+		on = Object.fromEntries(scene.tags.map(t => [t.key, t.key === k]));
+		solo = k;
+		view = null;
+	}
+
+	// Views and tags are part of the document: saved, and undone like any other edit.
+	const tagsOnNow = () => scene.tags.filter(t => on[t.key]).map(t => t.key);
+	function saveView() {
+		const before = current();
+		const made = addView(before, tagsOnNow());
+		apply(made.doc, before, `Save view “${made.name}”`);
+		view = made.name;
+		solo = null;
+	}
+	function renameView(name: string, to: string): boolean {
+		const before = current();
+		if (!viewNameFree(before, to, name)) return false;
+		apply(updateView(before, name, { name: to }), before, 'Rename view');
+		if (view === name) view = to.trim();
+		return true;
+	}
+	function resaveView(name: string) {
+		const before = current();
+		apply(updateView(before, name, { tags: tagsOnNow() }), before, `Save view “${name}”`);
+	}
+	function deleteView(name: string) {
+		const before = current();
+		apply(removeView(before, name), before, `Delete view “${name}”`);
+		if (view === name) view = null;
+	}
+	function defaultView(name: string | null) {
+		const before = current();
+		apply(setDefaultView(before, name), before, name ? `Open on “${name}”` : 'Open on everything');
+	}
+	// A new tag starts switched on, so the nodes it goes on stay in sight.
+	function newTag(label: string, group?: string) {
+		const before = current();
+		const made = addTag(before, label, group);
+		apply(made.doc, before, `Add tag “${label}”`);
+		on = { ...on, [made.key]: true };
+	}
+	function newTagOnNode(label: string) {
+		const node = selected ? current().nodes?.find(n => n.id === selected) : undefined;
+		if (!node) return;
+		const before = current();
+		const made = addTag(before, label);
+		apply(updateNode(made.doc, node.id, { tags: [...(node.tags ?? []), made.key] }), before, `Tag “${label}”`);
+		on = { ...on, [made.key]: true };
+	}
+	function changeTag(key: string, change: { label?: string; color?: string; group?: string }, label: string, group?: string) {
+		const before = current();
+		apply(updateTag(before, key, change), before, label, group);
+	}
+	function deleteTag(key: string) {
+		const before = current();
+		const name = scene.tags.find(t => t.key === key)?.label ?? key;
+		apply(removeTag(before, key), before, `Delete tag “${name}”`);
+		if (solo === key) {
+			on = beforeSolo ?? tagsOn(scene, null);
+			solo = null;
+		}
+	}
+	const tagCounts = $derived(Object.fromEntries(scene.tags.map(t => [t.key, scene.nodes.filter(n => n.tags.includes(t.key)).length])));
 	const pick = (id: string | null) => {
 		replaying = id;
 		sheet = null;
@@ -406,6 +492,7 @@
 			ondelete={remove}
 			onduplicate={duplicate}
 			{connections}
+			onnewtag={newTagOnNode}
 			onpickedge={i => {
 				selectEdge(i);
 				if (narrow) sheet = 'edge';
@@ -437,7 +524,22 @@
 	{/if}
 {/snippet}
 {#snippet tags()}
-	<TagPanel {scene} {on} {view} onview={setView} ontoggle={toggleTag} />
+	<TagPanel
+		{scene}
+		{on}
+		{view}
+		onview={setView}
+		ontoggle={toggleTag}
+		{solo}
+		onsolo={soloTag}
+		{editable}
+		onsaveview={saveView}
+		onrenameview={renameView}
+		onresaveview={resaveView}
+		ondeleteview={deleteView}
+		ondefaultview={defaultView}
+		onmanage={() => (sheet = 'tags')}
+	/>
 {/snippet}
 {#snippet history()}
 	<HistoryPanel snapshots={data.snapshots} current={replaying} onpick={pick} {now} />
@@ -578,6 +680,10 @@
 		{@render edgeInspector()}
 	</Sheet>
 {/if}
+<!-- The tag manager opens from the tags panel on any screen: a dialog on a wide one, a sheet on a phone. -->
+<Sheet open={sheet === 'tags' && editable} title="Manage tags" onclose={() => (sheet = null)}>
+	<TagManager tags={scene.tags} counts={tagCounts} onchange={changeTag} onfieldend={() => working.history.endGroup()} ondelete={deleteTag} onadd={newTag} />
+</Sheet>
 
 <style>
 	/* One line, always: its pieces shorten with an ellipsis rather than wrap, so the canvas below never moves as

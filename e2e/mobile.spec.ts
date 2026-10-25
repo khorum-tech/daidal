@@ -249,6 +249,29 @@ test.describe("the app on a phone", () => {
     expect(new Set([top, ...tops, await canvasTop()])).toEqual(new Set([top]));
   });
 
+  test("saves a view and adds a tag from the views sheet", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("navigation", { name: "Diagram panels" }).getByRole("button", { name: /^View/ }).tap();
+    const views = page.getByRole("dialog", { name: "Views and tags" });
+    await views.getByRole("checkbox", { name: /Observability/ }).tap();
+    await views.getByRole("button", { name: "+ Save the tags on now as a view" }).tap();
+    await expect(views.getByRole("button", { name: /^View 5/ })).toHaveAttribute("aria-pressed", "true");
+
+    await views.getByRole("button", { name: "Manage tags" }).tap();
+    const manager = page.getByRole("dialog", { name: "Manage tags" });
+    await manager.getByLabel("New tag name").fill("Hot path");
+    await manager.getByRole("button", { name: "Add tag" }).tap();
+    await expect(manager.getByLabel("Name of Hot path")).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    const saved = await (await request.get(`/api/diagrams/${id}`)).json();
+    expect(saved.doc.views.at(-1)).toEqual({ name: "View 5", tags: ["web", "service", "data", "auth", "async"] });
+    expect(saved.doc.tags["hot-path"]).toMatchObject({ label: "Hot path" });
+  });
+
   test("never scrolls the page sideways", async ({ page, request }) => {
     const { team, diagrams } = await importStageData(request);
     for (const path of [`/app/?ws=${encodeURIComponent(team)}`, `/app/d/${diagrams["edge-ingress (platform copy)"]}`]) {

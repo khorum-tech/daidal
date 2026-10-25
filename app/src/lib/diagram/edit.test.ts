@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkopeDoc } from '../types';
-import { addBoundary, addEdge, addNode, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, resizeBoundary, reverseEdge, updateBoundary, updateEdge, updateNode } from './edit';
+import { addBoundary, addEdge, addNode, addTag, addView, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, removeTag, removeView, resizeBoundary, reverseEdge, setDefaultView, TAG_COLORS, updateBoundary, updateEdge, updateNode, updateTag, updateView, viewNameFree } from './edit';
 import { toScene } from './model';
 
 const base = (): SkopeDoc => ({
@@ -210,5 +210,72 @@ describe('containers', () => {
 		expect(doc.boundaries!.map(b => b.id)).toEqual(['inner']);
 		expect(doc.edges!.some(e => e.to === 'zone')).toBe(false);
 		expect(doc.nodes).toHaveLength(2);
+	});
+});
+
+describe('tags', () => {
+	const tagged = (): SkopeDoc => ({
+		...base(),
+		tags: { core: { label: 'Core', color: '#111111', group: 'Layer' } },
+		views: [{ name: 'Main', tags: ['core'] }]
+	});
+
+	it('adds one keyed by its name, made unique, coloured in turn', () => {
+		const { doc, key } = addTag(tagged(), ' Hot path ');
+		expect(key).toBe('hot-path');
+		expect(doc.tags![key]).toEqual({ label: 'Hot path', color: TAG_COLORS[1], group: 'Unlabelled' });
+		const again = addTag(doc, 'Hot path', 'Concern');
+		expect(again.key).toBe('hot-path-2');
+		expect(again.doc.tags![again.key].group).toBe('Concern');
+	});
+
+	it('renames, recolours and regroups one; an empty group puts it back in Unlabelled', () => {
+		let doc = updateTag(tagged(), 'core', { label: 'Platform', color: '#222222', group: 'Team' });
+		expect(doc.tags!.core).toEqual({ label: 'Platform', color: '#222222', group: 'Team' });
+		doc = updateTag(doc, 'core', { group: ' ' });
+		expect(doc.tags!.core.group).toBe('Unlabelled');
+		expect(updateTag(tagged(), 'nope', { label: 'x' })).toEqual(tagged());
+	});
+
+	it('removes one from the tags, the nodes and the views', () => {
+		const doc = removeTag(tagged(), 'core');
+		expect(doc.tags).toEqual({});
+		expect(doc.nodes![0].tags).toBeUndefined();
+		expect(doc.views).toEqual([{ name: 'Main', tags: [] }]);
+	});
+});
+
+describe('views', () => {
+	const viewed = (): SkopeDoc => ({ ...base(), diagram: { name: 'd', view: 'Main' }, views: [{ name: 'Main', tags: ['core'] }, { name: 'View 3', tags: [] }] });
+
+	it('saves the tags on now as "View N", skipping names in use', () => {
+		const { doc, name } = addView(viewed(), ['core', 'x']);
+		expect(name).toBe('View 4');
+		expect(doc.views!.at(-1)).toEqual({ name: 'View 4', tags: ['core', 'x'] });
+		expect(addView({ version: 1 }, []).name).toBe('View 1');
+	});
+
+	it('renames one, keeping it the default; refuses an empty or taken name', () => {
+		const doc = updateView(viewed(), 'Main', { name: ' Everything on ' });
+		expect(doc.views![0].name).toBe('Everything on');
+		expect(doc.diagram!.view).toBe('Everything on');
+		expect(updateView(viewed(), 'Main', { name: 'View 3' })).toEqual(viewed());
+		expect(updateView(viewed(), 'Main', { name: '  ' })).toEqual(viewed());
+		expect(viewNameFree(viewed(), 'Main', 'Main')).toBe(true);
+	});
+
+	it('re-saves its tags', () => {
+		expect(updateView(viewed(), 'View 3', { tags: ['core'] }).views![1]).toEqual({ name: 'View 3', tags: ['core'] });
+	});
+
+	it('removes one, and the diagram stops opening on it', () => {
+		const doc = removeView(viewed(), 'Main');
+		expect(doc.views!.map(v => v.name)).toEqual(['View 3']);
+		expect(doc.diagram).toEqual({ name: 'd' });
+	});
+
+	it('sets the view the diagram opens on, or everything', () => {
+		expect(setDefaultView(viewed(), 'View 3').diagram!.view).toBe('View 3');
+		expect(setDefaultView(viewed(), null).diagram).toEqual({ name: 'd' });
 	});
 });

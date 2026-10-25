@@ -332,3 +332,95 @@ export function removeBoundary(doc: SkopeDoc, id: string): SkopeDoc {
 		edges: (doc.edges ?? []).filter(e => e.from !== id && e.to !== id)
 	};
 }
+
+// ---- tags and views ----
+
+/** The prototype's house palette (Nocturne) and its wider one (Spectrum): what a tag's colour is picked from. */
+export const TAG_COLORS = ['#d2cefd', '#b5abfc', '#968ae0', '#796cbf', '#5d5294', '#c9b9f7', '#9690c9', '#9397ab'];
+export const MORE_TAG_COLORS = ['#e0707c', '#e3925c', '#dfc264', '#a9cc6a', '#5fbf86', '#4fbcb0', '#54a8dd', '#6f8ce8', '#9a7fe2', '#cf7fd0', '#c08e6e', '#7fc9c2', '#b7c96b', '#98a0b2'];
+/** Where a tag made from a node lands, as in the prototype. */
+export const NEW_TAG_GROUP = 'Unlabelled';
+
+/**
+ * A new tag, keyed by its slugged label (made unique), coloured from the palette in turn. Returns the document and
+ * the new key.
+ */
+export function addTag(doc: SkopeDoc, label: string, group = NEW_TAG_GROUP): { doc: SkopeDoc; key: string } {
+	const tags = doc.tags ?? {};
+	const stem = slug(label);
+	let key = stem;
+	let n = 1;
+	while (tags[key]) key = `${stem}-${++n}`;
+	const color = TAG_COLORS[Object.keys(tags).length % TAG_COLORS.length];
+	return { doc: { ...doc, tags: { ...tags, [key]: { label: label.trim(), color, group: group.trim() || NEW_TAG_GROUP } } }, key };
+}
+
+export function updateTag(doc: SkopeDoc, key: string, change: { label?: string; color?: string; group?: string }): SkopeDoc {
+	const tag = doc.tags?.[key];
+	if (!tag) return doc;
+	const next = { ...tag, ...Object.fromEntries(Object.entries(change).filter(([, v]) => v !== undefined)) };
+	if (change.group !== undefined) next.group = change.group.trim() || NEW_TAG_GROUP;
+	return { ...doc, tags: { ...doc.tags, [key]: next } };
+}
+
+/** Drops a tag, and takes it off every node and out of every view. */
+export function removeTag(doc: SkopeDoc, key: string): SkopeDoc {
+	const tags = { ...doc.tags };
+	delete tags[key];
+	return {
+		...doc,
+		tags,
+		nodes: (doc.nodes ?? []).map(n => (n.tags?.includes(key) ? withoutEmpty({ ...n, tags: n.tags.filter(t => t !== key) }) : n)),
+		views: (doc.views ?? []).map(v => (v.tags.includes(key) ? { ...v, tags: v.tags.filter(t => t !== key) } : v))
+	};
+}
+
+function withoutEmpty(n: DocNode): DocNode {
+	if (n.tags?.length === 0) delete n.tags;
+	return n;
+}
+
+/** A new view of [tags], named "View N" with the first free N, as the prototype names one. */
+export function addView(doc: SkopeDoc, tags: string[]): { doc: SkopeDoc; name: string } {
+	const views = doc.views ?? [];
+	let n = views.length + 1;
+	while (views.some(v => v.name === `View ${n}`)) n++;
+	const name = `View ${n}`;
+	return { doc: { ...doc, views: [...views, { name, tags: [...tags] }] }, name };
+}
+
+/** Whether [name] could be given to view [current] (not empty, and no other view has it). */
+export function viewNameFree(doc: SkopeDoc, name: string, current: string): boolean {
+	const n = name.trim();
+	return !!n && !(doc.views ?? []).some(v => v.name === n && v.name !== current);
+}
+
+/** Renames a view or re-saves its tags. A rename keeps it the default view if it was. */
+export function updateView(doc: SkopeDoc, name: string, change: { name?: string; tags?: string[] }): SkopeDoc {
+	const rename = change.name?.trim();
+	if (rename !== undefined && !viewNameFree(doc, rename, name)) return doc;
+	const next: SkopeDoc = {
+		...doc,
+		views: (doc.views ?? []).map(v => (v.name === name ? { name: rename ?? v.name, tags: change.tags ? [...change.tags] : v.tags } : v))
+	};
+	if (rename && doc.diagram?.view === name) next.diagram = { ...doc.diagram, view: rename };
+	return next;
+}
+
+export function removeView(doc: SkopeDoc, name: string): SkopeDoc {
+	const next: SkopeDoc = { ...doc, views: (doc.views ?? []).filter(v => v.name !== name) };
+	if (doc.diagram?.view === name) {
+		const diagram = { ...doc.diagram };
+		delete diagram.view;
+		next.diagram = diagram;
+	}
+	return next;
+}
+
+/** The view the diagram opens on, or (null) everything. */
+export function setDefaultView(doc: SkopeDoc, name: string | null): SkopeDoc {
+	const diagram = { ...doc.diagram };
+	if (name) diagram.view = name;
+	else delete diagram.view;
+	return { ...doc, diagram };
+}

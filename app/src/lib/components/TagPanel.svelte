@@ -1,30 +1,63 @@
 <script lang="ts">
 	import { tagGroups, type Scene } from '../diagram/model';
+	import Icon from './Icon.svelte';
 
 	/**
-	 * Views and tags, as the prototype's left panel lists them. Switching a tag off only changes what this browser
-	 * shows; nothing is saved.
+	 * Views and tags, as the prototype's left panel lists them. Switching a tag off, or soloing one, only changes what
+	 * this browser shows; nothing is saved. With [editable] on, the tags on now can be saved as a view, the chosen
+	 * view renamed, re-saved, made the one the diagram opens on, or deleted, and the tags managed ([onmanage]).
 	 */
 	let {
 		scene,
 		on,
 		view,
 		onview,
-		ontoggle
+		ontoggle,
+		solo = null,
+		onsolo,
+		editable = false,
+		onsaveview,
+		onrenameview,
+		onresaveview,
+		ondeleteview,
+		ondefaultview,
+		onmanage
 	}: {
 		scene: Scene;
 		on: Record<string, boolean>;
 		view: string | null;
 		onview: (view: string | null) => void;
 		ontoggle: (tag: string) => void;
+		/** The tag shown alone, if any. */
+		solo?: string | null;
+		onsolo?: (tag: string) => void;
+		editable?: boolean;
+		onsaveview?: () => void;
+		/** Asks to rename a view; false means the name can't be used. */
+		onrenameview?: (name: string, to: string) => boolean;
+		onresaveview?: (name: string) => void;
+		ondeleteview?: (name: string) => void;
+		ondefaultview?: (name: string | null) => void;
+		onmanage?: () => void;
 	} = $props();
 
 	const groups = $derived(tagGroups(scene));
 	const count = (key: string) => scene.nodes.filter(n => n.tags.includes(key)).length;
+	const current = $derived(scene.views.find(v => v.label === view));
+	const onNow = $derived(scene.tags.filter(t => on[t.key]).map(t => t.key));
+	const changed = $derived(!!current && (current.tags.length !== onNow.length || current.tags.some(t => !on[t])));
+	let nameError = $state(false);
+	function rename(e: Event & { currentTarget: HTMLInputElement }) {
+		if (!current) return;
+		const to = e.currentTarget.value.trim();
+		if (to === current.label) return;
+		nameError = !onrenameview?.(current.label, to);
+		if (nameError) e.currentTarget.value = current.label;
+	}
 </script>
 
 <aside class="panel" aria-label="Views and tags">
-	{#if scene.views.length}
+	{#if scene.views.length || editable}
 		<section>
 			<h2>Views</h2>
 			<ul class="views">
@@ -33,10 +66,31 @@
 				</li>
 				{#each scene.views as v (v.label)}
 					<li>
-						<button type="button" class:active={view === v.label} aria-pressed={view === v.label} onclick={() => onview(v.label)}>{v.label}</button>
+						<button type="button" class:active={view === v.label} aria-pressed={view === v.label} onclick={() => onview(v.label)}>
+							{v.label}{#if view === v.label && changed}<span class="changed" title="The tags on now differ from this view">changed</span>{/if}{#if scene.initialView === v.label}<span class="default" title="The diagram opens on this view">default</span>{/if}
+						</button>
 					</li>
 				{/each}
 			</ul>
+			{#if editable && current}
+				<div class="view-edit" role="group" aria-label="Edit view {current.label}">
+					{#key current.label}
+						<input class="input" aria-label="View name" value={current.label} onchange={rename} onkeydown={e => e.key === 'Enter' && e.currentTarget.blur()} />
+					{/key}
+					{#if nameError}<p class="error" role="alert">Another view has that name, or it is empty.</p>{/if}
+					<button type="button" class="act" disabled={!changed} onclick={() => onresaveview?.(current.label)}>
+						{changed ? 'Save the tags on now' : 'Matches the tags on now'}
+					</button>
+					<label class="switch">
+						<input type="checkbox" checked={scene.initialView === current.label} onchange={() => ondefaultview?.(scene.initialView === current.label ? null : current.label)} />
+						The diagram opens on this view
+					</label>
+					<button type="button" class="act danger" onclick={() => ondeleteview?.(current.label)}>Delete view</button>
+				</div>
+			{/if}
+			{#if editable}
+				<button type="button" class="add-view" onclick={() => onsaveview?.()}>+ Save the tags on now as a view</button>
+			{/if}
 		</section>
 	{/if}
 	{#each groups as g (g.name)}
@@ -44,13 +98,26 @@
 			<h2>{g.name}</h2>
 			<ul class="tags">
 				{#each g.tags as t (t.key)}
-					<li>
+					<li class="tag-row">
 						<label class:off={!on[t.key]}>
 							<input type="checkbox" checked={on[t.key]} onchange={() => ontoggle(t.key)} />
 							<span class="swatch" style:background={t.color}></span>
 							<span class="label">{t.label}</span>
 							<span class="count">{count(t.key)}</span>
 						</label>
+						{#if onsolo}
+							<button
+								type="button"
+								class="solo"
+								class:on={solo === t.key}
+								aria-pressed={solo === t.key}
+								aria-label={solo === t.key ? `Stop soloing ${t.label}` : `Solo ${t.label}`}
+								title={solo === t.key ? 'Stop soloing: bring the other tags back' : 'Show only this tag'}
+								onclick={() => onsolo(t.key)}
+							>
+								<Icon name="crosshair" size={13} />
+							</button>
+						{/if}
 					</li>
 				{/each}
 			</ul>
@@ -58,6 +125,9 @@
 	{:else}
 		<p class="empty">This diagram has no tags.</p>
 	{/each}
+	{#if editable}
+		<button type="button" class="manage" onclick={() => onmanage?.()}>Manage tags</button>
+	{/if}
 </aside>
 
 <style>
@@ -147,5 +217,109 @@
 		font-size: 12px;
 		color: var(--color-neutral-600);
 		margin: 0 4px;
+	}
+	.changed,
+	.default {
+		margin-left: 6px;
+		font-size: 9.5px;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--color-neutral-500);
+	}
+	.changed {
+		color: var(--color-accent-300);
+	}
+	.view-edit {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		margin: 8px 4px 0;
+		padding: 8px;
+		border: 1px solid var(--color-divider);
+		border-radius: 8px;
+	}
+	.view-edit .input {
+		width: 100%;
+		box-sizing: border-box;
+		min-height: 30px;
+		padding: 3px 7px;
+		font-size: 12.5px;
+	}
+	.error {
+		margin: 0;
+		font-size: 11px;
+		color: var(--color-danger, #e5767b);
+	}
+	.act,
+	.add-view,
+	.manage {
+		font: inherit;
+		font-size: 12px;
+		min-height: 30px;
+		padding: 4px 8px;
+		border-radius: 7px;
+		border: 1px solid var(--color-divider);
+		background: transparent;
+		color: var(--color-neutral-300);
+		cursor: pointer;
+		text-align: left;
+	}
+	.act:disabled {
+		color: var(--color-neutral-600);
+		cursor: default;
+	}
+	.act.danger:hover {
+		color: var(--color-danger, #e5767b);
+		border-color: currentColor;
+	}
+	.add-view {
+		width: calc(100% - 8px);
+		margin: 8px 4px 0;
+		border-style: dashed;
+		color: var(--color-accent);
+	}
+	.manage {
+		margin: 0 4px;
+	}
+	.switch {
+		padding: 2px 0;
+		font-size: 11.5px;
+		color: var(--color-neutral-400);
+	}
+	.switch:hover {
+		background: none;
+	}
+	.tag-row {
+		display: flex;
+		align-items: center;
+	}
+	.tag-row label {
+		flex: 1;
+		min-width: 0;
+	}
+	.solo {
+		width: 28px;
+		height: 28px;
+		flex: none;
+		display: grid;
+		place-items: center;
+		border: none;
+		border-radius: 7px;
+		background: transparent;
+		color: var(--color-neutral-700);
+		cursor: pointer;
+	}
+	.solo:hover {
+		color: var(--color-neutral-300);
+	}
+	.solo.on {
+		color: var(--color-accent);
+		background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+	}
+	/* Safari on iOS zooms the page into any field set smaller than 16px. */
+	@media (pointer: coarse) {
+		.view-edit .input {
+			font-size: 16px;
+		}
 	}
 </style>

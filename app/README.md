@@ -10,7 +10,11 @@ Tap a connection to edit its label, arrows, weight, line, route and which side e
 or delete it. **Containers** as well: add one from the Add menu, pick it by its border or label, drag the border to
 move it (with whatever sits wholly inside, unless it is set to move alone) and the corner handle to resize it; on a
 phone, Move or Resize in its menu, then drag anywhere. Its inspector sets the label and where it sits, the border,
-and whether it carries its contents. Tags and views are still edited in the prototype.
+and whether it carries its contents. **Tags and views** too: the tags panel saves the tags on now as a view, and
+the chosen view can be renamed, re-saved with the tags on now, made the one the diagram opens on, or deleted;
+**Manage tags** adds, renames, recolours, regroups and deletes tags, and a node's tag picker can make a new one. Solo
+(the crosshair by a tag) shows one tag alone without saving anything. Workspaces, members, sharing and snapshots are
+still managed in the prototype.
 
 | Route | What it shows |
 |-------|---------------|
