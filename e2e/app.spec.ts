@@ -13,8 +13,28 @@ interface SavedNode {
   layout: { x: number; y: number };
 }
 
+interface SavedEdge {
+  from: string;
+  to: string;
+  label?: string;
+  line?: string;
+  direction?: string;
+  route?: string;
+  anchors?: { from?: string; to?: string };
+}
+
 /** Wait for the page to finish saving, then read the diagram back from the API. */
-async function saved(page: Page, request: APIRequestContext, id: string): Promise<{ rev: number; doc: { nodes: SavedNode[]; edges: { from: string; to: string }[] } }> {
+/** Drag with the mouse from the middle of [from] to the middle of [to] (or a point). */
+async function drag(page: Page, from: string, to: string | { x: number; y: number }) {
+  const a = (await page.locator(from).boundingBox())!;
+  const b = typeof to === "string" ? (await page.locator(to).boundingBox())! : { ...to, width: 0, height: 0 };
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 8 });
+  await page.mouse.up();
+}
+
+async function saved(page: Page, request: APIRequestContext, id: string): Promise<{ rev: number; doc: { nodes: SavedNode[]; edges: SavedEdge[] } }> {
   await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
   return (await request.get(`/api/diagrams/${id}`)).json();
 }
@@ -204,5 +224,83 @@ test.describe("the app at /app", () => {
     await expect(page.locator(`[data-node="${copy.id}"]`)).toHaveCount(0);
     ({ doc } = await saved(page, request, id));
     expect(doc.nodes.filter(n => n.name.startsWith("Edge Rout"))).toHaveLength(1);
+  });
+
+  test("connects two nodes by dragging the port, then labels and styles the connection", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await expect(page.locator("path[data-edge]")).toHaveCount(9);
+    await page.getByRole("button", { name: "Telemetry: Collector" }).click();
+    await drag(page, ".port", '[data-node="console"]');
+    await expect(page.locator('path[data-edge="collector>console"]')).toHaveCount(1);
+
+    const inspector = page.getByRole("region", { name: "Selected connection" });
+    await expect(inspector.getByRole("heading", { level: 2 })).toHaveText("Collector → Ledger Console");
+    await inspector.getByLabel("Label", { exact: true }).fill("scrapes");
+    await inspector.getByRole("button", { name: "Dashed line" }).click();
+    await inspector.getByRole("button", { name: "Arrows at both ends" }).click();
+    await inspector.getByRole("button", { name: "Angled route" }).click();
+    await inspector.getByLabel("Side it leaves Collector").selectOption("top");
+    await expect(page.locator(".e-label", { hasText: "scrapes" })).toBeVisible();
+
+    const { doc } = await saved(page, request, id);
+    expect(doc.edges.at(-1)).toEqual({ from: "collector", to: "console", label: "scrapes", line: "dashed", direction: "both", route: "angled", anchors: { from: "top:0.5" } });
+  });
+
+  test("connects with a click on the port then the target, and drops a connection on empty canvas for a new node", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "Service: Edge Router" }).click();
+    await page.locator(".port").click();
+    await expect(page.getByTestId("save-status")).toContainText("Click the node to connect “Edge Router” to");
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("save-status")).not.toContainText("Click the node");
+
+    await page.locator(".port").click();
+    await page.getByRole("button", { name: "Database: Journal DB" }).click();
+    await expect(page.getByRole("region", { name: "Selected connection" }).getByRole("heading", { level: 2 })).toHaveText("Edge Router → Journal DB");
+
+    // From Journal DB out to empty canvas, below the diagram.
+    await page.getByRole("button", { name: "Database: Journal DB" }).click();
+    const canvas = (await page.locator(".canvas").boundingBox())!;
+    await drag(page, ".port", { x: canvas.x + canvas.width - 120, y: canvas.y + canvas.height - 80 });
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    await expect(inspector.getByLabel("Name")).toHaveValue("New Service");
+    await expect(inspector.getByRole("button", { name: /Journal DB/ })).toBeVisible();
+
+    const { doc } = await saved(page, request, id);
+    const made = doc.nodes.find(n => n.name === "New Service")!;
+    expect(doc.edges.slice(-2)).toEqual([{ from: "edge", to: "journal" }, { from: "journal", to: made.id }]);
+  });
+
+  test("picks a connection, reverses it, deletes it from the keyboard, and undoes that", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    // Picked on the canvas: the label sits on the connection's middle and lets taps through to it.
+    const label = (await page.locator(".e-label", { hasText: "SQL" }).boundingBox())!;
+    await page.mouse.click(label.x + label.width / 2, label.y + label.height / 2);
+    const inspector = page.getByRole("region", { name: "Selected connection" });
+    await expect(inspector.getByRole("heading", { level: 2 })).toHaveText("Postings Service → Journal DB");
+    await inspector.getByRole("button", { name: "Reverse" }).click();
+    await expect(inspector.getByRole("heading", { level: 2 })).toHaveText("Journal DB → Postings Service");
+
+    await page.locator(".canvas").focus();
+    await page.keyboard.press("Delete");
+    await expect(page.locator("path[data-edge]")).toHaveCount(8);
+    let { doc } = await saved(page, request, id);
+    expect(doc.edges.some(e => e.from === "journal" || e.to === "journal")).toBe(false);
+
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect(page.locator('path[data-edge="journal>postings"]')).toHaveCount(1);
+
+    // Picked from the node's own list of connections.
+    await page.getByRole("button", { name: "Database: Journal DB" }).click();
+    await page.getByRole("region", { name: "Selected node" }).getByRole("button", { name: /Postings Service/ }).click();
+    await expect(inspector.getByRole("heading", { level: 2 })).toHaveText("Journal DB → Postings Service");
+    ({ doc } = await saved(page, request, id));
+    expect(doc.edges.find(e => e.from === "journal")).toMatchObject({ to: "postings", label: "SQL" });
   });
 });

@@ -159,6 +159,35 @@ test.describe("the app on a phone", () => {
     expect(saved.doc.nodes.some((n: { name: string; type: string }) => n.name === "Settlement Queue" && n.type === "queue")).toBe(true);
   });
 
+  test("connects two nodes from the node menu, edits the connection in a sheet, and deletes it", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.locator('[data-node="collector"]').tap();
+    await page.getByTestId("node-menu").getByRole("button", { name: /^Connect/ }).tap();
+    await expect(page.getByTestId("save-status")).toContainText("Tap the node to connect “Collector” to");
+    await page.locator('[data-node="console"]').tap();
+
+    const menu = page.getByTestId("edge-menu");
+    await expect(menu).toContainText("Collector → Ledger Console");
+    await menu.getByRole("button", { name: /^Edit connection/ }).tap();
+    const sheet = page.getByRole("dialog", { name: "Connection" });
+    await sheet.getByLabel("Label", { exact: true }).fill("scrapes");
+    await sheet.getByLabel("Label", { exact: true }).blur();
+    await sheet.getByRole("button", { name: "Thick line" }).tap();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    let saved = await (await request.get(`/api/diagrams/${id}`)).json();
+    expect(saved.doc.edges.at(-1)).toEqual({ from: "collector", to: "console", label: "scrapes", width: 2.6 });
+
+    await menu.getByRole("button", { name: /^Delete/ }).tap();
+    await expect(page.getByTestId("edge-menu")).toHaveCount(0);
+    await expect(page.locator('path[data-edge="collector>console"]')).toHaveCount(0);
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    saved = await (await request.get(`/api/diagrams/${id}`)).json();
+    expect(saved.doc.edges.some((e: { from: string; to: string }) => e.from === "collector" && e.to === "console")).toBe(false);
+  });
+
   test("never scrolls the page sideways", async ({ page, request }) => {
     const { team, diagrams } = await importStageData(request);
     for (const path of [`/app/?ws=${encodeURIComponent(team)}`, `/app/d/${diagrams["edge-ingress (platform copy)"]}`]) {

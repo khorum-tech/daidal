@@ -7,11 +7,24 @@
 	import DiagramCanvas from '#lib/components/DiagramCanvas.svelte';
 	import HistoryPanel from '#lib/components/HistoryPanel.svelte';
 	import Icon from '#lib/components/Icon.svelte';
+	import EdgeInspector from '#lib/components/EdgeInspector.svelte';
 	import Inspector from '#lib/components/Inspector.svelte';
 	import Sheet from '#lib/components/Sheet.svelte';
 	import TagPanel from '#lib/components/TagPanel.svelte';
 	import TypePicker from '#lib/components/TypePicker.svelte';
-	import { addNode, duplicateNode, removeNode, updateNode, type NodeChange } from '#lib/diagram/edit.ts';
+	import {
+		addEdge,
+		addNode,
+		connectToNew,
+		duplicateNode,
+		removeEdge,
+		removeNode,
+		reverseEdge,
+		updateEdge,
+		updateNode,
+		type EdgeChange,
+		type NodeChange
+	} from '#lib/diagram/edit.ts';
 	import { History } from '#lib/history.svelte.ts';
 	import { tagsOn, toScene } from '#lib/diagram/model.ts';
 	import { followState } from '#lib/follow.ts';
@@ -48,6 +61,10 @@
 	let view = $state<string | null>(null);
 	let on = $state<Record<string, boolean>>({});
 	let selected = $state<string | null>(null);
+	// A connection is selected by its place in the document; a node and a connection are never both selected.
+	let selectedEdge = $state<number | null>(null);
+	// A connection being made from this node; the next node tapped is its other end.
+	let connectFrom = $state<string | null>(null);
 	$effect.pre(() => {
 		// A new diagram or snapshot starts from its own saved view. Moving a node changes the scene too, but keeps
 		// the view, so this reads which document is shown, not the scene itself.
@@ -56,11 +73,24 @@
 			view = scene.initialView;
 			on = tagsOn(scene, scene.initialView);
 			selected = null;
+			selectedEdge = null;
+			connectFrom = null;
 		});
 	});
 
 	const tagByKey = $derived(Object.fromEntries(scene.tags.map(t => [t.key, t])));
 	const selectedNode = $derived(selected ? scene.nodes.find(n => n.id === selected) : undefined);
+	const selectedEdgeScene = $derived(selectedEdge === null ? undefined : scene.edges[selectedEdge]);
+	// What a connection's end is called: a node's name, or a container's label.
+	const nameOf = (id: string) => scene.nodes.find(n => n.id === id)?.name ?? scene.boundaries.find(b => b.id === id)?.label ?? id;
+	const connections = $derived(
+		selected
+			? scene.edges
+					.filter(e => e.from === selected || e.to === selected)
+					.map(e => ({ index: e.index, out: e.from === selected, name: nameOf(e.from === selected ? e.to : e.from), label: e.label }))
+			: []
+	);
+
 	const follow = $derived(followState(data.diagram, data.lead));
 	const mine = $derived(data.diagram.ownerEmail === data.me.email);
 	const now = Date.now();
@@ -79,6 +109,7 @@
 		working.doc = doc;
 		working.saver.queue(doc);
 		if (selected && !doc.nodes?.some(n => n.id === selected)) select(null);
+		if (selectedEdge !== null && selectedEdge >= (doc.edges?.length ?? 0)) selectedEdge = null;
 	}
 	function undo() {
 		const doc = editable && working.history.undo(current());
@@ -117,6 +148,44 @@
 		apply(made.doc, before, 'Duplicate node');
 		select(made.id);
 	}
+	function startConnect(from: string) {
+		if (!editable) return;
+		moving = false;
+		connectFrom = from;
+	}
+	function connect(from: string, to: string | null, at: { x: number; y: number }) {
+		connectFrom = null;
+		if (to === from) return;
+		const before = current();
+		if (to) {
+			const made = addEdge(before, from, to);
+			apply(made.doc, before, `Connect ${nameOf(from)} → ${nameOf(to)}`);
+			selectEdge(made.index);
+		} else {
+			// Dropped on empty canvas: a new node there, connected, as in the prototype.
+			const made = connectToNew(before, from, 'Service', at);
+			apply(made.doc, before, `Connect ${nameOf(from)} to a new service`);
+			select(made.id);
+		}
+	}
+	function changeEdge(change: EdgeChange, label: string, group?: string) {
+		if (selectedEdge === null) return;
+		const before = current();
+		apply(updateEdge(before, selectedEdge, change), before, label, group);
+	}
+	function reverse() {
+		if (selectedEdge === null) return;
+		const before = current();
+		apply(reverseEdge(before, selectedEdge), before, 'Reverse connection');
+	}
+	function disconnect() {
+		if (selectedEdge === null) return;
+		const before = current();
+		const at = selectedEdge;
+		sheet = null;
+		selectedEdge = null;
+		apply(removeEdge(before, at), before, 'Delete connection');
+	}
 	function remove() {
 		if (!selected) return;
 		const before = current();
@@ -135,6 +204,8 @@
 		else if (meta && k === 'y') redo();
 		else if (meta && k === 'd' && selected) duplicate();
 		else if ((k === 'delete' || k === 'backspace') && selected && !meta) remove();
+		else if ((k === 'delete' || k === 'backspace') && selectedEdge !== null && !meta) disconnect();
+		else if (k === 'escape' && connectFrom) connectFrom = null;
 		else if (k === 'escape' && adding) adding = false;
 		else return;
 		e.preventDefault();
@@ -159,13 +230,21 @@
 		mq.addEventListener('change', update);
 		return () => mq.removeEventListener('change', update);
 	});
-	let sheet = $state<'views' | 'history' | 'details' | 'add' | null>(null);
+	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | null>(null);
 	// Moving mode: a drag anywhere on the canvas moves the selected node. It is how a finger moves a node (a mouse
 	// can drag one directly), chosen from the node menu, and ends with the selection.
 	let moving = $state(false);
 	function select(id: string | null) {
 		if (id !== selected) moving = false;
 		selected = id;
+		selectedEdge = null;
+		connectFrom = null;
+	}
+	function selectEdge(index: number) {
+		moving = false;
+		connectFrom = null;
+		selected = null;
+		selectedEdge = index;
 	}
 	// Enter on the selected node asks for the details: on a phone they are out of sight, so that brings the sheet
 	// up; on a wide screen they are already beside the canvas.
@@ -219,6 +298,8 @@
 				This diagram changed somewhere else. <button type="button" class="link" onclick={() => invalidateAll()}>Load the latest</button>
 			{:else if replayed}
 				Replaying history: go back to the working copy to edit
+			{:else if connectFrom}
+				{narrow ? 'Tap' : 'Click'} the node to connect “{nameOf(connectFrom)}” to · {narrow ? 'tap empty space' : 'Esc'} to cancel
 			{:else if moving && selectedNode}
 				Drag anywhere to move “{selectedNode.name}” · two fingers pan
 			{:else}
@@ -245,6 +326,38 @@
 	</div>
 {/if}
 
+{#snippet nodeInspector()}
+	{#if selectedNode}
+		<Inspector
+			node={selectedNode}
+			tags={tagByKey}
+			{editable}
+			onchange={changeNode}
+			onfieldend={() => working.history.endGroup()}
+			ondelete={remove}
+			onduplicate={duplicate}
+			{connections}
+			onpickedge={i => {
+				selectEdge(i);
+				if (narrow) sheet = 'edge';
+			}}
+		/>
+	{/if}
+{/snippet}
+{#snippet edgeInspector()}
+	{#if selectedEdgeScene}
+		<EdgeInspector
+			edge={selectedEdgeScene}
+			fromName={nameOf(selectedEdgeScene.from)}
+			toName={nameOf(selectedEdgeScene.to)}
+			{editable}
+			onchange={changeEdge}
+			onfieldend={() => working.history.endGroup()}
+			onreverse={reverse}
+			ondelete={disconnect}
+		/>
+	{/if}
+{/snippet}
 {#snippet tags()}
 	<TagPanel {scene} {on} {view} onview={setView} ontoggle={toggleTag} />
 {/snippet}
@@ -255,7 +368,22 @@
 <div class="body">
 	{#if !narrow}{@render tags()}{/if}
 	<main class="stage" aria-label="Diagram">
-		<DiagramCanvas bind:this={canvasRef} {scene} {on} {selected} onselect={select} ondetails={details} {editable} moving={moving && editable} onmove={moveNode} />
+		<DiagramCanvas
+			bind:this={canvasRef}
+			{scene}
+			{on}
+			{selected}
+			onselect={select}
+			ondetails={details}
+			{editable}
+			moving={moving && editable}
+			onmove={moveNode}
+			{selectedEdge}
+			onselectedge={selectEdge}
+			{connectFrom}
+			onconnect={connect}
+			onconnectstart={startConnect}
+		/>
 		{#if editable}
 			<div class="tools" role="toolbar" aria-label="Edit">
 				<button type="button" class="tool add" aria-expanded={narrow ? sheet === 'add' : adding} onclick={() => (narrow ? (sheet = 'add') : (adding = !adding))}>
@@ -277,7 +405,8 @@
 	</main>
 	{#if !narrow}
 		<aside class="right">
-			{#if selectedNode}<Inspector node={selectedNode} tags={tagByKey} {editable} onchange={changeNode} onfieldend={() => working.history.endGroup()} ondelete={remove} onduplicate={duplicate} />{/if}
+			{@render nodeInspector()}
+			{@render edgeInspector()}
 			{@render history()}
 		</aside>
 	{/if}
@@ -290,10 +419,30 @@
 			<button type="button" class:active={moving} aria-pressed={moving} disabled={!editable} title={editable ? '' : replayed ? 'Go back to the working copy to move nodes' : 'Only the owner can move nodes'} onclick={() => (moving = !moving)}>
 				<span class="t-label">{moving ? 'Moving' : 'Move'}</span><span class="t-value">{moving ? 'Drag anywhere · tap to stop' : selectedNode.name}</span>
 			</button>
+			{#if editable}
+				<button type="button" class:active={connectFrom === selectedNode.id} aria-pressed={connectFrom === selectedNode.id} onclick={() => (connectFrom ? (connectFrom = null) : startConnect(selectedNode.id))}>
+					<span class="t-label">{connectFrom ? 'Connecting' : 'Connect'}</span><span class="t-value">{connectFrom ? 'Tap a node · tap to stop' : 'to a node'}</span>
+				</button>
+			{/if}
 			<button type="button" onclick={() => (sheet = 'details')}>
 				<span class="t-label">{editable ? 'Edit' : 'Details'}</span><span class="t-value">{selectedNode.type}</span>
 			</button>
 			<button type="button" class="done" aria-label="Done with {selectedNode.name}" onclick={() => select(null)}>
+				<span class="t-label">Done</span><span class="t-value">×</span>
+			</button>
+		</nav>
+	{:else if selectedEdgeScene}
+		<!-- A selected connection gets its own menu. -->
+		<nav class="toolbar node-menu" aria-label="Selected connection" data-testid="edge-menu">
+			<button type="button" onclick={() => (sheet = 'edge')}>
+				<span class="t-label">{editable ? 'Edit connection' : 'Connection'}</span><span class="t-value">{nameOf(selectedEdgeScene.from)} → {nameOf(selectedEdgeScene.to)}</span>
+			</button>
+			{#if editable}
+				<button type="button" class="narrow-btn" onclick={disconnect}>
+					<span class="t-label">Delete</span><span class="t-value">Connection</span>
+				</button>
+			{/if}
+			<button type="button" class="done" aria-label="Done with the connection" onclick={() => (selectedEdge = null)}>
 				<span class="t-label">Done</span><span class="t-value">×</span>
 			</button>
 		</nav>
@@ -316,7 +465,10 @@
 		<div class="add-sheet"><TypePicker onpick={add} /></div>
 	</Sheet>
 	<Sheet open={sheet === 'details' && !!selectedNode} title="Node details" onclose={() => (sheet = null)}>
-		{#if selectedNode}<Inspector node={selectedNode} tags={tagByKey} {editable} onchange={changeNode} onfieldend={() => working.history.endGroup()} ondelete={remove} onduplicate={duplicate} />{/if}
+		{@render nodeInspector()}
+	</Sheet>
+	<Sheet open={sheet === 'edge' && !!selectedEdgeScene} title="Connection" onclose={() => (sheet = null)}>
+		{@render edgeInspector()}
 	</Sheet>
 {/if}
 
@@ -483,6 +635,9 @@
 	}
 	.node-menu button.active .t-label {
 		color: var(--color-accent-300);
+	}
+	.node-menu .narrow-btn {
+		flex: 0 0 100px;
 	}
 	.node-menu .done {
 		flex: 0 0 72px;

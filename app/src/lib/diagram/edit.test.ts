@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkopeDoc } from '../types';
-import { addNode, duplicateNode, freeSpot, hostOf, linkUrl, newNodeId, removeNode, updateNode } from './edit';
+import { addEdge, addNode, connectToNew, duplicateNode, endSide, freeSpot, hostOf, linkUrl, newNodeId, removeEdge, removeNode, reverseEdge, updateEdge, updateNode } from './edit';
 import { toScene } from './model';
 
 const base = (): SkopeDoc => ({
@@ -105,5 +105,50 @@ describe('links', () => {
 		expect(hostOf('https://www.github.com/acme')).toBe('github.com');
 		expect(hostOf('grafana.acme.io/d/1')).toBe('grafana.acme.io');
 		expect(hostOf('not a url')).toBe('not a url');
+	});
+});
+
+describe('connections', () => {
+	it('adds one with the defaults and reports where it went', () => {
+		const { doc, index } = addEdge(base(), 'db', 'api');
+		expect(index).toBe(2);
+		expect(doc.edges![2]).toEqual({ from: 'db', to: 'api' });
+		expect(base().edges).toHaveLength(2);
+	});
+
+	it('connects to a new node dropped on empty canvas', () => {
+		const { doc, id, index } = connectToNew(base(), 'api', 'Service', { x: 195, y: 444 }, 1);
+		expect(doc.nodes!.find(n => n.id === id)).toMatchObject({ name: 'New Service', layout: { x: 100, y: 400 } });
+		expect(doc.edges![index]).toEqual({ from: 'api', to: id });
+	});
+
+	it('changes fields, and leaves defaults out of the document', () => {
+		let doc = updateEdge(base(), 0, { label: 'reads', line: 'dashed', direction: 'both', width: 2.6, route: 'angled', showLabel: false });
+		expect(doc.edges![0]).toEqual({ from: 'api', to: 'db', label: 'reads', line: 'dashed', direction: 'both', width: 2.6, route: 'angled', showLabel: false });
+		doc = updateEdge(doc, 0, { label: '', line: 'solid', direction: 'forward', showLabel: true });
+		expect(doc.edges![0]).toEqual({ from: 'api', to: 'db', width: 2.6, route: 'angled' });
+		expect(doc.edges![1]).toEqual(base().edges![1]);
+	});
+
+	it('pins an end to the middle of a side, and puts it back on auto', () => {
+		let doc = updateEdge(base(), 0, { fromSide: 'bottom' });
+		expect(doc.edges![0].anchors).toEqual({ from: 'bottom:0.5' });
+		expect(endSide(doc.edges![0], 'from')).toBe('bottom');
+		expect(endSide(doc.edges![0], 'to')).toBeNull();
+		expect(toScene(doc).edges[0].fromA).toEqual({ side: 'b', t: 0.5 });
+		doc = updateEdge(doc, 0, { toSide: 'left' });
+		expect(doc.edges![0].anchors).toEqual({ from: 'bottom:0.5', to: 'left:0.5' });
+		doc = updateEdge(doc, 0, { fromSide: null, toSide: null });
+		expect(doc.edges![0].anchors).toBeUndefined();
+		expect(endSide({ from: 'a', to: 'b', anchors: { to: 'r:0.2' } }, 'to')).toBe('right');
+	});
+
+	it('reverses one, swapping its pinned ends', () => {
+		const pinned = updateEdge(base(), 0, { fromSide: 'top' });
+		expect(reverseEdge(pinned, 0).edges![0]).toEqual({ from: 'db', to: 'api', label: 'SQL', anchors: { to: 'top:0.5' } });
+	});
+
+	it('removes one by its place', () => {
+		expect(removeEdge(base(), 0).edges).toEqual([{ from: 'db', to: 'api' }]);
 	});
 });

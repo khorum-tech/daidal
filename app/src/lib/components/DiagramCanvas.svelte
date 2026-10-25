@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { bounds, isHidden, SHEET_H, SHEET_W, type Scene, type SceneNode } from '../diagram/model';
+	import { bounds, isHidden, type Scene, type SceneNode } from '../diagram/model';
 	import { edgePath, type Box } from '../diagram/geometry';
 	import { clampView, fitView, panBy, toContent, zoomAt, type Point, type View } from '../diagram/zoom';
 	import { SNAP_PX, snapBox, type Guide } from '../diagram/snap';
@@ -14,6 +14,10 @@
 	 * With [editable] on, a mouse drags any node to move it; in [moving] mode a drag anywhere moves the selected
 	 * node instead of panning, which is how a finger moves one. Moves snap to the nodes around and are reported
 	 * through [onmove]. Enter on the selected node asks for its details ([ondetails]).
+	 *
+	 * Connections are tapped like nodes ([onselectedge]). With [editable] on, the selected node shows a port: drag
+	 * it to another node to connect them, or onto empty canvas for a new node ([onconnect]), or click it to start
+	 * connecting ([onconnectstart]). While [connectFrom] is set, the next node tapped is the other end.
 	 */
 	let {
 		scene,
@@ -24,6 +28,11 @@
 		moving = false,
 		onmove,
 		ondetails,
+		selectedEdge = null,
+		onselectedge,
+		connectFrom = null,
+		onconnect,
+		onconnectstart,
 		ghostOpacity = 0.22,
 		edgeStyle = 'curved'
 	}: {
@@ -36,6 +45,14 @@
 		moving?: boolean;
 		onmove?: (id: string, x: number, y: number) => void;
 		ondetails?: (id: string) => void;
+		/** The selected connection, by its place in the document. */
+		selectedEdge?: number | null;
+		onselectedge?: (index: number) => void;
+		/** The node a connection being made starts from. */
+		connectFrom?: string | null;
+		/** A connection made: to another node, or (with [to] null) to a new one at [at]. */
+		onconnect?: (from: string, to: string | null, at: Point) => void;
+		onconnectstart?: (from: string) => void;
 		ghostOpacity?: number;
 		edgeStyle?: 'curved' | 'straight' | 'angled';
 	} = $props();
@@ -83,6 +100,19 @@
 		const b = bounds(scene);
 		return { x0: b.x - PAD, y0: b.y - PAD, w: b.w + 2 * PAD, h: b.h + 2 * PAD };
 	});
+	// The connections layer covers the whole diagram (and a wide margin for a connection being dragged out), so a
+	// tap on any connection lands on it: outside its own box an SVG doesn't take taps.
+	const layer = $derived({ x: area.x0 - 2000, y: area.y0 - 2000, w: area.w + 4000, h: area.h + 4000 });
+
+	// A connection being made: where its loose end is, in diagram units.
+	let loose = $state<Point | null>(null);
+	// The node a connection is being dragged from (the port gesture), for drawing it.
+	let gestureFrom = $state('');
+	const source = $derived.by(() => {
+		const id = connectFrom ?? (gestureFrom || null);
+		return id ? nodes.find(n => n.id === id) : undefined;
+	});
+	const port = $derived(editable && !connectFrom && selected ? nodes.find(n => n.id === selected) : undefined);
 
 	let viewW = $state(0);
 	let viewH = $state(0);
@@ -120,6 +150,7 @@
 	type Gesture =
 		| { kind: 'pan'; pointer: number; start: Point; last: Point; moved: boolean }
 		| { kind: 'node'; pointer: number; start: Point; node: SceneNode; moved: boolean; touch: boolean }
+		| { kind: 'connect'; pointer: number; start: Point; from: string; moved: boolean }
 		| { kind: 'pinch'; dist: number; mid: Point; from: View };
 	const pointers = new Map<number, Point>();
 	let gesture: Gesture | null = null;
@@ -148,8 +179,13 @@
 		}
 		if (pointers.size > 2) return;
 		const touch = e.pointerType !== 'mouse';
+		if (editable && port && target.closest('.port')) {
+			gesture = { kind: 'connect', pointer: e.pointerId, start: p, from: port.id, moved: false };
+			gestureFrom = port.id;
+			return;
+		}
 		// In moving mode the selected node follows a drag from anywhere; otherwise a mouse drags the node under it.
-		const id = moving ? selected : touch ? null : (target.closest<HTMLElement>('[data-node]')?.dataset.node ?? null);
+		const id = moving ? selected : touch || connectFrom ? null : (target.closest<HTMLElement>('[data-node]')?.dataset.node ?? null);
 		const node = editable && id ? scene.nodes.find(n => n.id === id) : undefined;
 		gesture = node
 			? { kind: 'node', pointer: e.pointerId, start: p, node, moved: false, touch }
@@ -157,6 +193,8 @@
 	}
 
 	function move(e: PointerEvent) {
+		// Choosing the other end with a mouse: the connection follows the pointer.
+		if (connectFrom && !gesture && e.pointerType === 'mouse') loose = toContent(view, local(e));
 		if (!pointers.has(e.pointerId) || !gesture) return;
 		const p = local(e);
 		pointers.set(e.pointerId, p);
@@ -181,7 +219,9 @@
 			}
 		}
 		gesture.moved = true;
-		if (gesture.kind === 'pan') {
+		if (gesture.kind === 'connect') {
+			loose = toContent(view, p);
+		} else if (gesture.kind === 'pan') {
 			panning = true;
 			setView(panBy(view, p.x - gesture.last.x, p.y - gesture.last.y));
 			gesture.last = p;
@@ -213,13 +253,29 @@
 		const d = dragged;
 		dragged = null;
 		if (g.kind === 'node' && g.moved && d && !cancelled) onmove?.(d.id, Math.round(d.x), Math.round(d.y));
+		if (g.kind === 'connect') {
+			gestureFrom = '';
+			loose = null;
+			if (cancelled) return;
+			if (!g.moved) {
+				onconnectstart?.(g.from);
+				return;
+			}
+			// Dropped on a node connects to it; on empty canvas, to a new node there; back on its own node, nothing.
+			const under = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-node]')?.dataset.node ?? null;
+			if (under !== g.from) onconnect?.(g.from, under, toContent(view, local(e)));
+		}
 	}
 
 	/** A tap on empty space clears the selection. Nodes handle their own taps (NodeCard). */
 	function tapEmpty(e: MouseEvent) {
-		if (dragJustEnded || (e.target as Element).closest('[data-node], .zoom')) return;
+		if (dragJustEnded || (e.target as Element).closest('[data-node], [data-hit], .zoom, .port')) return;
+		loose = null;
 		onselect?.(null);
 	}
+	$effect(() => {
+		if (!connectFrom) loose = null;
+	});
 
 	// The keyboard can do what the pointer does, once the canvas has focus.
 	function keys(e: KeyboardEvent) {
@@ -270,7 +326,15 @@
 			</div>
 		{/each}
 
-		<svg class="edges" width={SHEET_W} height={SHEET_H} aria-hidden="true">
+		<svg
+			class="edges"
+			style:left="{layer.x}px"
+			style:top="{layer.y}px"
+			width={layer.w}
+			height={layer.h}
+			viewBox="{layer.x} {layer.y} {layer.w} {layer.h}"
+			aria-hidden="true"
+		>
 			<defs>
 				{#each [['arrThin', 1.1, '#75798c'], ['arr', 1.4, '#75798c'], ['arrBold', 1.9, '#8c90a3']] as [id, w, c] (id)}
 					<marker id={String(id)} viewBox="0 0 7 6" markerWidth="9" markerHeight="8" refX="5.9" refY="3" markerUnits="userSpaceOnUse" orient="auto">
@@ -288,8 +352,8 @@
 				<path
 					d={p.d}
 					fill="none"
-					stroke="#595d6c"
-					stroke-width={e.width}
+					stroke={selectedEdge === e.index ? 'var(--color-accent)' : '#595d6c'}
+					stroke-width={selectedEdge === e.index ? e.width + 0.8 : e.width}
 					stroke-linecap={p.cap}
 					stroke-dasharray={p.dash || undefined}
 					marker-end={p.markerEnd ? `url(#${p.markerEnd})` : undefined}
@@ -298,6 +362,21 @@
 					data-edge="{e.from}>{e.to}"
 				/>
 			{/each}
+			<!-- Wide, invisible copies of each connection take the taps; a finger gets more room than a mouse. -->
+			{#each edges as { e, p } (e.key)}
+				<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+				<path
+					class="hit"
+					d={p.d}
+					data-hit={e.index}
+					onclick={() => {
+						if (!dragJustEnded && !connectFrom) onselectedge?.(e.index);
+					}}
+				/>
+			{/each}
+			{#if source && loose}
+				<line class="loose" x1={source.x + source.w / 2} y1={source.y + source.h / 2} x2={loose.x} y2={loose.y} />
+			{/if}
 		</svg>
 
 		{#each edges as { e, p, op } (e.key)}
@@ -314,12 +393,30 @@
 				{ghostOpacity}
 				selected={selected === n.id}
 				dragging={dragged?.id === n.id}
+				connecting={!!connectFrom}
 				onselect={id => {
-					if (!dragJustEnded) onselect?.(id);
+					if (dragJustEnded) return;
+					if (connectFrom) onconnect?.(connectFrom, id, { x: n.x, y: n.y });
+					else onselect?.(id);
 				}}
 				ondetails={id => ondetails?.(id)}
 			/>
 		{/each}
+
+		{#if port}
+			<button
+				type="button"
+				class="port"
+				style:left="{port.x + port.w}px"
+				style:top="{port.y + port.h / 2}px"
+				title="Drag to a node to connect, or click, then click a target"
+				aria-label="Connect {port.name} to another node"
+				onclick={e => {
+					// Keyboard: Enter or Space starts connecting (a pointer is handled by the gesture).
+					if (e.detail === 0) onconnectstart?.(port.id);
+				}}>+</button
+			>
+		{/if}
 	</div>
 
 	<div class="zoom" role="group" aria-label="Zoom">
@@ -387,6 +484,49 @@
 		top: 0;
 		overflow: visible;
 		pointer-events: none;
+	}
+	.hit {
+		fill: none;
+		stroke: transparent;
+		stroke-width: 14px;
+		pointer-events: stroke;
+		cursor: pointer;
+	}
+	@media (pointer: coarse) {
+		.hit {
+			stroke-width: 24px;
+		}
+	}
+	.loose {
+		stroke: var(--color-accent);
+		stroke-width: 1.6;
+		stroke-dasharray: 5 4;
+		pointer-events: none;
+	}
+	.port {
+		position: absolute;
+		width: 22px;
+		height: 22px;
+		margin: -11px 0 0 -11px;
+		padding: 0;
+		display: grid;
+		place-items: center;
+		border-radius: 50%;
+		border: 1px solid var(--color-accent-700);
+		background: var(--color-surface);
+		color: var(--color-accent-200);
+		font: inherit;
+		font-size: 14px;
+		line-height: 1;
+		cursor: crosshair;
+		box-shadow: var(--shadow-sm, 0 2px 6px rgba(0, 0, 0, 0.3));
+		z-index: 1;
+	}
+	/* A finger connects from the node menu instead; the port is too small to aim at. */
+	@media (pointer: coarse) {
+		.port {
+			display: none;
+		}
 	}
 	.guide {
 		stroke: var(--color-accent-2-300, var(--color-accent-300));
