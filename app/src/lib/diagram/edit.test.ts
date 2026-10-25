@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkopeDoc } from '../types';
-import { addEdge, addNode, connectToNew, duplicateNode, endSide, freeSpot, hostOf, linkUrl, newNodeId, removeEdge, removeNode, reverseEdge, updateEdge, updateNode } from './edit';
+import { addBoundary, addEdge, addNode, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, resizeBoundary, reverseEdge, updateBoundary, updateEdge, updateNode } from './edit';
 import { toScene } from './model';
 
 const base = (): SkopeDoc => ({
@@ -150,5 +150,65 @@ describe('connections', () => {
 
 	it('removes one by its place', () => {
 		expect(removeEdge(base(), 0).edges).toEqual([{ from: 'db', to: 'api' }]);
+	});
+});
+
+describe('containers', () => {
+	// A container round API (100,100 190×88) only; Orders DB sits outside it.
+	const boxed = (moveContents?: boolean): SkopeDoc => ({
+		...base(),
+		boundaries: [
+			{ id: 'zone', label: 'ZONE', layout: { x: 80, y: 80, w: 260, h: 160 }, ...(moveContents === undefined ? {} : { moveContents }) },
+			{ id: 'inner', label: 'INNER', layout: { x: 90, y: 200, w: 150, h: 30 } }
+		],
+		edges: [...base().edges!, { from: 'db', to: 'zone' }]
+	});
+
+	it('adds one centred on the point, moving alone', () => {
+		const { doc, id } = addBoundary(base(), { x: 500, y: 400 }, 1);
+		expect(doc.boundaries!.find(b => b.id === id)).toEqual({ id, label: 'NEW CONTAINER', moveContents: false, layout: { x: 240, y: 230, w: 520, h: 340 } });
+	});
+
+	it('finds what sits wholly inside one', () => {
+		expect(contentsOf(toScene(boxed()), 'zone')).toEqual({ nodes: ['api'], boxes: ['inner'] });
+		expect(contentsOf(toScene(boxed()), 'nope')).toEqual({ nodes: [], boxes: [] });
+	});
+
+	it('moves its contents with it, unless it moves alone', () => {
+		const moved = moveBoundary(boxed(), 'zone', 100, 130);
+		expect(moved.boundaries![0].layout).toEqual({ x: 100, y: 130, w: 260, h: 160 });
+		expect(moved.boundaries![1].layout).toEqual({ x: 110, y: 250, w: 150, h: 30 });
+		expect(moved.nodes!.find(n => n.id === 'api')!.layout).toEqual({ x: 120, y: 150 });
+		expect(moved.nodes!.find(n => n.id === 'db')!.layout).toEqual({ x: 400, y: 100 });
+
+		const alone = moveBoundary(boxed(false), 'zone', 100, 130);
+		expect(alone.boundaries![1].layout).toEqual({ x: 90, y: 200, w: 150, h: 30 });
+		expect(alone.nodes!.find(n => n.id === 'api')!.layout).toEqual({ x: 100, y: 100 });
+	});
+
+	it('resizes one, but not below the smallest size', () => {
+		expect(resizeBoundary(boxed(), 'zone', 400.4, 300).boundaries![0].layout).toEqual({ x: 80, y: 80, w: 400, h: 300 });
+		expect(resizeBoundary(boxed(), 'zone', 10, 10).boundaries![0].layout).toEqual({ x: 80, y: 80, w: 140, h: 110 });
+	});
+
+	it('changes its label and border, and leaves defaults out of the document', () => {
+		let doc = updateBoundary(boxed(), 'zone', { label: 'PROD', labelPosition: 'outside-tr', borderWidth: 2, borderStyle: 'solid', moveContents: false });
+		expect(doc.boundaries![0]).toEqual({ id: 'zone', label: 'PROD', labelPosition: 'outside-tr', border: { width: 2, style: 'solid' }, moveContents: false, layout: { x: 80, y: 80, w: 260, h: 160 } });
+		doc = updateBoundary(doc, 'zone', { label: '', labelPosition: 'inside-bl', borderWidth: 1, borderStyle: 'dashed', moveContents: true });
+		expect(doc.boundaries![0]).toEqual({ id: 'zone', layout: { x: 80, y: 80, w: 260, h: 160 } });
+	});
+
+	it('duplicates one beside the original, without its contents', () => {
+		const { doc, id } = duplicateBoundary(boxed(), 'zone', 1)!;
+		expect(doc.boundaries!.find(b => b.id === id)).toMatchObject({ label: 'ZONE copy', layout: { x: 120, y: 120, w: 260, h: 160 } });
+		expect(doc.nodes).toHaveLength(2);
+		expect(duplicateBoundary(boxed(), 'nope')).toBeNull();
+	});
+
+	it('removes one with its connections, leaving what was inside', () => {
+		const doc = removeBoundary(boxed(), 'zone');
+		expect(doc.boundaries!.map(b => b.id)).toEqual(['inner']);
+		expect(doc.edges!.some(e => e.to === 'zone')).toBe(false);
+		expect(doc.nodes).toHaveLength(2);
 	});
 });

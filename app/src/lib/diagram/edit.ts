@@ -1,5 +1,5 @@
-import type { DocEdge, DocNode, SkopeDoc } from '../types';
-import { NODE_H, NODE_W, slug, toScene } from './model';
+import type { DocBoundary, DocEdge, DocNode, SkopeDoc } from '../types';
+import { NODE_H, NODE_W, slug, toScene, type Scene } from './model';
 
 /**
  * Changes to a document, each returning a new one so the old stays as it was (for undo). They follow the
@@ -193,4 +193,133 @@ export function reverseEdge(doc: SkopeDoc, index: number): SkopeDoc {
 
 export function removeEdge(doc: SkopeDoc, index: number): SkopeDoc {
 	return { ...doc, edges: (doc.edges ?? []).filter((_, i) => i !== index) };
+}
+
+// ---- containers ----
+
+/** The smallest a container may be resized to (the prototype's limits). */
+export const MIN_BOX = { w: 140, h: 110 };
+
+/** What sits wholly inside container [id]: the nodes and containers that move with it. */
+export function contentsOf(scene: Scene, id: string): { nodes: string[]; boxes: string[] } {
+	const b = scene.boundaries.find(x => x.id === id);
+	if (!b) return { nodes: [], boxes: [] };
+	const inside = (o: { x: number; y: number; w: number; h: number }) => o.x >= b.x && o.y >= b.y && o.x + o.w <= b.x + b.w && o.y + o.h <= b.y + b.h;
+	return {
+		nodes: scene.nodes.filter(inside).map(n => n.id),
+		boxes: scene.boundaries.filter(o => o.id !== id && inside(o)).map(o => o.id)
+	};
+}
+
+/** An id no node or container in [doc] has yet, in the prototype's style ("bx" and a timestamp). */
+function newBoxId(doc: SkopeDoc, now: number): string {
+	const taken = new Set([...(doc.nodes ?? []).map(n => n.id), ...(doc.boundaries ?? []).map(b => b.id)]);
+	const stem = `bx${now.toString(36)}`;
+	let id = stem;
+	let n = 1;
+	while (taken.has(id)) id = `${stem}${++n}`;
+	return id;
+}
+
+/**
+ * A new container centred on [at], as the prototype adds one: 520 × 340, labelled, and moving alone (so laying it
+ * over existing nodes doesn't sweep them up when it is dragged).
+ */
+export function addBoundary(doc: SkopeDoc, at: { x: number; y: number }, now = Date.now()): { doc: SkopeDoc; id: string } {
+	const id = newBoxId(doc, now);
+	const box: DocBoundary = { id, label: 'NEW CONTAINER', moveContents: false, layout: { x: Math.round(at.x - 260), y: Math.round(at.y - 170), w: 520, h: 340 } };
+	return { doc: { ...doc, boundaries: [...(doc.boundaries ?? []), box] }, id };
+}
+
+/** A copy of a container, nudged down and right, labelled as a copy. What is inside it is not copied. */
+export function duplicateBoundary(doc: SkopeDoc, id: string, now = Date.now()): { doc: SkopeDoc; id: string } | null {
+	const src = (doc.boundaries ?? []).find(b => b.id === id);
+	if (!src) return null;
+	const copy: DocBoundary = structuredClone(src);
+	copy.id = newBoxId(doc, now);
+	copy.label = `${src.label ?? ''} copy`.trim();
+	const lay = src.layout ?? { x: 40, y: 40, w: 540, h: 340 };
+	copy.layout = { ...lay, x: lay.x + 40, y: lay.y + 40 };
+	return { doc: { ...doc, boundaries: [...(doc.boundaries ?? []), copy] }, id: copy.id };
+}
+
+/** What the container inspector edits. */
+export interface BoundaryChange {
+	label?: string;
+	labelPosition?: string;
+	borderWidth?: number;
+	borderStyle?: 'solid' | 'dashed' | 'dotted';
+	moveContents?: boolean;
+}
+
+export function updateBoundary(doc: SkopeDoc, id: string, change: BoundaryChange): SkopeDoc {
+	return {
+		...doc,
+		boundaries: (doc.boundaries ?? []).map(b => {
+			if (b.id !== id) return b;
+			const next: DocBoundary = { ...b };
+			if (change.label !== undefined) next.label = change.label;
+			if (change.labelPosition !== undefined) next.labelPosition = change.labelPosition;
+			if (change.moveContents !== undefined) next.moveContents = change.moveContents;
+			if (change.borderWidth !== undefined || change.borderStyle !== undefined) {
+				next.border = { ...b.border, ...(change.borderWidth === undefined ? {} : { width: change.borderWidth }), ...(change.borderStyle === undefined ? {} : { style: change.borderStyle }) };
+			}
+			// Defaults stay out of the document, as the prototype's export leaves them out.
+			if (next.label === '') delete next.label;
+			if (next.labelPosition === 'inside-bl') delete next.labelPosition;
+			if (next.moveContents === true) delete next.moveContents;
+			if (next.border) {
+				if (next.border.width === 1) delete next.border.width;
+				if (next.border.style === 'dashed') delete next.border.style;
+				if (!Object.keys(next.border).length) delete next.border;
+			}
+			return next;
+		})
+	};
+}
+
+/** Moves a container to ([x], [y]), and by the same amount what sits wholly inside it, unless it moves alone. */
+export function moveBoundary(doc: SkopeDoc, id: string, x: number, y: number): SkopeDoc {
+	const scene = toScene(doc);
+	const b = scene.boundaries.find(o => o.id === id);
+	if (!b) return doc;
+	const dx = x - b.x;
+	const dy = y - b.y;
+	const kids = b.moveContents ? contentsOf(scene, id) : { nodes: [], boxes: [] };
+	const shift = <T extends { layout?: { x: number; y: number } }>(o: T, sx: number, sy: number, w?: number, h?: number): T => ({
+		...o,
+		layout: { ...(o.layout ?? { x: sx, y: sy }), ...(w === undefined ? {} : { w, h }), x: Math.round(sx + dx), y: Math.round(sy + dy) }
+	});
+	return {
+		...doc,
+		nodes: (doc.nodes ?? []).map(n => {
+			const s = kids.nodes.includes(n.id) ? scene.nodes.find(o => o.id === n.id) : undefined;
+			return s ? shift(n, s.x, s.y) : n;
+		}),
+		boundaries: (doc.boundaries ?? []).map((o, i) => {
+			const s = scene.boundaries[i];
+			return s.id === id || kids.boxes.includes(s.id) ? (shift(o, s.x, s.y, s.w, s.h) as DocBoundary) : o;
+		})
+	};
+}
+
+export function resizeBoundary(doc: SkopeDoc, id: string, w: number, h: number): SkopeDoc {
+	const scene = toScene(doc);
+	return {
+		...doc,
+		boundaries: (doc.boundaries ?? []).map((o, i) => {
+			const s = scene.boundaries[i];
+			if (s.id !== id) return o;
+			return { ...o, layout: { x: s.x, y: s.y, w: Math.max(MIN_BOX.w, Math.round(w)), h: Math.max(MIN_BOX.h, Math.round(h)) } };
+		})
+	};
+}
+
+/** Drops a container and the connections to or from it; what was inside stays where it is. */
+export function removeBoundary(doc: SkopeDoc, id: string): SkopeDoc {
+	return {
+		...doc,
+		boundaries: (doc.boundaries ?? []).filter(b => b.id !== id),
+		edges: (doc.edges ?? []).filter(e => e.from !== id && e.to !== id)
+	};
 }

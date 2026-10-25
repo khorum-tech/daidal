@@ -13,6 +13,15 @@ interface SavedNode {
   layout: { x: number; y: number };
 }
 
+interface SavedBox {
+  id: string;
+  label?: string;
+  labelPosition?: string;
+  border?: { width?: number; style?: string };
+  moveContents?: boolean;
+  layout: { x: number; y: number; w: number; h: number };
+}
+
 interface SavedEdge {
   from: string;
   to: string;
@@ -34,7 +43,17 @@ async function drag(page: Page, from: string, to: string | { x: number; y: numbe
   await page.mouse.up();
 }
 
-async function saved(page: Page, request: APIRequestContext, id: string): Promise<{ rev: number; doc: { nodes: SavedNode[]; edges: SavedEdge[] } }> {
+/** The canvas's current zoom. */
+const zoom = (page: Page) => page.getByTestId("diagram-sheet").evaluate(el => Number(/scale\(([-\d.]+)\)/.exec((el as HTMLElement).style.transform)![1]));
+
+/** Drag with the mouse from the middle of [from] by ([dx], [dy]) in diagram units. */
+async function dragBy(page: Page, from: string, dx: number, dy: number) {
+  const s = await zoom(page);
+  const a = (await page.locator(from).boundingBox())!;
+  await drag(page, from, { x: a.x + a.width / 2 + dx * s, y: a.y + a.height / 2 + dy * s });
+}
+
+async function saved(page: Page, request: APIRequestContext, id: string): Promise<{ rev: number; doc: { nodes: SavedNode[]; edges: SavedEdge[]; boundaries: SavedBox[] } }> {
   await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
   return (await request.get(`/api/diagrams/${id}`)).json();
 }
@@ -302,5 +321,73 @@ test.describe("the app at /app", () => {
     await expect(inspector.getByRole("heading", { level: 2 })).toHaveText("Journal DB → Postings Service");
     ({ doc } = await saved(page, request, id));
     expect(doc.edges.find(e => e.from === "journal")).toMatchObject({ to: "postings", label: "SQL" });
+  });
+
+  test("adds a container, then labels, styles, resizes and moves it", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add" }).click();
+    await page.getByRole("dialog", { name: "Add a node" }).getByRole("button", { name: /labelled box/ }).click();
+
+    const inspector = page.getByRole("region", { name: "Selected container" });
+    await expect(inspector.getByLabel("Label")).toHaveValue("NEW CONTAINER");
+    await inspector.getByLabel("Label").fill("PAYMENTS");
+    await inspector.getByRole("button", { name: "Outside" }).click();
+    await inspector.getByRole("button", { name: "Top right" }).click();
+    await inspector.getByRole("button", { name: "Heavy" }).click();
+    await inspector.getByRole("button", { name: "Solid border" }).click();
+    await expect(page.getByRole("button", { name: "Container: PAYMENTS" })).toBeVisible();
+
+    await dragBy(page, ".resize", 100, 60);
+    await dragBy(page, '[data-box]:is(.b-hit.l)[data-box^="bx"]', -30, 20);
+    await expect(inspector).toContainText("620 × 400");
+
+    const { doc } = await saved(page, request, id);
+    const box = doc.boundaries.find(b => b.label === "PAYMENTS")!;
+    expect(box).toMatchObject({ labelPosition: "outside-tr", border: { width: 3, style: "solid" }, moveContents: false });
+    expect(box.layout).toMatchObject({ w: 620, h: 400 });
+  });
+
+  test("moves a container with what sits inside it, and one that moves alone", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    // The cluster carries its nodes and the Storage container: Postings Service (620, 150) moves with it.
+    await dragBy(page, 'button[aria-label="Container: LEDGER CLUSTER · EU-WEST"]', 40, 30);
+    let { doc } = await saved(page, request, id);
+    expect(doc.boundaries.find(b => b.id === "platform")!.layout).toMatchObject({ x: 356, y: 142 });
+    expect(doc.boundaries.find(b => b.id === "store")!.layout).toMatchObject({ x: 920, y: 150 });
+    expect(doc.nodes.find(n => n.id === "postings")!.layout).toMatchObject({ x: 660, y: 180 });
+
+    // Storage moves alone, so Journal DB stays put; the inspector says so.
+    await page.getByRole("button", { name: "Container: Storage" }).click();
+    await expect(page.getByRole("region", { name: "Selected container" }).getByRole("checkbox", { name: /moves what's inside/ })).not.toBeChecked();
+    await dragBy(page, 'button[aria-label="Container: Storage"]', 0, 60);
+    ({ doc } = await saved(page, request, id));
+    expect(doc.boundaries.find(b => b.id === "store")!.layout).toMatchObject({ x: 920, y: 210 });
+    expect(doc.nodes.find(n => n.id === "journal")!.layout).toMatchObject({ x: 940, y: 180 });
+  });
+
+  test("connects a node to a container, and deleting the container takes the connection with it", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "Telemetry: Collector" }).click();
+    await page.locator(".port").click();
+    await page.getByRole("button", { name: "Container: Storage" }).click();
+    await expect(page.getByRole("region", { name: "Selected connection" }).getByRole("heading", { level: 2 })).toHaveText("Collector → Storage");
+
+    await page.getByRole("button", { name: "Container: Storage" }).click();
+    await page.getByRole("region", { name: "Selected container" }).getByRole("button", { name: "Delete container" }).click();
+    await expect(page.getByRole("button", { name: "Container: Storage" })).toHaveCount(0);
+    let { doc } = await saved(page, request, id);
+    expect(doc.boundaries.some(b => b.id === "store")).toBe(false);
+    expect(doc.edges.some(e => e.to === "store")).toBe(false);
+
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect(page.getByRole("button", { name: "Container: Storage" })).toBeVisible();
+    ({ doc } = await saved(page, request, id));
+    expect(doc.edges.some(e => e.from === "collector" && e.to === "store")).toBe(true);
   });
 });

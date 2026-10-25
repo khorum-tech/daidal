@@ -69,6 +69,8 @@ export interface SceneBoundary {
 	pos: string;
 	bw: number;
 	bs: 'solid' | 'dashed' | 'dotted';
+	/** Whether moving it carries what sits wholly inside (the prototype's lock; on unless switched off). */
+	moveContents: boolean;
 }
 
 export interface SceneView {
@@ -173,7 +175,8 @@ function boundary(b: DocBoundary, i: number): SceneBoundary {
 		h: num(lay.h, 340),
 		pos,
 		bw: num(b.border?.width, 1),
-		bs: style === 'solid' || style === 'dotted' ? style : 'dashed'
+		bs: style === 'solid' || style === 'dotted' ? style : 'dashed',
+		moveContents: b.moveContents !== false
 	};
 }
 

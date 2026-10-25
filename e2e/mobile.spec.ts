@@ -188,6 +188,37 @@ test.describe("the app on a phone", () => {
     expect(saved.doc.edges.some((e: { from: string; to: string }) => e.from === "collector" && e.to === "console")).toBe(false);
   });
 
+  test("resizes and moves a container from its menu, and renames it in a sheet", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    const { s } = await sheet(page);
+    await page.getByRole("button", { name: "Container: Storage" }).tap();
+    const menu = page.getByTestId("box-menu");
+    const canvas = (await page.locator(".canvas").boundingBox())!;
+
+    await menu.getByRole("button", { name: /^Resize/ }).tap();
+    await expect(page.getByTestId("save-status")).toContainText("Drag anywhere to resize “Storage”");
+    await swipe(page, canvas.x + 60, canvas.y + canvas.height - 80, 50 * s, 40 * s);
+    await menu.getByRole("button", { name: /^Move/ }).tap();
+    // The resize grew the diagram, but an edit never rescales the canvas under the finger.
+    expect((await sheet(page)).s).toBe(s);
+    await swipe(page, canvas.x + 60, canvas.y + canvas.height - 80, -40 * s, 20 * s);
+    await menu.getByRole("button", { name: /^Edit/ }).tap();
+    const details = page.getByRole("dialog", { name: "Container" });
+    await details.getByLabel("Label").fill("Data stores");
+    await details.getByLabel("Label").blur();
+    await page.keyboard.press("Escape");
+    // Move stays on until it is tapped again; the strip shows its hint until then.
+    await menu.getByRole("button", { name: /^Moving/ }).tap();
+
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    const saved = await (await request.get(`/api/diagrams/${id}`)).json();
+    const box = saved.doc.boundaries.find((b: { id: string }) => b.id === "store");
+    // Storage starts at (880, 120), 230 × 340.
+    expect(box).toMatchObject({ label: "Data stores", layout: { x: 840, y: 140, w: 280, h: 380 } });
+  });
+
   test("never scrolls the page sideways", async ({ page, request }) => {
     const { team, diagrams } = await importStageData(request);
     for (const path of [`/app/?ws=${encodeURIComponent(team)}`, `/app/d/${diagrams["edge-ingress (platform copy)"]}`]) {

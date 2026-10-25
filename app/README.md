@@ -7,7 +7,10 @@ connections). Every edit saves through the API and can be undone (⌘Z, ⇧⌘Z;
 selected node). **Connections** too: drag the port on a selected node to another node (or onto empty canvas
 for a new one), or click the port and then the target; on a phone, Connect in the node menu, then tap the target.
 Tap a connection to edit its label, arrows, weight, line, route and which side each end leaves from, or to reverse
-or delete it. Containers, tags and views are still edited in the prototype.
+or delete it. **Containers** as well: add one from the Add menu, pick it by its border or label, drag the border to
+move it (with whatever sits wholly inside, unless it is set to move alone) and the corner handle to resize it; on a
+phone, Move or Resize in its menu, then drag anywhere. Its inspector sets the label and where it sits, the border,
+and whether it carries its contents. Tags and views are still edited in the prototype.
 
 | Route | What it shows |
 |-------|---------------|
