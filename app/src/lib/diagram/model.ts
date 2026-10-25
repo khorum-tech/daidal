@@ -45,6 +45,8 @@ export interface SceneNode {
 
 export interface SceneEdge {
 	key: string;
+	/** Its place in the document's edges: how an edit finds it. */
+	index: number;
 	from: string;
 	to: string;
 	label: string;
@@ -144,6 +146,7 @@ function edge(e: DocEdge, i: number): SceneEdge {
 	const line = e.line;
 	return {
 		key: `${e.from}>${e.to}#${i}`,
+		index: i,
 		from: String(e.from),
 		to: String(e.to),
 		label: e.label ?? '',

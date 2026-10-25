@@ -5,6 +5,7 @@ import type { SceneEdge } from './model';
 const box = (x: number, y: number, w = 100, h = 50) => ({ x, y, w, h });
 const edge = (over: Partial<SceneEdge> = {}): SceneEdge => ({
 	key: 'a>b#0',
+	index: 0,
 	from: 'a',
 	to: 'b',
 	label: '',

@@ -19,7 +19,9 @@
 		onchange,
 		onfieldend,
 		ondelete,
-		onduplicate
+		onduplicate,
+		connections = [],
+		onpickedge
 	}: {
 		node: SceneNode;
 		tags: Record<string, SceneTag>;
@@ -28,6 +30,9 @@
 		onfieldend?: () => void;
 		ondelete?: () => void;
 		onduplicate?: () => void;
+		/** The node's connections: [out] when it starts here, and the node at the other end. */
+		connections?: { index: number; out: boolean; name: string; label: string }[];
+		onpickedge?: (index: number) => void;
 	} = $props();
 
 	let picking = $state(false);
@@ -66,6 +71,23 @@
 		linkAddress = '';
 	}
 </script>
+
+{#snippet edges()}
+	{#if connections.length}
+		<h3>Connections</h3>
+		<ul class="edges">
+			{#each connections as c (c.index)}
+				<li>
+					<button type="button" onclick={() => onpickedge?.(c.index)}>
+						<span class="dir">{c.out ? '→' : '←'}</span>
+						<span class="other">{c.name}</span>
+						{#if c.label}<span class="e-label">{c.label}</span>{/if}
+					</button>
+				</li>
+			{/each}
+		</ul>
+	{/if}
+{/snippet}
 
 {#snippet links()}
 	{#if node.links.length}
@@ -154,6 +176,8 @@
 			<button type="submit" class="btn btn-secondary" disabled={!linkAddress.trim()}>Add link</button>
 		</form>
 
+		{@render edges()}
+
 		<div class="actions">
 			<button type="button" class="btn btn-secondary" onclick={() => onduplicate?.()}>Duplicate</button>
 			<button type="button" class="btn btn-secondary danger" onclick={() => ondelete?.()}><Icon name="trash" size={14} />Delete node</button>
@@ -174,6 +198,7 @@
 		{/if}
 		{#if node.desc}<p class="desc">{node.desc}</p>{/if}
 		{@render links()}
+		{@render edges()}
 	{/if}
 </section>
 
@@ -259,6 +284,45 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.edges {
+		flex-direction: column;
+		gap: 2px;
+		margin-top: 6px;
+	}
+	.edges button {
+		width: 100%;
+		display: flex;
+		align-items: baseline;
+		gap: 6px;
+		min-height: 30px;
+		padding: 4px 6px;
+		border: none;
+		border-radius: 6px;
+		background: transparent;
+		color: var(--color-neutral-300);
+		font: inherit;
+		font-size: 12.5px;
+		text-align: left;
+		cursor: pointer;
+	}
+	.edges button:hover {
+		background: color-mix(in srgb, var(--color-text) 7%, transparent);
+	}
+	.edges .dir {
+		color: var(--color-accent);
+	}
+	.edges .other {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.edges .e-label {
+		font-size: 11px;
+		color: var(--color-neutral-500);
 	}
 
 	/* ---- editing ---- */

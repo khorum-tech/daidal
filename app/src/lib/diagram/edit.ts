@@ -1,4 +1,4 @@
-import type { DocNode, SkopeDoc } from '../types';
+import type { DocEdge, DocNode, SkopeDoc } from '../types';
 import { NODE_H, NODE_W, slug, toScene } from './model';
 
 /**
@@ -114,4 +114,83 @@ export function hostOf(url: string): string {
 	} catch {
 		return url;
 	}
+}
+
+// ---- connections ----
+
+/** A connection from one node to another, with the prototype's defaults (an arrow at the target, no label). */
+export function addEdge(doc: SkopeDoc, from: string, to: string): { doc: SkopeDoc; index: number } {
+	const edges = [...(doc.edges ?? []), { from, to }];
+	return { doc: { ...doc, edges }, index: edges.length - 1 };
+}
+
+/** A new node of [type] at [at], connected from [from]: what dropping a connection on empty canvas makes. */
+export function connectToNew(doc: SkopeDoc, from: string, type: string, at: { x: number; y: number }, now = Date.now()): { doc: SkopeDoc; id: string; index: number } {
+	const made = addNode(doc, type, at, now);
+	const linked = addEdge(made.doc, from, made.id);
+	return { doc: linked.doc, id: made.id, index: linked.index };
+}
+
+export type EndSide = 'left' | 'right' | 'top' | 'bottom';
+
+/** What the connection inspector edits. A null end side puts that end back on auto. */
+export type EdgeChange = Partial<Pick<DocEdge, 'label' | 'showLabel' | 'line' | 'direction' | 'width' | 'route'>> & {
+	fromSide?: EndSide | null;
+	toSide?: EndSide | null;
+};
+
+/** The side an end is pinned to, or null when it is automatic. */
+export function endSide(edge: DocEdge, end: 'from' | 'to'): EndSide | null {
+	const side = edge.anchors?.[end]?.split(':')[0]?.trim().toLowerCase();
+	const long: Record<string, EndSide> = { l: 'left', r: 'right', t: 'top', b: 'bottom', left: 'left', right: 'right', top: 'top', bottom: 'bottom' };
+	return side ? (long[side] ?? null) : null;
+}
+
+export function updateEdge(doc: SkopeDoc, index: number, change: EdgeChange): SkopeDoc {
+	return {
+		...doc,
+		edges: (doc.edges ?? []).map((e, i) => {
+			if (i !== index) return e;
+			const { fromSide, toSide, ...fields } = change;
+			const next: DocEdge = { ...e, ...fields };
+			if (fromSide !== undefined || toSide !== undefined) {
+				const anchors = { ...next.anchors };
+				// A newly pinned end sits in the middle of its side, as the prototype pins one.
+				for (const [end, side] of [['from', fromSide], ['to', toSide]] as const) {
+					if (side === null) delete anchors[end];
+					else if (side) anchors[end] = `${side}:0.5`;
+				}
+				if (Object.keys(anchors).length) next.anchors = anchors;
+				else delete next.anchors;
+			}
+			// Defaults stay out of the document, as the prototype's export leaves them out.
+			if (next.label === '') delete next.label;
+			if (next.showLabel === true) delete next.showLabel;
+			if (next.line === 'solid') delete next.line;
+			if (next.direction === 'forward') delete next.direction;
+			return next;
+		})
+	};
+}
+
+/** The same connection the other way round; pinned ends swap with it. */
+export function reverseEdge(doc: SkopeDoc, index: number): SkopeDoc {
+	return {
+		...doc,
+		edges: (doc.edges ?? []).map((e, i) => {
+			if (i !== index) return e;
+			const next: DocEdge = { ...e, from: e.to, to: e.from };
+			if (e.anchors) {
+				const anchors: { from?: string; to?: string } = {};
+				if (e.anchors.to) anchors.from = e.anchors.to;
+				if (e.anchors.from) anchors.to = e.anchors.from;
+				next.anchors = anchors;
+			}
+			return next;
+		})
+	};
+}
+
+export function removeEdge(doc: SkopeDoc, index: number): SkopeDoc {
+	return { ...doc, edges: (doc.edges ?? []).filter((_, i) => i !== index) };
 }

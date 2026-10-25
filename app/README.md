@@ -4,7 +4,10 @@ The SvelteKit port of the prototype, served under **`/app`** beside the prototyp
 the Worker's API, and on a diagram you own it edits **nodes**: add one (the type picker, placed in free space near the
 middle of the view), move, rename, change its type, flags, tags and links, duplicate or delete it (with its
 connections). Every edit saves through the API and can be undone (⌘Z, ⇧⌘Z; ⌘D duplicates, Delete removes the
-selected node). Connections, containers, tags and views are still edited in the prototype.
+selected node). **Connections** too: drag the port on a selected node to another node (or onto empty canvas
+for a new one), or click the port and then the target; on a phone, Connect in the node menu, then tap the target.
+Tap a connection to edit its label, arrows, weight, line, route and which side each end leaves from, or to reverse
+or delete it. Containers, tags and views are still edited in the prototype.
 
 | Route | What it shows |
 |-------|---------------|

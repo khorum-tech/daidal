@@ -11,6 +11,7 @@
 		ghostOpacity = 0.22,
 		selected = false,
 		dragging = false,
+		connecting = false,
 		onselect,
 		ondetails
 	}: {
@@ -20,6 +21,8 @@
 		ghostOpacity?: number;
 		selected?: boolean;
 		dragging?: boolean;
+		/** A connection is waiting for its other end: tapping this node makes it. */
+		connecting?: boolean;
 		onselect?: (id: string) => void;
 		ondetails?: (id: string) => void;
 	} = $props();
@@ -44,6 +47,7 @@
 	class:ghost={ghosted}
 	class:selected
 	class:dragging
+	class:connecting
 	data-node={node.id}
 	style:left="{node.x}px"
 	style:top="{node.y}px"
@@ -185,5 +189,11 @@
 		font-size: 11.5px;
 		color: var(--color-neutral-500);
 		margin-top: 3px;
+	}
+	.node.connecting {
+		cursor: crosshair;
+	}
+	.node.connecting:hover {
+		border-color: var(--color-accent);
 	}
 </style>
