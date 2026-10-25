@@ -502,4 +502,83 @@ test.describe("the app at /app", () => {
     ({ doc } = await saved(page, request, id));
     expect((await saved(page, request, id)).rev).toBe(rev);
   });
+
+  test("starts a new, empty diagram from a workspace", async ({ page, request }) => {
+    const { team } = await importStageData(request);
+    await page.goto(`/app/?ws=${encodeURIComponent(team)}`);
+    await page.getByRole("button", { name: "+ New diagram" }).click();
+    const dialog = page.getByRole("dialog", { name: "New diagram" });
+    await dialog.getByLabel("Name").fill("release-plan");
+    await dialog.getByRole("button", { name: "Create diagram" }).click();
+    await expect(page).toHaveTitle("release-plan · Skope");
+    await expect(page.locator("[data-node]")).toHaveCount(0);
+    const id = page.url().split("/d/")[1];
+    const made = await (await request.get(`/api/diagrams/${id}`)).json();
+    expect(made).toMatchObject({ name: "release-plan", workspaceId: team, doc: { version: 1, diagram: { name: "release-plan" } } });
+  });
+
+  test("renames a diagram from its name in the header, and takes a snapshot", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "ledger-platform" }).click();
+    const sheet = page.getByRole("dialog", { name: "Diagram" });
+    await sheet.getByLabel("Name").fill("ledger-core");
+    await sheet.getByLabel("Name").press("Enter");
+    await page.keyboard.press("Escape");
+    await expect(page).toHaveTitle("ledger-core · Skope");
+    await expect(page.getByRole("button", { name: "ledger-core" })).toBeVisible();
+    let { doc } = await saved(page, request, id);
+    expect((await (await request.get(`/api/diagrams/${id}`)).json()).name).toBe("ledger-core");
+
+    const history = page.getByRole("region", { name: "History" });
+    await history.getByRole("button", { name: "+ Take a snapshot" }).click();
+    await history.getByLabel("Snapshot description").fill("Before the cut-over");
+    await history.getByRole("button", { name: "Save snapshot" }).click();
+    // Newest first, under the working copy.
+    await expect(history.getByRole("listitem").nth(1)).toContainText("Before the cut-over");
+    const snapshots = await (await request.get(`/api/diagrams/${id}/snapshots`)).json();
+    expect(snapshots.at(-1)).toMatchObject({ label: "Before the cut-over", doc: { nodes: doc.nodes } });
+    await page.reload();
+    await expect(page).toHaveTitle("ledger-core · Skope");
+    await expect(page.getByRole("region", { name: "History" }).getByRole("button", { name: /Before the cut-over/ })).toBeVisible();
+  });
+
+  test("duplicates a diagram into another workspace, and makes a follower of it", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await expect(page.locator("[data-node]")).toHaveCount(9);
+    await page.getByRole("button", { name: "ledger-platform" }).click();
+    let sheet = page.getByRole("dialog", { name: "Diagram" });
+    await sheet.getByLabel("Into").selectOption({ label: "Personal" });
+    await sheet.getByLabel("Called").fill("ledger sandbox");
+    await sheet.getByRole("button", { name: "Make a duplicate" }).click();
+    await expect(page).toHaveTitle("ledger sandbox · Skope");
+    await expect(page.locator("[data-node]")).toHaveCount(9);
+    await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toContainText("Personal");
+    await expect(page.getByTestId("follow")).toHaveCount(0);
+
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await page.getByRole("button", { name: "ledger-platform" }).click();
+    sheet = page.getByRole("dialog", { name: "Diagram" });
+    await sheet.getByRole("radio", { name: /Follow/ }).check();
+    await sheet.getByLabel("Called").fill("ledger follower");
+    await sheet.getByRole("button", { name: "Make a follower" }).click();
+    await expect(page).toHaveTitle("ledger follower · Skope");
+    await expect(page.getByTestId("follow")).toContainText("Follows ledger-platform");
+  });
+
+  test("deletes a diagram after asking, and lands back on its workspace", async ({ page, request }) => {
+    const { team } = await importStageData(request);
+    const made = await (await request.post("/api/diagrams", { data: { workspace: team, name: "scratch", doc: { version: 1 } } })).json();
+    await page.goto(`/app/d/${made.id}`);
+    await page.getByRole("button", { name: "scratch" }).click();
+    const sheet = page.getByRole("dialog", { name: "Diagram" });
+    await sheet.getByRole("button", { name: "Delete diagram…" }).click();
+    await expect(sheet).toContainText("Delete “scratch” and its history for good?");
+    await sheet.getByRole("button", { name: "Delete for good" }).click();
+    await expect(page).toHaveURL(url => url.pathname === "/app/" && url.searchParams.get("ws") === team);
+    await expect(page.getByRole("link", { name: /scratch/ })).toHaveCount(0);
+    expect((await request.get(`/api/diagrams/${made.id}`)).status()).toBe(404);
+  });
 });

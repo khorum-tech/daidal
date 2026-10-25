@@ -29,9 +29,12 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 			const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 			throw new ApiError(res.status, typeof body.error === 'string' ? body.error : `HTTP ${res.status}`, body);
 		}
-		return (await res.json()) as T;
+		// A delete answers 204 with no body.
+		return (res.status === 204 ? undefined : await res.json()) as T;
 	}
 	const get = <T>(path: string) => call<T>(path);
+	const send = <T>(path: string, method: 'POST' | 'PUT', body: unknown) =>
+		call<T>(path, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 	const q = encodeURIComponent;
 	return {
 		me: () => get<Me>('/api/me'),
@@ -40,8 +43,16 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		diagram: (id: string) => get<Diagram>(`/api/diagrams/${q(id)}`),
 		snapshots: (id: string) => get<Snapshot[]>(`/api/diagrams/${q(id)}/snapshots`),
 		/** Save as the owner. [rev] is the revision the change was made against; a stale one gets a 409. */
-		save: (id: string, change: { rev: number; doc: SkopeDoc }) =>
-			call<Diagram>(`/api/diagrams/${q(id)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(change) })
+		save: (id: string, change: { rev: number; doc: SkopeDoc; name?: string }) => send<Diagram>(`/api/diagrams/${q(id)}`, 'PUT', change),
+		/**
+		 * A new diagram in [workspace]: from a document, or as a copy of the diagram [from] (its latest snapshot), which
+		 * with [follow] tracks that diagram's snapshots.
+		 */
+		createDiagram: (body: { workspace: string; name?: string; doc?: SkopeDoc; from?: string; follow?: boolean }) => send<Diagram>('/api/diagrams', 'POST', body),
+		/** Deletes the diagram and its history, as its owner. Its followers keep their copies. */
+		deleteDiagram: (id: string) => call<void>(`/api/diagrams/${q(id)}`, { method: 'DELETE' }),
+		/** Records [doc] as a snapshot of the diagram, as its owner. */
+		createSnapshot: (id: string, body: { label: string; doc: SkopeDoc }) => send<Snapshot>(`/api/diagrams/${q(id)}/snapshots`, 'POST', body)
 	};
 }
 
