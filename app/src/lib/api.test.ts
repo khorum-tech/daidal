@@ -69,3 +69,35 @@ describe('diagrams and snapshots', () => {
 		expect(fetchFn).toHaveBeenCalledWith('/api/diagrams/d/snapshots', expect.objectContaining({ method: 'POST', body: JSON.stringify({ label: 'v1', doc: { version: 1 } }) }));
 	});
 });
+
+describe('workspaces', () => {
+	it('creates, renames and deletes a workspace', async () => {
+		const fetchFn = respond(201, { id: 'w', name: 'Team' });
+		const api = createApi(fetchFn);
+		await api.createWorkspace('Team');
+		expect(fetchFn).toHaveBeenLastCalledWith('/api/workspaces', expect.objectContaining({ method: 'POST', body: JSON.stringify({ name: 'Team' }) }));
+		await api.renameWorkspace('w/1', 'Crew');
+		expect(fetchFn).toHaveBeenLastCalledWith('/api/workspaces/w%2F1', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ name: 'Crew' }) }));
+		const none = vi.fn(async () => new Response(null, { status: 204 }));
+		await createApi(none).deleteWorkspace('w');
+		expect(none).toHaveBeenCalledWith('/api/workspaces/w', expect.objectContaining({ method: 'DELETE' }));
+	});
+
+	it('adds and removes members by email', async () => {
+		const fetchFn = respond(201, { email: 'b@x.io' });
+		await createApi(fetchFn).addMember('w', 'b@x.io');
+		expect(fetchFn).toHaveBeenLastCalledWith('/api/workspaces/w/members', expect.objectContaining({ method: 'POST', body: JSON.stringify({ email: 'b@x.io' }) }));
+		const none = vi.fn(async () => new Response(null, { status: 204 }));
+		await createApi(none).removeMember('w', 'b@x.io');
+		expect(none).toHaveBeenCalledWith('/api/workspaces/w/members/b%40x.io', expect.objectContaining({ method: 'DELETE' }));
+	});
+
+	it('exports a workspace and imports a backup', async () => {
+		const fetchFn = respond(200, { format: 'skope-backup' });
+		await expect(createApi(fetchFn).exportWorkspace('w')).resolves.toEqual({ format: 'skope-backup' });
+		expect(fetchFn).toHaveBeenLastCalledWith('/api/workspaces/w/export', expect.anything());
+		const imported = respond(201, { workspaces: [{ id: 'n', name: 'Team' }] });
+		await createApi(imported).importBackup({ format: 'skope-backup' });
+		expect(imported).toHaveBeenLastCalledWith('/api/workspaces/import', expect.objectContaining({ method: 'POST', body: JSON.stringify({ format: 'skope-backup' }) }));
+	});
+});

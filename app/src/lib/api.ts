@@ -33,7 +33,7 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		return (res.status === 204 ? undefined : await res.json()) as T;
 	}
 	const get = <T>(path: string) => call<T>(path);
-	const send = <T>(path: string, method: 'POST' | 'PUT', body: unknown) =>
+	const send = <T>(path: string, method: 'POST' | 'PUT' | 'PATCH', body: unknown) =>
 		call<T>(path, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 	const q = encodeURIComponent;
 	return {
@@ -51,9 +51,30 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		createDiagram: (body: { workspace: string; name?: string; doc?: SkopeDoc; from?: string; follow?: boolean }) => send<Diagram>('/api/diagrams', 'POST', body),
 		/** Deletes the diagram and its history, as its owner. Its followers keep their copies. */
 		deleteDiagram: (id: string) => call<void>(`/api/diagrams/${q(id)}`, { method: 'DELETE' }),
+		createWorkspace: (name: string) => send<Workspace>('/api/workspaces', 'POST', { name }),
+		/** Renames a workspace, as its owner. */
+		renameWorkspace: (id: string, name: string) => send<{ id: string; name: string }>(`/api/workspaces/${q(id)}`, 'PATCH', { name }),
+		/** Deletes a workspace with its diagrams and their history, as its owner. The personal one stays. */
+		deleteWorkspace: (id: string) => call<void>(`/api/workspaces/${q(id)}`, { method: 'DELETE' }),
+		/** Adds someone by email (they need not have signed in yet), as the owner. */
+		addMember: (id: string, email: string) => send<{ email: string }>(`/api/workspaces/${q(id)}/members`, 'POST', { email }),
+		removeMember: (id: string, email: string) => call<void>(`/api/workspaces/${q(id)}/members/${q(email)}`, { method: 'DELETE' }),
+		/** A workspace as a skope-backup file: its diagrams, their history and who follows whom (not its members). */
+		exportWorkspace: (id: string) => get<Record<string, unknown>>(`/api/workspaces/${q(id)}/export`),
+		/** Imports a skope-backup file: each workspace in it becomes a new one of yours (a personal one fills yours). */
+		importBackup: (backup: unknown) => send<{ workspaces: ImportedWorkspace[] }>('/api/workspaces/import', 'POST', backup),
 		/** Records [doc] as a snapshot of the diagram, as its owner. */
 		createSnapshot: (id: string, body: { label: string; doc: SkopeDoc }) => send<Snapshot>(`/api/diagrams/${q(id)}/snapshots`, 'POST', body)
 	};
 }
 
 export type Api = ReturnType<typeof createApi>;
+
+/** What an import made of each workspace in the file. */
+export interface ImportedWorkspace {
+	id: string;
+	name: string;
+	personal: boolean;
+	diagrams: number;
+	snapshots: number;
+}

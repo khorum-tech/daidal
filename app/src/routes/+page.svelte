@@ -1,11 +1,13 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { createApi } from '#lib/api.ts';
 	import AppHeader from '#lib/components/AppHeader.svelte';
 	import DiagramCard from '#lib/components/DiagramCard.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import Sheet from '#lib/components/Sheet.svelte';
+	import WorkspaceSheet from '#lib/components/WorkspaceSheet.svelte';
+	import { slug } from '#lib/diagram/model.ts';
 	import type { Workspace } from '#lib/types.ts';
 
 	let { data } = $props();
@@ -21,6 +23,69 @@
 	let newName = $state('');
 	let busy = $state(false);
 	let failed = $state('');
+	// Workspaces: make one, manage the one on show, export it, or import a backup as new ones.
+	let newWorkspace = $state(false);
+	let wsName = $state('');
+	let managing = $state(false);
+	let notice = $state<{ text: string; failed: boolean } | null>(null);
+	const showWorkspace = (id: string) => goto(`${resolve('/')}?ws=${encodeURIComponent(id)}`, { invalidateAll: true });
+	async function createWorkspace(e: SubmitEvent) {
+		e.preventDefault();
+		const name = wsName.trim();
+		if (!name) return;
+		busy = true;
+		failed = '';
+		try {
+			const made = await api.createWorkspace(name);
+			newWorkspace = false;
+			wsName = '';
+			await showWorkspace(made.id);
+		} catch (err) {
+			failed = err instanceof Error ? err.message : "Couldn't create the workspace";
+		} finally {
+			busy = false;
+		}
+	}
+	async function exportWorkspace() {
+		if (!data.workspace) return;
+		const backup = await api.exportWorkspace(data.workspace.id);
+		const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `${slug(data.workspace.name)}.skope-backup.json`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+	async function deleteWorkspace() {
+		if (!data.workspace) return;
+		await api.deleteWorkspace(data.workspace.id);
+		managing = false;
+		await goto(resolve('/'), { invalidateAll: true });
+	}
+	let picker = $state<HTMLInputElement>();
+	async function importBackup(e: Event & { currentTarget: HTMLInputElement }) {
+		const file = e.currentTarget.files?.[0];
+		e.currentTarget.value = '';
+		if (!file) return;
+		notice = null;
+		let backup: unknown;
+		try {
+			backup = JSON.parse(await file.text());
+		} catch {
+			notice = { text: `“${file.name}” isn't a Skope backup: it isn't JSON.`, failed: true };
+			return;
+		}
+		try {
+			const { workspaces } = await api.importBackup(backup);
+			const first = workspaces.find(w => !w.personal) ?? workspaces[0];
+			const diagrams = workspaces.reduce((n, w) => n + w.diagrams, 0);
+			notice = { text: `Imported ${workspaces.map(w => `“${w.name}”`).join(', ')}: ${diagrams} ${diagrams === 1 ? 'diagram' : 'diagrams'}.`, failed: false };
+			if (first) await showWorkspace(first.id);
+		} catch (err) {
+			notice = { text: `Couldn't import “${file.name}”: ${err instanceof Error ? err.message : 'something went wrong'}.`, failed: true };
+		}
+	}
+
 	async function create(e: SubmitEvent) {
 		e.preventDefault();
 		const name = newName.trim();
@@ -68,14 +133,23 @@
 				{/each}
 			</ul>
 		{/if}
+		<div class="side-actions">
+			<button type="button" class="side-btn" onclick={() => (newWorkspace = true)}>+ New workspace</button>
+			<button type="button" class="side-btn" onclick={() => picker?.click()}>Import a backup…</button>
+			<input bind:this={picker} type="file" accept=".json,application/json" hidden aria-label="Backup file to import" onchange={importBackup} />
+		</div>
 	</nav>
 
 	<main class="list">
+		{#if notice}<p class="notice" class:failed={notice.failed} role={notice.failed ? 'alert' : 'status'}>{notice.text}</p>{/if}
 		{#if data.workspace}
 			<div class="heading">
 				<h1>{data.workspace.name}</h1>
 				<span class="n">{data.diagrams.length} {data.diagrams.length === 1 ? 'diagram' : 'diagrams'}</span>
 				{#if data.workspace.ownerEmail !== data.me.email}<span class="tag tag-outline">Shared by {data.workspace.ownerEmail}</span>{/if}
+				<button type="button" class="btn btn-ghost manage" aria-label="Manage {data.workspace.name}" onclick={() => (managing = true)}>
+					<Icon name="members" size={14} />{data.workspace.ownerEmail === data.me.email ? 'Manage' : 'Members'}
+				</button>
 				<button type="button" class="btn btn-primary new" onclick={() => (creating = true)}>+ New diagram</button>
 			</div>
 			{#if data.diagrams.length}
@@ -95,6 +169,41 @@
 	</main>
 </div>
 
+<Sheet open={newWorkspace} title="New workspace" onclose={() => (newWorkspace = false)}>
+	<form class="create" onsubmit={createWorkspace}>
+		<label>
+			<span>Name</span>
+			<!-- svelte-ignore a11y_autofocus -->
+			<input class="input" maxlength="100" placeholder="e.g. Platform team" autofocus bind:value={wsName} />
+		</label>
+		<p class="where">Yours to start with. Add people to it from <strong>Manage</strong>.</p>
+		{#if failed}<p class="error" role="alert">{failed}</p>{/if}
+		<button type="submit" class="btn btn-primary" disabled={busy || !wsName.trim()}>Create workspace</button>
+	</form>
+</Sheet>
+{#if data.workspace}
+	{@const ws = data.workspace}
+	<Sheet open={managing} title={ws.name} onclose={() => (managing = false)}>
+		<WorkspaceSheet
+			workspace={ws}
+			me={data.me.email}
+			onrename={async name => {
+				await api.renameWorkspace(ws.id, name);
+				await invalidateAll();
+			}}
+			onadd={async email => {
+				await api.addMember(ws.id, email);
+				await invalidateAll();
+			}}
+			onremove={async email => {
+				await api.removeMember(ws.id, email);
+				await invalidateAll();
+			}}
+			onexport={exportWorkspace}
+			ondelete={deleteWorkspace}
+		/>
+	</Sheet>
+{/if}
 <Sheet open={creating} title="New diagram" onclose={() => (creating = false)}>
 	<form class="create" onsubmit={create}>
 		<label>
@@ -226,7 +335,48 @@
 		color: var(--color-neutral-500);
 		margin: 0;
 	}
+	.side-actions {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		margin-top: 6px;
+	}
+	.side-btn {
+		padding: 7px 10px;
+		border: 1px dashed var(--color-neutral-700);
+		border-radius: 8px;
+		background: transparent;
+		color: var(--color-neutral-400);
+		font: inherit;
+		font-size: 12.5px;
+		text-align: left;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+	.side-btn:hover {
+		color: var(--color-accent);
+		border-color: var(--color-accent-700);
+	}
+	.notice {
+		margin: 0 0 14px;
+		padding: 8px 12px;
+		border-radius: 8px;
+		border: 1px solid var(--color-accent-700);
+		font-size: 12.5px;
+		color: var(--color-accent-200);
+	}
+	.notice.failed {
+		border-color: var(--color-danger, #e5767b);
+		color: var(--color-danger, #e5767b);
+	}
 	@media (max-width: 720px) {
+		/* First in the row, so they're in sight without scrolling past every workspace. */
+		.side-actions {
+			order: -1;
+			flex-direction: row;
+			margin-top: 0;
+			gap: 6px;
+		}
 		/* The workspace list becomes a row of chips above the diagrams. */
 		.body {
 			flex-direction: column;
@@ -260,8 +410,14 @@
 			padding: 18px 16px;
 		}
 	}
-	.heading .new {
+	.heading .manage {
 		margin-left: auto;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 13px;
+	}
+	.heading .new {
 		font-size: 13px;
 		padding: 6px 12px;
 	}

@@ -300,6 +300,21 @@ test.describe("the app on a phone", () => {
     expect((await (await request.get(`/api/diagrams/${id}`)).json()).name).toBe("ledger-core");
   });
 
+  test("makes a workspace and adds a member from its sheet", async ({ page, request }) => {
+    const { team } = await importStageData(request);
+    await page.goto(`/app/?ws=${encodeURIComponent(team)}`);
+    await page.getByRole("button", { name: "+ New workspace" }).tap();
+    const name = `Phone crew ${Date.now()}`;
+    await page.getByRole("dialog", { name: "New workspace" }).getByLabel("Name").fill(name);
+    await page.getByRole("button", { name: "Create workspace" }).tap();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+    await page.getByRole("button", { name: `Manage ${name}` }).tap();
+    const sheet = page.getByRole("dialog", { name });
+    await sheet.getByLabel("Email to add").fill("pal@example.com");
+    await sheet.getByRole("button", { name: "Add", exact: true }).tap();
+    await expect(sheet.getByRole("listitem").filter({ hasText: "pal@example.com" })).toBeVisible();
+  });
+
   test("never scrolls the page sideways", async ({ page, request }) => {
     const { team, diagrams } = await importStageData(request);
     for (const path of [`/app/?ws=${encodeURIComponent(team)}`, `/app/d/${diagrams["edge-ingress (platform copy)"]}`]) {

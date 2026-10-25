@@ -34,7 +34,7 @@
 			{/each}
 		</nav>
 	{/if}
-	<span class="readonly tag tag-outline" title="Diagrams are made, edited and saved here; workspaces, members and sharing are still managed in the prototype">Preview</span>
+	<span class="readonly tag tag-outline" title="Workspaces and diagrams are managed, edited and saved here; reviewing changes from a followed diagram is still done in the prototype">Preview</span>
 	<div class="user">
 		<button type="button" class="who" aria-expanded={open} aria-haspopup="menu" onclick={() => (open = !open)}>
 			<span class="avatar" aria-hidden="true">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>

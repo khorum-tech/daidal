@@ -581,4 +581,68 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("link", { name: /scratch/ })).toHaveCount(0);
     expect((await request.get(`/api/diagrams/${made.id}`)).status()).toBe(404);
   });
+
+  test("makes a workspace, renames it, adds and removes a member, then deletes it", async ({ page, request }) => {
+    // Start from a small workspace: the test user's personal one collects a copy of the stage data per test.
+    const { team } = await importStageData(request);
+    await page.goto(`/app/?ws=${encodeURIComponent(team)}`);
+    await page.getByRole("button", { name: "+ New workspace" }).click();
+    const dialog = page.getByRole("dialog", { name: "New workspace" });
+    const name = `Crew ${Date.now()}`;
+    await dialog.getByLabel("Name").fill(name);
+    await dialog.getByRole("button", { name: "Create workspace" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+    const id = new URL(page.url()).searchParams.get("ws")!;
+
+    await page.getByRole("button", { name: `Manage ${name}` }).click();
+    let sheet = page.getByRole("dialog", { name });
+    await sheet.getByLabel("Name").fill(`${name} renamed`);
+    await sheet.getByLabel("Name").press("Enter");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(`${name} renamed`);
+
+    sheet = page.getByRole("dialog", { name: `${name} renamed` });
+    await sheet.getByLabel("Email to add").fill("Friend@Example.com");
+    await sheet.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(sheet.getByRole("listitem").filter({ hasText: "friend@example.com" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Workspaces" }).getByRole("link", { name: new RegExp(`${name} renamed`) })).toContainText("2");
+    await sheet.getByRole("button", { name: "Remove friend@example.com" }).click();
+    await expect(sheet.getByRole("listitem").filter({ hasText: "friend@example.com" })).toHaveCount(0);
+
+    await sheet.getByRole("button", { name: "Delete workspace…" }).click();
+    await sheet.getByRole("button", { name: "Delete for good" }).click();
+    // Deleting lands on the personal workspace, which is large for the test user (see above).
+    await expect(page).toHaveURL(url => url.pathname === "/app/" && !url.searchParams.has("ws"), { timeout: 20_000 });
+    await expect(page.getByRole("navigation", { name: "Workspaces" }).getByRole("link", { name: new RegExp(name) })).toHaveCount(0);
+    const left = (await (await page.request.get("/api/workspaces")).json()) as { id: string }[];
+    expect(left.some(w => w.id === id)).toBe(false);
+  });
+
+  test("exports a workspace as a backup, and imports it back as a new workspace", async ({ page, request }, info) => {
+    const { team } = await importStageData(request);
+    await page.goto(`/app/?ws=${encodeURIComponent(team)}`);
+    await page.getByRole("button", { name: "Manage Platform team" }).click();
+    const download = page.waitForEvent("download");
+    await page.getByRole("dialog", { name: "Platform team" }).getByRole("button", { name: "Export a backup" }).click();
+    const file = await download;
+    expect(file.suggestedFilename()).toBe("platform-team.skope-backup.json");
+    const path = info.outputPath("backup.json");
+    await file.saveAs(path);
+    await page.keyboard.press("Escape");
+
+    await page.getByLabel("Backup file to import").setInputFiles(path);
+    await expect(page.getByRole("status")).toContainText("Imported “Platform team”: 3 diagrams.");
+    await expect(page).not.toHaveURL(new RegExp(encodeURIComponent(team)));
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Platform team");
+    await expect(page.locator(".heading .n")).toHaveText("3 diagrams");
+    await expect(page.getByRole("link", { name: /ledger-platform \(DR drill\)/ })).toContainText("Follows ledger-platform · paused");
+  });
+
+  test("says so when a file to import isn't a backup", async ({ page, request }, info) => {
+    const { team } = await importStageData(request);
+    await page.goto(`/app/?ws=${encodeURIComponent(team)}`);
+    const path = info.outputPath("notes.json");
+    await import("node:fs/promises").then(fs => fs.writeFile(path, "not json"));
+    await page.getByLabel("Backup file to import").setInputFiles(path);
+    await expect(page.getByRole("alert")).toContainText("“notes.json” isn't a Skope backup");
+  });
 });
