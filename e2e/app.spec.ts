@@ -87,7 +87,7 @@ test.describe("the app at /app", () => {
     await expect(page.locator("path[data-edge]")).toHaveCount(9);
 
     // The saved view is "Full system"; "Write path" leaves observability out, so the collector is ghosted.
-    await expect(page.getByRole("button", { name: "Full system" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: /^Full system/ })).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: "Write path" }).click();
     await expect(page.getByRole("button", { name: "Telemetry: Collector" })).toHaveCSS("opacity", "0.22");
 
@@ -408,10 +408,13 @@ test.describe("the app at /app", () => {
     const panel = page.getByRole("complementary", { name: "Views and tags" });
     await panel.getByRole("checkbox", { name: /Observability/ }).uncheck();
     // Full system stays chosen, marked as changed.
-    await expect(panel.getByRole("button", { name: /Full system/ })).toContainText("changed");
+    await expect(panel.getByRole("button", { name: /^Full system/ })).toContainText("changed");
     await panel.getByRole("button", { name: "+ Save the tags on now as a view" }).click();
     await expect(panel.getByRole("button", { name: /^View 5/ })).toHaveAttribute("aria-pressed", "true");
 
+    // The editor waits to be asked for.
+    await expect(panel.getByRole("group", { name: "Edit view View 5" })).toHaveCount(0);
+    await panel.getByRole("button", { name: "Edit view View 5" }).click();
     const editor = panel.getByRole("group", { name: "Edit view View 5" });
     await editor.getByLabel("View name").fill("Quiet");
     await editor.getByLabel("View name").press("Enter");
@@ -434,6 +437,7 @@ test.describe("the app at /app", () => {
 
     await page.reload();
     await expect(panel.getByRole("button", { name: /^Quiet/ })).toHaveAttribute("aria-pressed", "true");
+    await panel.getByRole("button", { name: "Edit view Quiet" }).click();
     await panel.getByRole("button", { name: "Delete view" }).click();
     await expect(panel.getByRole("button", { name: /^Quiet/ })).toHaveCount(0);
     ({ doc } = await saved(page, request, id));

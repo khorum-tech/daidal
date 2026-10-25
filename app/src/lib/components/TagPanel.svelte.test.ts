@@ -56,6 +56,9 @@ describe('editing views and tags', () => {
 		});
 		// The chosen view is changed (Data is on as well) and is the one the diagram opens on.
 		await expect.element(page.getByRole('button', { name: /^Request path/ })).toHaveTextContent(/changed.*default/);
+		// The editor opens on request.
+		expect(page.getByRole('group', { name: 'Edit view Request path' }).elements()).toHaveLength(0);
+		await page.getByRole('button', { name: 'Edit view Request path' }).click();
 		const editor = page.getByRole('group', { name: 'Edit view Request path' });
 
 		await editor.getByLabelText('View name').fill('Everything tagged');

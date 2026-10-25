@@ -47,12 +47,27 @@
 	const onNow = $derived(scene.tags.filter(t => on[t.key]).map(t => t.key));
 	const changed = $derived(!!current && (current.tags.length !== onNow.length || current.tags.some(t => !on[t])));
 	let nameError = $state(false);
+	// The view editor opens on request (the prototype's caret), and closes whenever another view is chosen.
+	let editing = $state(false);
+	let editingFor: string | null = null;
+	$effect.pre(() => {
+		if (view === editingFor) return;
+		editingFor = view;
+		editing = false;
+		nameError = false;
+	});
 	function rename(e: Event & { currentTarget: HTMLInputElement }) {
 		if (!current) return;
 		const to = e.currentTarget.value.trim();
 		if (to === current.label) return;
+		// The view about to be chosen is this one under its new name, so the editor stays open across the rename.
+		const before = editingFor;
+		editingFor = to;
 		nameError = !onrenameview?.(current.label, to);
-		if (nameError) e.currentTarget.value = current.label;
+		if (nameError) {
+			editingFor = before;
+			e.currentTarget.value = current.label;
+		}
 	}
 </script>
 
@@ -65,14 +80,19 @@
 					<button type="button" class:active={view === null} aria-pressed={view === null} onclick={() => onview(null)}>Everything</button>
 				</li>
 				{#each scene.views as v (v.label)}
-					<li>
+					<li class="view-row">
 						<button type="button" class:active={view === v.label} aria-pressed={view === v.label} onclick={() => onview(v.label)}>
 							{v.label}{#if view === v.label && changed}<span class="changed" title="The tags on now differ from this view">changed</span>{/if}{#if scene.initialView === v.label}<span class="default" title="The diagram opens on this view">default</span>{/if}
 						</button>
+						{#if editable && view === v.label}
+							<button type="button" class="edit-view" aria-expanded={editing} aria-label="Edit view {v.label}" title="Rename, re-save or delete this view" onclick={() => (editing = !editing)}>
+								{editing ? 'Done' : 'Edit'}
+							</button>
+						{/if}
 					</li>
 				{/each}
 			</ul>
-			{#if editable && current}
+			{#if editable && current && editing}
 				<div class="view-edit" role="group" aria-label="Edit view {current.label}">
 					{#key current.label}
 						<input class="input" aria-label="View name" value={current.label} onchange={rename} onkeydown={e => e.key === 'Enter' && e.currentTarget.blur()} />
@@ -228,6 +248,25 @@
 	}
 	.changed {
 		color: var(--color-accent-300);
+	}
+	.view-row {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+	.view-row > button:first-child {
+		flex: 1;
+		min-width: 0;
+	}
+	.views .edit-view {
+		width: auto;
+		flex: none;
+		min-height: 28px;
+		padding: 3px 9px;
+		border: 1px solid var(--color-divider);
+		border-radius: 7px;
+		font-size: 11.5px;
+		color: var(--color-neutral-300);
 	}
 	.view-edit {
 		display: flex;

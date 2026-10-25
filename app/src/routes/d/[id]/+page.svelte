@@ -605,17 +605,18 @@
 	{#if selectedNode}
 		<!-- The node menu takes the toolbar's place while a node is selected. -->
 		<nav class="toolbar node-menu" aria-label="Selected node" data-testid="node-menu">
+			<!-- Edit leads, as View leads the bar it replaces; the ways to change the canvas follow. -->
+			<button type="button" onclick={() => (sheet = 'details')}>
+				<span class="t-label">{editable ? 'Edit' : 'Details'}</span><span class="t-value">{selectedNode.name}</span>
+			</button>
 			<button type="button" class:active={moving} aria-pressed={moving} disabled={!editable} title={editable ? '' : replayed ? 'Go back to the working copy to move nodes' : 'Only the owner can move nodes'} onclick={() => (moving = !moving)}>
-				<span class="t-label">{moving ? 'Moving' : 'Move'}</span><span class="t-value">{moving ? 'Drag anywhere · tap to stop' : selectedNode.name}</span>
+				<span class="t-label">{moving ? 'Moving' : 'Move'}</span><span class="t-value">{moving ? 'Drag anywhere · tap to stop' : 'Drag to place'}</span>
 			</button>
 			{#if editable}
 				<button type="button" class:active={connectFrom === selectedNode.id} aria-pressed={connectFrom === selectedNode.id} onclick={() => (connectFrom ? (connectFrom = null) : startConnect(selectedNode.id))}>
 					<span class="t-label">{connectFrom ? 'Connecting' : 'Connect'}</span><span class="t-value">{connectFrom ? 'Tap a node · tap to stop' : 'to a node'}</span>
 				</button>
 			{/if}
-			<button type="button" onclick={() => (sheet = 'details')}>
-				<span class="t-label">{editable ? 'Edit' : 'Details'}</span><span class="t-value">{selectedNode.type}</span>
-			</button>
 			<button type="button" class="done" aria-label="Done with {selectedNode.name}" onclick={() => select(null)}>
 				<span class="t-label">Done</span><span class="t-value">×</span>
 			</button>
@@ -623,16 +624,16 @@
 	{:else if selectedBoxScene}
 		<!-- A selected container: a finger moves or resizes it from anywhere once one is chosen. -->
 		<nav class="toolbar node-menu" aria-label="Selected container" data-testid="box-menu">
+			<button type="button" onclick={() => (sheet = 'box')}>
+				<span class="t-label">{editable ? 'Edit' : 'Details'}</span><span class="t-value">{selectedBoxScene.label || 'Container'}</span>
+			</button>
 			{#if editable}
 				{#each [['move', 'Move', 'Moving'], ['resize', 'Resize', 'Resizing']] as const as [mode, label, active] (mode)}
 					<button type="button" class:active={boxMode === mode} aria-pressed={boxMode === mode} onclick={() => (boxMode = boxMode === mode ? null : mode)}>
-						<span class="t-label">{boxMode === mode ? active : label}</span><span class="t-value">{boxMode === mode ? 'Drag anywhere' : selectedBoxScene.label || 'Container'}</span>
+						<span class="t-label">{boxMode === mode ? active : label}</span><span class="t-value">{boxMode === mode ? 'Drag anywhere' : mode === 'move' ? 'Drag to place' : 'Drag to size'}</span>
 					</button>
 				{/each}
 			{/if}
-			<button type="button" onclick={() => (sheet = 'box')}>
-				<span class="t-label">{editable ? 'Edit' : 'Details'}</span><span class="t-value">Container</span>
-			</button>
 			<button type="button" class="done" aria-label="Done with the container" onclick={() => selectBox(null)}>
 				<span class="t-label">Done</span><span class="t-value">×</span>
 			</button>

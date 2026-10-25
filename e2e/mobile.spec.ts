@@ -57,6 +57,8 @@ test.describe("the app on a phone", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     const menu = page.getByTestId("node-menu");
     await expect(menu).toContainText("Journal DB");
+    // Edit leads, as View leads the bar it replaces.
+    await expect(menu.getByRole("button").first()).toContainText(/^\s*Edit/);
     // The owner's details are the editable inspector.
     await menu.getByRole("button", { name: /^Edit/ }).tap();
     await expect(page.getByRole("dialog", { name: "Node details" }).getByLabel("Notes")).toHaveValue(/Append-only journal/);
@@ -258,6 +260,8 @@ test.describe("the app on a phone", () => {
     await views.getByRole("checkbox", { name: /Observability/ }).tap();
     await views.getByRole("button", { name: "+ Save the tags on now as a view" }).tap();
     await expect(views.getByRole("button", { name: /^View 5/ })).toHaveAttribute("aria-pressed", "true");
+    // Saving a view doesn't spring its editor open.
+    await expect(views.getByRole("group", { name: /^Edit view/ })).toHaveCount(0);
 
     await views.getByRole("button", { name: "Manage tags" }).tap();
     const manager = page.getByRole("dialog", { name: "Manage tags" });
