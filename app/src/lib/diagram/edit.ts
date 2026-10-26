@@ -470,8 +470,10 @@ export function toggleTagOn(doc: SkopeDoc, ids: string[], key: string): SkopeDoc
 	const picked = (doc.nodes ?? []).filter(n => ids.includes(n.id));
 	const all = picked.length > 0 && picked.every(n => n.tags?.includes(key));
 	return picked.reduce((d, n) => {
-		const tags = n.tags ?? [];
-		return updateNode(d, n.id, { tags: all ? tags.filter(t => t !== key) : tags.includes(key) ? tags : [...tags, key] });
+		let tags = n.tags ?? [];
+		if (all) tags = tags.filter(t => t !== key);
+		else if (!tags.includes(key)) tags = [...tags, key];
+		return updateNode(d, n.id, { tags });
 	}, doc);
 }
 
@@ -505,7 +507,7 @@ export function copyNodes(doc: SkopeDoc, ids: string[]): Clip {
 		if (!ids.includes(n.id)) return [];
 		const s = scene.nodes[i];
 		// Every copied node carries where it was drawn, so a paste keeps the group's shape.
-		return [{ ...structuredClone(n), layout: { ...(n.layout ?? {}), x: s.x, y: s.y } }];
+		return [{ ...structuredClone(n), layout: { ...n.layout, x: s.x, y: s.y } }];
 	});
 	const keys = new Set(nodes.flatMap(n => n.tags ?? []));
 	return {

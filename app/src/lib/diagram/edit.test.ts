@@ -316,6 +316,9 @@ describe('many at once', () => {
 	it('puts a tag on all, or takes it off all when every one has it', () => {
 		const on = toggleTagOn(tagged(), ['api', 'db'], 'core');
 		expect(on.nodes!.map(n => n.tags)).toEqual([['core'], ['core']]);
+		// One already carrying it keeps its tags in order.
+		const some = toggleTagOn(tagged(), ['api', 'db'], 'data');
+		expect(toggleTagOn(some, ['api', 'db'], 'core').nodes!.map(n => n.tags)).toEqual([['core', 'data'], ['data', 'core']]);
 		const off = toggleTagOn(on, ['api', 'db'], 'core');
 		expect(off.nodes!.map(n => n.tags)).toEqual([undefined, undefined]);
 	});
