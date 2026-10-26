@@ -21,6 +21,8 @@ as its owner); and the History panel takes a snapshot of the working copy, with 
 name to rename it, add and remove members by email, export it as a backup, or delete it. Reviewing the changes a
 followed diagram has made is still done in the prototype.
 
+What's left to port, and the order it's planned in: [`docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md`](../docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md).
+
 | Route | What it shows |
 |-------|---------------|
 | `/app/` | Your workspaces (yours and shared with you) and the diagrams in one (`?ws=<id>`, else your personal one), as the prototype's project cards |
