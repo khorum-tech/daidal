@@ -2,6 +2,8 @@
 	import { untrack } from 'svelte';
 	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
+	import NodeTip from '#lib/components/NodeTip.svelte';
 	import { createApi } from '#lib/api.ts';
 	import AppHeader from '#lib/components/AppHeader.svelte';
 	import DiagramCanvas from '#lib/components/DiagramCanvas.svelte';
@@ -22,6 +24,7 @@
 		addTag,
 		addView,
 		clipCentre,
+		lockView,
 		connectToNew,
 		copyNodes,
 		duplicateBoundary,
@@ -124,13 +127,18 @@
 	// Many picked at once, and the toolbar's Multi-select (a phone's Select): taps pick, a drag draws a box.
 	let multi = $state<Picked | null>(null);
 	let manyMode = $state(false);
+	// Editing locked on this device, and presenting (both read-only); see below.
+	let locked = $state(false);
+	let presenting = $state(false);
 	$effect.pre(() => {
 		// A new diagram or snapshot starts from its own saved view. Moving a node changes the scene too, but keeps
 		// the view, so this reads which document is shown, not the scene itself.
 		void [replaying, working];
 		untrack(() => {
-			view = scene.initialView;
-			on = tagsOn(scene, scene.initialView);
+			// A link can open on a view (?view=Name); else the diagram's own.
+			const asked = replaying ? null : page.url.searchParams.get('view');
+			view = scene.views.some(v => v.label === asked) ? asked : scene.initialView;
+			on = tagsOn(scene, view);
 			solo = null;
 			selected = null;
 			selectedEdge = null;
@@ -218,7 +226,7 @@
 	const now = Date.now();
 
 	// Nodes can be edited on your own diagram, and not while replaying history.
-	const editable = $derived(mine && !replayed && working.saver.state !== 'conflict');
+	const editable = $derived(mine && !replayed && working.saver.state !== 'conflict' && !locked && !presenting);
 	// What a mode in progress asks of you. Wide screens show it in the strip; a phone floats it over the canvas,
 	// so it never wraps the strip (and moves everything below) as it comes and goes.
 	const modeHint = $derived.by(() => {
@@ -291,6 +299,92 @@
 		apply(made.doc, before, `Add ${type.toLowerCase()}`);
 		select(made.id);
 	}
+	// ---- locked, presenting ----
+	// Locking editing is this device's choice for this diagram, kept in the browser: nothing changes by mistake.
+	const lockKey = () => `skope.locked.${data.diagram.id}`;
+	$effect.pre(() => {
+		const key = lockKey();
+		untrack(() => {
+			try {
+				locked = localStorage.getItem(key) === '1';
+			} catch {
+				locked = false;
+			}
+		});
+	});
+	function setLock(value: boolean) {
+		if (value) {
+			select(null);
+			stopPicking();
+			stopConnecting();
+		}
+		locked = value;
+		try {
+			if (value) localStorage.setItem(lockKey(), '1');
+			else localStorage.removeItem(lockKey());
+		} catch {
+			// Kept for this visit only.
+		}
+		notify(value ? 'Locked: selection and views still work' : 'Editing unlocked');
+	}
+	// Presenting: the canvas alone, full screen where the browser allows, read-only, with a node's detail on hover
+	// (on a tap, on a phone). Escape, or leaving full screen, ends it.
+	let wentFullscreen = false;
+	let hover = $state<{ id: string; at: DOMRect } | null>(null);
+	function present() {
+		select(null);
+		stopPicking();
+		stopConnecting();
+		sheet = null;
+		adding = false;
+		presenting = true;
+		wentFullscreen = false;
+		const root = document.documentElement;
+		if (!narrow && root.requestFullscreen) {
+			root.requestFullscreen().then(
+				() => (wentFullscreen = true),
+				() => {}
+			);
+		}
+	}
+	function exitPresent() {
+		presenting = false;
+		hover = null;
+		select(null);
+		if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+	}
+	$effect(() => {
+		const left = () => {
+			if (!document.fullscreenElement && wentFullscreen && presenting) {
+				wentFullscreen = false;
+				exitPresent();
+			}
+		};
+		document.addEventListener('fullscreenchange', left);
+		return () => document.removeEventListener('fullscreenchange', left);
+	});
+	// The node whose detail shows: the one under the mouse, or on a phone the one tapped.
+	const tipNode = $derived(presenting ? scene.nodes.find(n => n.id === (narrow ? selected : hover?.id)) : undefined);
+	const tipEdges = $derived(
+		tipNode
+			? scene.edges
+					.filter(e => e.from === tipNode.id || e.to === tipNode.id)
+					.map(e => ({ out: e.from === tipNode.id, name: nameOf(e.from === tipNode.id ? e.to : e.from), label: e.label }))
+			: []
+	);
+	let stageEl = $state<HTMLElement>();
+	/** Beside the node, on whichever side has room, and kept inside the canvas. */
+	const tipAt = $derived.by(() => {
+		if (!hover || !stageEl) return { left: 0, top: 0 };
+		const box = stageEl.getBoundingClientRect();
+		const W = 286;
+		let left = hover.at.right - box.left + 14;
+		if (left + W > box.width - 8) left = hover.at.left - box.left - W - 14;
+		const top = hover.at.top - box.top + hover.at.height / 2 - 90;
+		return { left: Math.max(8, left), top: Math.max(8, Math.min(top, box.height - 240)) };
+	});
+	const shareLink = $derived(page.url.origin + page.url.pathname);
+
 	// ---- many at once ----
 	const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 	/** What is picked now: the many, or the one node or connection selected. */
@@ -580,6 +674,7 @@
 		return selectedBox ? removeBox : null;
 	}
 	function escapeKey(): (() => void) | null {
+		if (presenting) return exitPresent;
 		if (connectFrom || connectTool) return stopConnecting;
 		if (adding) return () => (adding = false);
 		return manyMode || multi ? stopPicking : null;
@@ -715,6 +810,10 @@
 		apply(removeView(before, name), before, `Delete view “${name}”`);
 		if (view === name) view = null;
 	}
+	function lockViewTo(name: string, lock: boolean) {
+		const before = current();
+		apply(lockView(before, name, lock), before, `${lock ? 'Lock' : 'Unlock'} view “${name}”`);
+	}
 	function defaultView(name: string | null) {
 		const before = current();
 		apply(setDefaultView(before, name), before, name ? `Open on “${name}”` : 'Open on everything');
@@ -763,6 +862,18 @@
 	}}
 />
 
+{#if presenting}
+	<div class="present-bar" role="region" aria-label="Presenting">
+		<span class="p-title"><span class="p-name">{working.name}</span><span class="p-sub">Presenting · read-only</span></span>
+		{#if scene.views.length}
+			<select class="p-view" aria-label="View" value={view ?? ''} onchange={e => setView(e.currentTarget.value || null)}>
+				<option value="">Everything</option>
+				{#each scene.views as v (v.label)}<option value={v.label}>{v.label}</option>{/each}
+			</select>
+		{/if}
+		<button type="button" class="btn btn-ghost p-exit" onclick={exitPresent}>Exit{narrow ? '' : ' · Esc'}</button>
+	</div>
+{:else}
 <AppHeader
 	me={data.me}
 	homeHref={resolve('/')}
@@ -788,6 +899,8 @@
 				{narrow ? 'Replaying' : 'Replaying history: go back to the working copy to edit'}
 			{:else if flash && !narrow}
 				{flash}
+			{:else if locked}
+				Locked on this device · <button type="button" class="link" onclick={() => setLock(false)}>Unlock</button>
 			{:else if modeHint && !narrow}
 				{modeHint}
 			{:else}
@@ -806,6 +919,9 @@
 	{:else if follow.kind === 'gone'}
 		<span class="follow gone" data-testid="follow">No longer following: its lead was deleted or you left its workspace</span>
 	{/if}
+	{#if !narrow}
+		<button type="button" class="link present-link" onclick={present}>Present</button>
+	{/if}
 </div>
 
 {#if replayed}
@@ -813,6 +929,7 @@
 		Replaying “{replayed.label}” · {replayed.authorEmail} · {ago(replayed.createdAt, now)}
 		<button type="button" class="btn btn-ghost" onclick={() => (replaying = null)}>Back to the working copy</button>
 	</div>
+{/if}
 {/if}
 
 {#snippet nodeInspector()}
@@ -897,6 +1014,7 @@
 		onresaveview={resaveView}
 		ondeleteview={deleteView}
 		ondefaultview={defaultView}
+		onlockview={lockViewTo}
 		onmanage={() => (sheet = 'tags')}
 	/>
 {/snippet}
@@ -926,8 +1044,8 @@
 {/snippet}
 
 <div class="body">
-	{#if !narrow}{@render tags()}{/if}
-	<main class="stage" aria-label="Diagram">
+	{#if !narrow && !presenting}{@render tags()}{/if}
+	<main class="stage" aria-label="Diagram" bind:this={stageEl}>
 		<DiagramCanvas
 			bind:this={canvasRef}
 			{scene}
@@ -961,7 +1079,13 @@
 			onpick={boxPick}
 			ontoggle={togglePick}
 			onmovemany={moveMany}
+			onhover={presenting && !narrow ? (id, at) => (hover = id && at ? { id, at } : null) : undefined}
 		/>
+		{#if tipNode}
+			<div class="tip-at" class:docked={narrow} style:left={narrow ? undefined : `${tipAt.left}px`} style:top={narrow ? undefined : `${tipAt.top}px`}>
+				<NodeTip node={tipNode} tags={tagByKey} connections={tipEdges} />
+			</div>
+		{/if}
 		{#if narrow && (flash || modeHint)}
 			<p class="mode-hint" data-testid="mode-hint">{flash || modeHint}</p>
 		{/if}
@@ -1020,7 +1144,7 @@
 			{/if}
 		{/if}
 	</main>
-	{#if !narrow}
+	{#if !narrow && !presenting}
 		<aside class="right">
 			{@render multiInspector()}
 			{@render nodeInspector()}
@@ -1032,7 +1156,7 @@
 	{/if}
 </div>
 
-{#if narrow}
+{#if narrow && !presenting}
 	{#if manyMode || multi}
 		<!-- Picking many: what they are, moving them together, deleting them, and Done. -->
 		<nav class="toolbar node-menu" aria-label="Picked" data-testid="multi-menu">
@@ -1137,7 +1261,20 @@
 	</Sheet>
 {/if}
 <Sheet open={sheet === 'diagram'} title="Diagram" onclose={() => (sheet = null)}>
-	<DiagramSheet name={working.name} {mine} workspaces={data.workspaces} here={data.diagram.workspaceId} onrename={rename} oncopy={copy} ondelete={destroy} />
+	<DiagramSheet
+		name={working.name}
+		{mine}
+		workspaces={data.workspaces}
+		here={data.diagram.workspaceId}
+		onrename={rename}
+		oncopy={copy}
+		ondelete={destroy}
+		link={shareLink}
+		viewName={view}
+		onpresent={present}
+		{locked}
+		onlock={setLock}
+	/>
 </Sheet>
 <!-- The tag manager opens from the tags panel on any screen: a dialog on a wide one, a sheet on a phone. -->
 <Sheet open={sheet === 'tags' && editable} title="Manage tags" onclose={() => (sheet = null)}>
@@ -1145,6 +1282,74 @@
 </Sheet>
 
 <style>
+	.present-bar {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 8px 16px;
+		border-bottom: 1px solid var(--color-divider);
+		background: var(--color-surface);
+	}
+	.p-title {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+	}
+	.p-name {
+		font-family: var(--font-heading);
+		font-size: 14px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.p-sub {
+		font-size: 11px;
+		color: var(--color-neutral-500);
+	}
+	.p-view {
+		-webkit-appearance: none;
+		appearance: none;
+		min-height: 32px;
+		max-width: 40%;
+		padding: 4px 10px;
+		border-radius: 7px;
+		border: 1px solid var(--color-divider);
+		background: transparent;
+		color: var(--color-text);
+		font: inherit;
+		font-size: 12.5px;
+	}
+	.p-view option {
+		background: var(--color-surface);
+		color: var(--color-text);
+	}
+	.p-exit {
+		flex: none;
+		font-size: 12px;
+	}
+	.present-link {
+		flex: none;
+	}
+	.tip-at {
+		position: absolute;
+		z-index: 4;
+	}
+	.tip-at.docked {
+		left: 12px;
+		right: 12px;
+		bottom: 12px;
+		display: flex;
+		justify-content: center;
+	}
+	.tip-at.docked :global(.tip) {
+		width: 100%;
+	}
+	@media (pointer: coarse) {
+		.p-view {
+			font-size: 16px;
+		}
+	}
 	/* One line, always: its pieces shorten with an ellipsis rather than wrap, so the canvas below never moves as
 	   the save status changes. */
 	.strip {

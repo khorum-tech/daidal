@@ -81,4 +81,26 @@ describe('editing views and tags', () => {
 			['manage']
 		]);
 	});
+
+	it('locks a view: marked in the list, and kept from being renamed, re-saved or deleted', async () => {
+		const locked = toScene({ ...SAMPLE, views: SAMPLE.views!.map(v => (v.name === 'Request path' ? { ...v, locked: true } : v)) });
+		const calls: unknown[][] = [];
+		render(TagPanel, {
+			scene: locked,
+			on: { ...tagsOn(locked, 'Request path'), data: true },
+			view: 'Request path',
+			onview: () => {},
+			ontoggle: () => {},
+			editable: true,
+			onlockview: (name, lock) => calls.push(['lock', name, lock])
+		});
+		await expect.element(page.getByTitle('Locked: it can be shown, not changed')).toBeVisible();
+		await page.getByRole('button', { name: 'Edit view Request path' }).click();
+		const editor = page.getByRole('group', { name: 'Edit view Request path' });
+		await expect.element(editor.getByLabelText('View name')).toBeDisabled();
+		await expect.element(editor.getByRole('button', { name: 'Save the tags on now' })).toBeDisabled();
+		expect(editor.getByRole('button', { name: 'Delete view' }).elements()).toHaveLength(0);
+		await editor.getByRole('checkbox', { name: 'Lock this view' }).click();
+		expect(calls).toEqual([['lock', 'Request path', false]]);
+	});
 });

@@ -76,6 +76,7 @@ export interface SceneBoundary {
 export interface SceneView {
 	label: string;
 	tags: string[];
+	locked: boolean;
 }
 
 export interface Scene {
@@ -190,7 +191,7 @@ export function toScene(doc: SkopeDoc): Scene {
 	const tagKeys = new Set(tags.map(t => t.key));
 	const views = (doc.views ?? [])
 		.filter(v => v && v.name)
-		.map(v => ({ label: v.name, tags: (Array.isArray(v.tags) ? v.tags : []).filter(t => tagKeys.has(t)) }));
+		.map(v => ({ label: v.name, tags: (Array.isArray(v.tags) ? v.tags : []).filter(t => tagKeys.has(t)), locked: v.locked === true }));
 	const want = doc.diagram?.view;
 	return {
 		name: doc.diagram?.name ?? '',

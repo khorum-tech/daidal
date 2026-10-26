@@ -35,7 +35,12 @@ A **follower** reviews its lead's updates: each snapshot the lead took since the
 changed (nodes, connections and containers added, removed or updated), and each change can be accepted (an
 undoable edit, bringing in a node a connection needs) or skipped, or a whole snapshot at once; a verdict can be taken
 back. **Mark everything reviewed** syncs to the lead's latest snapshot, the switch pauses following, and **Unlink**
-stops it. The updates sit beside the canvas, and lead the History sheet on a phone.
+stops it. The updates sit beside the canvas, and lead the History sheet on a phone. **Presenting** (Present in the strip, or in the
+diagram's sheet) shows the canvas alone, full screen where the browser allows and read-only, with a node's notes, tags
+and connections on hover (on a tap, on a phone) and the views to switch; Escape ends it. The diagram's sheet copies a
+**link** to it, which can open on the view on now (`?view=Name`), and its owner can **lock editing on this device**
+(kept in the browser: picking and views still work). A **view** can be locked too, in the document: it can still be
+shown, not renamed, re-saved or deleted.
 
 What's left to port, and the order it's planned in: [`docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md`](../docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md).
 

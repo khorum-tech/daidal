@@ -415,4 +415,18 @@ test.describe("the app on a phone", () => {
     expect(d.doc.boundaries.map((b: { id: string }) => b.id)).toContain("regions");
     expect(Object.values(d.decided)).toEqual(["accepted", "accepted", "accepted"]);
   });
+  test("presents from the diagram sheet, shows a node's detail on a tap, and exits", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await page.getByRole("button", { name: "ledger-platform" }).tap();
+    await page.getByRole("dialog", { name: "Diagram" }).getByRole("button", { name: "Present" }).tap();
+    const bar = page.getByRole("region", { name: "Presenting" });
+    await expect(bar).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Diagram panels" })).toHaveCount(0);
+    await page.locator('[data-node="journal"]').tap();
+    await expect(page.getByRole("tooltip", { name: "About Journal DB" })).toBeVisible();
+    await expect(page.getByTestId("node-menu")).toHaveCount(0);
+    await bar.getByRole("button", { name: "Exit" }).tap();
+    await expect(page.getByRole("navigation", { name: "Diagram panels" })).toBeVisible();
+  });
 });

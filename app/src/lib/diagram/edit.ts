@@ -414,18 +414,36 @@ export function viewNameFree(doc: SkopeDoc, name: string, current: string): bool
 }
 
 /** Renames a view or re-saves its tags. A rename keeps it the default view if it was. */
+const isLocked = (doc: SkopeDoc, name: string) => !!doc.views?.find(v => v.name === name)?.locked;
+
+/** Renames or re-saves a view; a locked one stays as it is. */
 export function updateView(doc: SkopeDoc, name: string, change: { name?: string; tags?: string[] }): SkopeDoc {
 	const rename = change.name?.trim();
-	if (rename !== undefined && !viewNameFree(doc, rename, name)) return doc;
+	if (isLocked(doc, name) || (rename !== undefined && !viewNameFree(doc, rename, name))) return doc;
 	const next: SkopeDoc = {
 		...doc,
-		views: (doc.views ?? []).map(v => (v.name === name ? { name: rename ?? v.name, tags: change.tags ? [...change.tags] : v.tags } : v))
+		views: (doc.views ?? []).map(v => (v.name === name ? { ...v, name: rename ?? v.name, tags: change.tags ? [...change.tags] : v.tags } : v))
 	};
 	if (rename && doc.diagram?.view === name) next.diagram = { ...doc.diagram, view: rename };
 	return next;
 }
 
+/** Locks a view (the prototype's freeze) or unlocks it; an unlocked view leaves the flag out. */
+export function lockView(doc: SkopeDoc, name: string, locked: boolean): SkopeDoc {
+	return {
+		...doc,
+		views: (doc.views ?? []).map(v => {
+			if (v.name !== name) return v;
+			const next = { ...v, locked: true };
+			if (!locked) delete (next as { locked?: boolean }).locked;
+			return next;
+		})
+	};
+}
+
+/** Deletes a view, unless it is locked. */
 export function removeView(doc: SkopeDoc, name: string): SkopeDoc {
+	if (isLocked(doc, name)) return doc;
 	const next: SkopeDoc = { ...doc, views: (doc.views ?? []).filter(v => v.name !== name) };
 	if (doc.diagram?.view === name) {
 		const diagram = { ...doc.diagram };

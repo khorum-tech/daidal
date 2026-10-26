@@ -76,7 +76,7 @@ async function saved(page: Page, request: APIRequestContext, id: string): Promis
     edges: SavedEdge[];
     boundaries: SavedBox[];
     tags: Record<string, { label: string; color: string; group?: string }>;
-    views: { name: string; tags: string[] }[];
+    views: { name: string; tags: string[]; locked?: boolean }[];
     diagram: { view?: string };
   };
 }> {
@@ -895,5 +895,85 @@ test.describe("the app at /app", () => {
     expect(d).toMatchObject({ leadId: null, syncedSnapshotId: null, paused: false, decided: {} });
     await page.reload();
     await expect(page.getByTestId("follow")).toHaveCount(0);
+  });
+  test("presents a diagram: the canvas alone, a node's detail on hover, views to switch, and Escape to come back", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await page.getByRole("button", { name: "Present", exact: true }).click();
+    const bar = page.getByRole("region", { name: "Presenting" });
+    await expect(bar).toContainText("ledger-platform");
+    await expect(page.getByTestId("save-status")).toHaveCount(0);
+    await expect(page.getByRole("toolbar", { name: "Edit" })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Views and tags" })).toHaveCount(0);
+
+    await page.locator('[data-node="journal"]').hover();
+    const tip = page.getByRole("tooltip", { name: "About Journal DB" });
+    await expect(tip).toContainText("Append-only journal");
+    await expect(tip).toContainText("Postings Service");
+    await page.locator('[data-node="collector"]').hover();
+    await expect(page.getByRole("tooltip", { name: "About Collector" })).toBeVisible();
+    await expect(tip).toHaveCount(0);
+
+    await bar.getByLabel("View").selectOption("On call");
+    await expect(page.locator('[data-node="journal"]')).toHaveCSS("opacity", "0.22");
+    await page.keyboard.press("Escape");
+    await expect(bar).toHaveCount(0);
+    await expect(page.getByRole("toolbar", { name: "Edit" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "On call", exact: true })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("opens on the view a link names, and copies such a link from the diagram sheet", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}?view=Events`);
+    await expect(page.getByRole("button", { name: "Events", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "ledger-platform" }).click();
+    const sheet = page.getByRole("dialog", { name: "Diagram" });
+    await expect(sheet.getByLabel("Link to this diagram")).toHaveValue(new RegExp(`/app/d/${id}\\?view=Events$`));
+    await sheet.getByLabel("Open on the view “Events”").uncheck();
+    await expect(sheet.getByLabel("Link to this diagram")).toHaveValue(new RegExp(`/app/d/${id}$`));
+  });
+
+  test("locks editing on this device until unlocked, picking and views still working", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "ledger-platform" }).click();
+    await page.getByRole("dialog", { name: "Diagram" }).getByLabel("Lock editing on this device").check();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("save-status")).toContainText("Locked on this device");
+    await expect(page.getByRole("toolbar", { name: "Edit" })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Database: Journal DB" }).click();
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    await expect(inspector).toBeVisible();
+    await expect(inspector.getByLabel("Name")).toHaveCount(0);
+    await page.keyboard.press("Delete");
+    await expect(page.getByRole("button", { name: "Database: Journal DB" })).toBeVisible();
+    await page.getByRole("button", { name: "Events", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Events", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+    await page.reload();
+    await expect(page.getByTestId("save-status")).toContainText("Locked on this device");
+    await page.getByTestId("save-status").getByRole("button", { name: "Unlock" }).click();
+    await expect(page.getByRole("toolbar", { name: "Edit" })).toBeVisible();
+  });
+
+  test("locks a view, so it can be shown but not renamed or deleted, and unlocks it", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "Write path", exact: true }).click();
+    await page.getByRole("button", { name: "Edit view Write path" }).click();
+    const editor = page.getByRole("group", { name: "Edit view Write path" });
+    await editor.getByLabel("Lock this view").check();
+    await expect(editor.getByLabel("View name")).toBeDisabled();
+    await expect(editor.getByRole("button", { name: "Delete view" })).toHaveCount(0);
+    let { doc } = await saved(page, request, id);
+    expect(doc.views.find(v => v.name === "Write path")).toEqual({ name: "Write path", tags: ["web", "service", "data", "auth"], locked: true });
+    await editor.getByLabel("Lock this view").uncheck();
+    await expect(editor.getByRole("button", { name: "Delete view" })).toBeVisible();
+    ({ doc } = await saved(page, request, id));
+    expect(doc.views.find(v => v.name === "Write path")).toEqual({ name: "Write path", tags: ["web", "service", "data", "auth"] });
   });
 });
