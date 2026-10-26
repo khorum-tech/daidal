@@ -398,4 +398,21 @@ test.describe("the app on a phone", () => {
     await menu.getByRole("button", { name: "Done picking" }).tap();
     await expect(page.getByRole("navigation", { name: "Diagram panels" })).toBeVisible();
   });
+  test("opens a follower's updates from History, and accepts a whole snapshot", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["edge-ingress (platform copy)"];
+    await page.goto(`/app/d/${id}`);
+    const history = page.getByRole("navigation", { name: "Diagram panels" }).getByRole("button", { name: /^History/ });
+    await expect(history).toContainText("2 to review");
+    await history.tap();
+    const sheetEl = page.getByRole("dialog", { name: "History" });
+    await sheetEl.getByRole("button", { name: "Accept all from Second region" }).tap();
+    await expect(sheetEl.getByText("Accepted")).toHaveCount(3);
+    await page.keyboard.press("Escape");
+    await expect(page.locator('[data-node="pool-b"]')).toBeVisible();
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    const d = await (await request.get(`/api/diagrams/${id}`)).json();
+    expect(d.doc.boundaries.map((b: { id: string }) => b.id)).toContain("regions");
+    expect(Object.values(d.decided)).toEqual(["accepted", "accepted", "accepted"]);
+  });
 });

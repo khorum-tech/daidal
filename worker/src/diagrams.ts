@@ -143,8 +143,9 @@ export async function getDiagram(db: D1Database, id: string, email: string): Pro
 }
 
 /**
- * Save `{rev, doc?, name?, syncedSnapshotId?, decided?, paused?}`. `rev` must be the one the client loaded; when
- * the diagram has moved on since, nothing changes and the answer is 409 with the current diagram.
+ * Save `{rev, doc?, name?, syncedSnapshotId?, decided?, paused?, leadId?}`. `rev` must be the one the client
+ * loaded; when the diagram has moved on since, nothing changes and the answer is 409 with the current diagram.
+ * `leadId: null` stops following (unlinks), clearing where it was synced to and its verdicts; a lead can't be set here.
  */
 export async function saveDiagram(db: D1Database, id: string, email: string, request: Request, now: number): Promise<Response> {
   await ownDiagram(db, id, email);
@@ -162,7 +163,14 @@ export async function saveDiagram(db: D1Database, id: string, email: string, req
   if (body.name !== undefined) set("name", nameOf(body.name));
   if (body.syncedSnapshotId !== undefined) set("synced_snapshot_id", stringOrNull(body.syncedSnapshotId, "syncedSnapshotId"));
   if (body.decided !== undefined) set("decided", decidedText(body.decided));
-  if (body.paused !== undefined) {
+  if (body.leadId !== undefined) {
+    if (body.leadId !== null) throw new HttpError(400, "leadId can only be cleared (null), to stop following");
+    set("lead_id", null);
+    set("synced_snapshot_id", null);
+    set("decided", "{}");
+    set("paused", 0);
+  }
+  if (body.paused !== undefined && body.leadId === undefined) {
     if (typeof body.paused !== "boolean") throw new HttpError(400, "paused must be true or false");
     set("paused", body.paused ? 1 : 0);
   }

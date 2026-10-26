@@ -43,7 +43,10 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		diagram: (id: string) => get<Diagram>(`/api/diagrams/${q(id)}`),
 		snapshots: (id: string) => get<Snapshot[]>(`/api/diagrams/${q(id)}/snapshots`),
 		/** Save as the owner. [rev] is the revision the change was made against; a stale one gets a 409. */
-		save: (id: string, change: { rev: number; doc: SkopeDoc; name?: string }) => send<Diagram>(`/api/diagrams/${q(id)}`, 'PUT', change),
+		save: (
+			id: string,
+			change: { rev: number; doc: SkopeDoc; name?: string; syncedSnapshotId?: string | null; decided?: Record<string, string>; paused?: boolean; leadId?: null }
+		) => send<Diagram>(`/api/diagrams/${q(id)}`, 'PUT', change),
 		/**
 		 * A new diagram in [workspace]: from a document, or as a copy of the diagram [from] (its latest snapshot), which
 		 * with [follow] tracks that diagram's snapshots.

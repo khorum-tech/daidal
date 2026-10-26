@@ -31,7 +31,11 @@ step, and dragging any picked node moves them all. ⌘C, ⌘X and ⌘V copy, cut
 between them and the tags they use, in the same diagram or another; ⌘D duplicates the pick, Delete removes it. On a
 phone, **Select** in the bottom bar picks with taps (or a box), and its menu edits, moves or deletes them; Add offers
 Paste once something is copied.
-Reviewing the changes a followed diagram has made is still done in the prototype.
+A **follower** reviews its lead's updates: each snapshot the lead took since the one it is synced to lists what it
+changed (nodes, connections and containers added, removed or updated), and each change can be accepted (an
+undoable edit, bringing in a node a connection needs) or skipped, or a whole snapshot at once; a verdict can be taken
+back. **Mark everything reviewed** syncs to the lead's latest snapshot, the switch pauses following, and **Unlink**
+stops it. The updates sit beside the canvas, and lead the History sheet on a phone.
 
 What's left to port, and the order it's planned in: [`docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md`](../docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md).
 

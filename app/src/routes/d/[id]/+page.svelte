@@ -58,6 +58,8 @@
 	import { History } from '#lib/history.svelte.ts';
 	import { tagsOn, toScene } from '#lib/diagram/model.ts';
 	import { followState } from '#lib/follow.ts';
+	import { applyChange, pending, withNeeded, type Change } from '#lib/diagram/review.ts';
+	import FollowPanel from '#lib/components/FollowPanel.svelte';
 	import { Saver } from '#lib/saver.svelte.ts';
 	import type { Diagram, SkopeDoc, Snapshot } from '#lib/types.ts';
 	import { ago } from '#lib/time.ts';
@@ -76,11 +78,14 @@
 		saver: Saver;
 		history: History;
 		snapshots: Snapshot[];
+		/** What it follows and how far it has reviewed; saved with the document. Unlinking sets lead to null. */
+		follow: { lead: string | null; synced: string | null; decided: Record<string, string>; paused: boolean };
 	}
 	const start = (d: Diagram): Working => ({
 		doc: structuredClone(d.doc),
 		name: d.name,
-		saver: new Saver((rev, doc) => api.save(d.id, { rev, doc, name: working.name }), d.rev),
+		saver: new Saver((rev, doc) => api.save(d.id, { rev, doc, name: working.name, ...followFields(d) }), d.rev),
+		follow: { lead: d.leadId, synced: d.syncedSnapshotId, decided: { ...d.decided }, paused: d.paused },
 		history: new History(),
 		// Snapshots taken here join the history straight away.
 		snapshots: d.id === data.diagram.id ? [...data.snapshots] : []
@@ -155,7 +160,60 @@
 			: []
 	);
 
-	const follow = $derived(followState(data.diagram, data.lead));
+	// Where it stands against its lead, as reviewed here: verdicts, pause and sync save with the document.
+	const follow = $derived(
+		followState({ ...data.diagram, leadId: working.follow.lead, syncedSnapshotId: working.follow.synced, paused: working.follow.paused }, data.lead)
+	);
+	const updates = $derived(follow.kind === 'following' && data.lead ? pending(data.lead.snapshots, working.follow.synced) : []);
+	const openUpdates = $derived(updates.flatMap(g => g.changes).filter(c => !working.follow.decided[c.id]).length);
+	/** The follow fields a save carries: none for a diagram that never followed, and leadId null once unlinked. */
+	function followFields(d: Diagram) {
+		if (!d.leadId) return {};
+		const f = working.follow;
+		return f.lead ? { syncedSnapshotId: f.synced, decided: f.decided, paused: f.paused } : { leadId: null };
+	}
+	function saveFollow() {
+		if (mine) working.saver.queue(current());
+	}
+	function acceptChanges(chosen: Change[], label: string) {
+		if (!editable) return;
+		const before = current();
+		const changes = withNeeded(before, chosen, updates.flatMap(g => g.changes));
+		apply(
+			changes.reduce((d, c) => applyChange(d, c), before),
+			before,
+			label
+		);
+		working.follow.decided = { ...working.follow.decided, ...Object.fromEntries(changes.map(c => [c.id, 'accepted'])) };
+	}
+	function skipChanges(ids: string[]) {
+		working.follow.decided = { ...working.follow.decided, ...Object.fromEntries(ids.map(id => [id, 'skipped'])) };
+		saveFollow();
+	}
+	function undecide(id: string) {
+		const rest = { ...working.follow.decided };
+		delete rest[id];
+		working.follow.decided = rest;
+		saveFollow();
+	}
+	function pauseFollow(paused: boolean) {
+		working.follow.paused = paused;
+		saveFollow();
+		notify(paused ? 'Paused: updates stay out of the way' : `Following ${data.lead?.name ?? 'the lead'} again`);
+	}
+	function markReviewed() {
+		const last = data.lead?.snapshots.at(-1);
+		if (!last) return;
+		working.follow.synced = last.id;
+		saveFollow();
+		notify(`Caught up with ${data.lead?.name}`);
+	}
+	function unlink() {
+		working.follow = { lead: null, synced: null, decided: {}, paused: false };
+		sheet = null;
+		saveFollow();
+		notify(`Unlinked from ${data.lead?.name ?? 'the lead'}`);
+	}
 	const mine = $derived(data.diagram.ownerEmail === data.me.email);
 	const now = Date.now();
 
@@ -575,6 +633,11 @@
 		return () => mq.removeEventListener('change', update);
 	});
 	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | 'box' | 'tags' | 'diagram' | 'multi' | null>(null);
+	// The updates are beside the canvas on a wide screen, and lead the History sheet on a phone.
+	function showUpdates() {
+		if (narrow) sheet = 'history';
+		else document.getElementById('updates')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	}
 	// Moving mode: a drag anywhere on the canvas moves the selected node. It is how a finger moves a node (a mouse
 	// can drag one directly), chosen from the node menu, and ends with the selection.
 	let moving = $state(false);
@@ -737,7 +800,8 @@
 			<Icon name="follow" size={12} />
 			Follows <a href={resolve('/d/[id]', { id: follow.leadId })}>{follow.leadName}</a>
 			{#if !narrow}· {follow.syncedLabel ? `synced to “${follow.syncedLabel}”` : 'not synced yet'}{/if}
-			{#if follow.paused}· paused{:else if follow.newer > 0}· {follow.newer} newer {follow.newer === 1 ? 'snapshot' : 'snapshots'} to review{:else}· up to date{/if}
+			{#if follow.paused}· paused{:else if openUpdates > 0}·
+				<button type="button" class="link" onclick={showUpdates}>{plural(openUpdates, 'change')} to review</button>{:else}· up to date{/if}
 		</span>
 	{:else if follow.kind === 'gone'}
 		<span class="follow gone" data-testid="follow">No longer following: its lead was deleted or you left its workspace</span>
@@ -835,6 +899,27 @@
 		ondefaultview={defaultView}
 		onmanage={() => (sheet = 'tags')}
 	/>
+{/snippet}
+{#snippet followPanel()}
+	{#if follow.kind === 'following'}
+		<div id="updates">
+			<FollowPanel
+				leadName={follow.leadName}
+				leadHref={resolve('/d/[id]', { id: follow.leadId })}
+				groups={updates}
+				decided={working.follow.decided}
+				paused={working.follow.paused}
+				editable={editable}
+				{now}
+				onaccept={acceptChanges}
+				onskip={skipChanges}
+				onundecide={undecide}
+				onpause={pauseFollow}
+				onunlink={unlink}
+				onreviewed={markReviewed}
+			/>
+		</div>
+	{/if}
 {/snippet}
 {#snippet history()}
 	<HistoryPanel snapshots={working.snapshots} current={replaying} onpick={pick} {now} ontake={mine && editable ? takeSnapshot : undefined} />
@@ -941,6 +1026,7 @@
 			{@render nodeInspector()}
 			{@render edgeInspector()}
 			{@render boxInspector()}
+			{@render followPanel()}
 			{@render history()}
 		</aside>
 	{/if}
@@ -1022,7 +1108,9 @@
 				<span class="t-label">View</span><span class="t-value">{view ?? (scene.views.length ? 'Everything' : 'Tags')}</span>
 			</button>
 			<button type="button" onclick={() => (sheet = 'history')}>
-				<span class="t-label">History</span><span class="t-value">{replayed ? replayed.label : `${working.snapshots.length} ${working.snapshots.length === 1 ? 'snapshot' : 'snapshots'}`}</span>
+				<span class="t-label">History</span><span class="t-value"
+					>{replayed ? replayed.label : openUpdates && !working.follow.paused ? `${openUpdates} to review` : plural(working.snapshots.length, 'snapshot')}</span
+				>
 			</button>
 			<button type="button" onclick={toggleManyMode}>
 				<span class="t-label">Select</span><span class="t-value">Many</span>
@@ -1030,7 +1118,8 @@
 		</nav>
 	{/if}
 	<Sheet open={sheet === 'views'} title="Views and tags" onclose={() => (sheet = null)}>{@render tags()}</Sheet>
-	<Sheet open={sheet === 'history'} title="History" onclose={() => (sheet = null)}>{@render history()}</Sheet>
+	<!-- A follower's updates lead its history on a phone. -->
+	<Sheet open={sheet === 'history'} title="History" onclose={() => (sheet = null)}>{@render followPanel()}{@render history()}</Sheet>
 	<Sheet open={sheet === 'add'} title="Add a node" onclose={() => (sheet = null)}>
 		<div class="add-sheet">{@render addChoices(false)}</div>
 	</Sheet>
