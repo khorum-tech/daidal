@@ -40,76 +40,96 @@ function edgeKeys(edges: DocEdge[]): Map<string, DocEdge> {
 }
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-const sorted = (xs?: string[]) => [...(xs ?? [])].sort().join(',');
+const sorted = (xs?: string[]) => [...(xs ?? [])].sort((x, y) => x.localeCompare(y)).join(',');
 const tagsOf = (doc: SkopeDoc, keys: string[] = []) => Object.fromEntries(keys.filter(k => doc.tags?.[k]).map(k => [k, doc.tags![k]]));
 
-function nodeChanges(a: SkopeDoc, b: SkopeDoc, k: (p: string) => string): Change[] {
+type Key = (p: string) => string;
+type SceneNode = ReturnType<typeof toScene>['nodes'][number];
+
+/** What an update to a node changes: the bits to show and the fields to take. */
+function nodeEdit(o: DocNode, n: DocNode, os: SceneNode, ns: SceneNode) {
+	const tests: [keyof DocNode, boolean, string][] = [
+		['name', os.name !== ns.name, `name → ${ns.name}`],
+		['subtitle', os.sub !== ns.sub, `subtitle → ${ns.sub || '—'}`],
+		['type', os.type !== ns.type, `type → ${ns.type}`],
+		['flags', sorted(o.flags) !== sorted(n.flags), `flags → ${(n.flags ?? []).join(', ') || 'none'}`],
+		['notes', os.desc !== ns.desc, 'notes'],
+		['links', !same(o.links, n.links), 'links']
+	];
+	const hits = tests.filter(([, differs]) => differs);
+	return { fields: hits.map(([field]) => field), bits: hits.map(([, , bit]) => bit) };
+}
+
+/** The changes to one node both versions have: its fields, its tags, where it is. */
+function nodeUpdates(b: SkopeDoc, o: DocNode, n: DocNode, os: SceneNode, ns: SceneNode, k: Key): Change[] {
 	const out: Change[] = [];
+	const { fields, bits } = nodeEdit(o, n, os, ns);
+	if (bits.length) out.push({ id: k(`ne:${n.id}`), kind: 'node-edit', label: `Update “${os.name}”`, detail: bits.join(' · '), node: n, target: n.id, fields });
+	if (sorted(o.tags) !== sorted(n.tags)) {
+		const names = (n.tags ?? []).map(t => b.tags?.[t]?.label ?? t);
+		out.push({ id: k(`nt:${n.id}`), kind: 'node-tags', label: `Retag “${ns.name}”`, detail: names.join(', ') || 'no tags', node: n, target: n.id, tags: tagsOf(b, n.tags) });
+	}
+	if (os.x !== ns.x || os.y !== ns.y) out.push({ id: k(`nm:${n.id}`), kind: 'node-move', label: `Move “${ns.name}”`, detail: `to ${Math.round(ns.x)}, ${Math.round(ns.y)}`, node: n, target: n.id });
+	return out;
+}
+
+function nodeChanges(a: SkopeDoc, b: SkopeDoc, k: Key): Change[] {
 	const an = new Map((a.nodes ?? []).map(n => [n.id, n]));
 	const bn = new Map((b.nodes ?? []).map(n => [n.id, n]));
 	const at = new Map(toScene(a).nodes.map(n => [n.id, n]));
 	const bt = new Map(toScene(b).nodes.map(n => [n.id, n]));
-	for (const n of b.nodes ?? []) {
-		if (an.has(n.id)) continue;
-		const s = bt.get(n.id)!;
-		out.push({ id: k(`na:${n.id}`), kind: 'node-add', label: `Add “${s.name}”`, detail: s.type + (s.sub ? ` · ${s.sub}` : ''), node: n, target: n.id, tags: tagsOf(b, n.tags) });
-	}
-	for (const n of a.nodes ?? []) {
-		if (!bn.has(n.id)) out.push({ id: k(`nd:${n.id}`), kind: 'node-del', label: `Remove “${at.get(n.id)!.name}”`, detail: at.get(n.id)!.type, target: n.id });
-	}
-	for (const n of b.nodes ?? []) {
+	const added = (b.nodes ?? [])
+		.filter(n => !an.has(n.id))
+		.map((n): Change => {
+			const s = bt.get(n.id)!;
+			return { id: k(`na:${n.id}`), kind: 'node-add', label: `Add “${s.name}”`, detail: s.type + (s.sub ? ` · ${s.sub}` : ''), node: n, target: n.id, tags: tagsOf(b, n.tags) };
+		});
+	const removed = (a.nodes ?? [])
+		.filter(n => !bn.has(n.id))
+		.map((n): Change => ({ id: k(`nd:${n.id}`), kind: 'node-del', label: `Remove “${at.get(n.id)!.name}”`, detail: at.get(n.id)!.type, target: n.id }));
+	const updated = (b.nodes ?? []).flatMap(n => {
 		const o = an.get(n.id);
-		if (!o) continue;
-		const [os, ns] = [at.get(n.id)!, bt.get(n.id)!];
-		const bits: string[] = [];
-		const fields: (keyof DocNode)[] = [];
-		const changed = (field: keyof DocNode, differs: boolean, bit: string) => {
-			if (!differs) return;
-			fields.push(field);
-			bits.push(bit);
-		};
-		changed('name', os.name !== ns.name, `name → ${ns.name}`);
-		changed('subtitle', os.sub !== ns.sub, `subtitle → ${ns.sub || '—'}`);
-		changed('type', os.type !== ns.type, `type → ${ns.type}`);
-		changed('flags', sorted(o.flags) !== sorted(n.flags), `flags → ${(n.flags ?? []).join(', ') || 'none'}`);
-		changed('notes', os.desc !== ns.desc, 'notes');
-		changed('links', !same(o.links, n.links), 'links');
-		if (bits.length) out.push({ id: k(`ne:${n.id}`), kind: 'node-edit', label: `Update “${os.name}”`, detail: bits.join(' · '), node: n, target: n.id, fields });
-		if (sorted(o.tags) !== sorted(n.tags)) {
-			const names = (n.tags ?? []).map(t => b.tags?.[t]?.label ?? t);
-			out.push({ id: k(`nt:${n.id}`), kind: 'node-tags', label: `Retag “${ns.name}”`, detail: names.join(', ') || 'no tags', node: n, target: n.id, tags: tagsOf(b, n.tags) });
-		}
-		if (os.x !== ns.x || os.y !== ns.y) out.push({ id: k(`nm:${n.id}`), kind: 'node-move', label: `Move “${ns.name}”`, detail: `to ${Math.round(ns.x)}, ${Math.round(ns.y)}`, node: n, target: n.id });
-	}
-	return out;
+		return o ? nodeUpdates(b, o, n, at.get(n.id)!, bt.get(n.id)!, k) : [];
+	});
+	return [...added, ...removed, ...updated];
 }
 
-function edgeChanges(a: SkopeDoc, b: SkopeDoc, k: (p: string) => string): Change[] {
-	const out: Change[] = [];
-	const ae = edgeKeys(a.edges ?? []);
-	const be = edgeKeys(b.edges ?? []);
+/** What changed on a connection both versions have, as bits to show. */
+function edgeEdit(o: DocEdge, e: DocEdge): string[] {
+	const tests: [boolean, string][] = [
+		[(o.label ?? '') !== (e.label ?? ''), `label → ${e.label || '—'}`],
+		[(o.line ?? 'solid') !== (e.line ?? 'solid'), `line → ${e.line ?? 'solid'}`],
+		[(o.direction ?? 'forward') !== (e.direction ?? 'forward'), `arrows → ${e.direction ?? 'forward'}`],
+		[(o.width ?? 1.4) !== (e.width ?? 1.4), 'weight'],
+		[!same(o.anchors, e.anchors), 'line ends'],
+		[(o.route ?? '') !== (e.route ?? ''), `route → ${e.route ?? 'default'}`],
+		[(o.showLabel ?? true) !== (e.showLabel ?? true), e.showLabel === false ? 'label hidden' : 'label shown']
+	];
+	return tests.filter(([differs]) => differs).map(([, bit]) => bit);
+}
+
+/** What a connection's ends are called, in either version: a node's name or a container's label. */
+function endNames(a: SkopeDoc, b: SkopeDoc): (e: DocEdge) => string {
 	const names = new Map([...toScene(a).nodes, ...toScene(b).nodes].map(n => [n.id, n.name]));
 	for (const bx of [...(a.boundaries ?? []), ...(b.boundaries ?? [])]) if (bx.label) names.set(bx.id, bx.label);
-	const nm = (e: DocEdge) => `${names.get(e.from) ?? e.from} → ${names.get(e.to) ?? e.to}`;
-	for (const [key, e] of be) if (!ae.has(key)) out.push({ id: k(`ea:${key}`), kind: 'edge-add', label: `Connect ${nm(e)}`, detail: e.label || 'no label', edge: e, target: key });
-	for (const [key, e] of ae) if (!be.has(key)) out.push({ id: k(`ed:${key}`), kind: 'edge-del', label: `Disconnect ${nm(e)}`, detail: e.label ?? '', target: key });
-	for (const [key, e] of be) {
-		const o = ae.get(key);
-		if (!o) continue;
-		const bits: string[] = [];
-		if ((o.label ?? '') !== (e.label ?? '')) bits.push(`label → ${e.label || '—'}`);
-		if ((o.line ?? 'solid') !== (e.line ?? 'solid')) bits.push(`line → ${e.line ?? 'solid'}`);
-		if ((o.direction ?? 'forward') !== (e.direction ?? 'forward')) bits.push(`arrows → ${e.direction ?? 'forward'}`);
-		if ((o.width ?? 1.4) !== (e.width ?? 1.4)) bits.push('weight');
-		if (!same(o.anchors, e.anchors)) bits.push('line ends');
-		if ((o.route ?? '') !== (e.route ?? '')) bits.push(`route → ${e.route ?? 'default'}`);
-		if ((o.showLabel ?? true) !== (e.showLabel ?? true)) bits.push(e.showLabel === false ? 'label hidden' : 'label shown');
-		if (bits.length) out.push({ id: k(`ee:${key}`), kind: 'edge-edit', label: `Update ${nm(e)}`, detail: bits.join(' · '), edge: e, target: key });
-	}
-	return out;
+	return e => `${names.get(e.from) ?? e.from} → ${names.get(e.to) ?? e.to}`;
 }
 
-function boxChanges(a: SkopeDoc, b: SkopeDoc, k: (p: string) => string): Change[] {
+function edgeChanges(a: SkopeDoc, b: SkopeDoc, k: Key): Change[] {
+	const ae = edgeKeys(a.edges ?? []);
+	const be = edgeKeys(b.edges ?? []);
+	const nm = endNames(a, b);
+	const added = [...be].filter(([key]) => !ae.has(key)).map(([key, e]): Change => ({ id: k(`ea:${key}`), kind: 'edge-add', label: `Connect ${nm(e)}`, detail: e.label || 'no label', edge: e, target: key }));
+	const removed = [...ae].filter(([key]) => !be.has(key)).map(([key, e]): Change => ({ id: k(`ed:${key}`), kind: 'edge-del', label: `Disconnect ${nm(e)}`, detail: e.label ?? '', target: key }));
+	const updated = [...be].flatMap(([key, e]): Change[] => {
+		const o = ae.get(key);
+		const bits = o ? edgeEdit(o, e) : [];
+		return bits.length ? [{ id: k(`ee:${key}`), kind: 'edge-edit', label: `Update ${nm(e)}`, detail: bits.join(' · '), edge: e, target: key }] : [];
+	});
+	return [...added, ...removed, ...updated];
+}
+
+function boxChanges(a: SkopeDoc, b: SkopeDoc, k: Key): Change[] {
 	const out: Change[] = [];
 	const ab = new Map((a.boundaries ?? []).map(x => [x.id, x]));
 	const bb = new Map((b.boundaries ?? []).map(x => [x.id, x]));
@@ -139,7 +159,8 @@ function replaceEdge(doc: SkopeDoc, key: string, edge: DocEdge | null): SkopeDoc
 	const keys = [...edgeKeys(doc.edges ?? []).entries()];
 	const hit = keys.find(([k]) => k === key)?.[1];
 	if (!hit) return doc;
-	const edges = (doc.edges ?? []).flatMap(e => (e === hit ? (edge ? [structuredClone(edge)] : []) : [e]));
+	const swap = edge ? [structuredClone(edge)] : [];
+	const edges = (doc.edges ?? []).flatMap(e => (e === hit ? swap : [e]));
 	return { ...doc, edges };
 }
 
