@@ -23,7 +23,14 @@ canvas has undo and redo, Select and Connect (click a node, then the other end),
 database, queue, actor, note, free text or container, and **+ Add** for every other type. While a connection waits
 for its other end, a click (or tap) on empty canvas makes a new node there for it. With a mouse, a double-click on
 empty canvas adds a node with its name ready to type, and on a node renames it in place; the selected node's corner
-handle resizes it, for a finger too. The magnet in the zoom bar switches snapping, remembered in this browser.
+handle resizes it, for a finger too. The magnet in the zoom bar switches snapping, remembered in this browser. **Many at once** too: shift-click
+(or ⌘-click) adds a node or connection to the pick, a drag on empty canvas with shift held (or with the toolbar's
+Multi-select on) draws a box that picks what it touches, and ⌘A picks every node. The inspector then changes the type
+or tags of every picked node, or the arrows, weight, line and labels of every picked connection, each as one undo
+step, and dragging any picked node moves them all. ⌘C, ⌘X and ⌘V copy, cut and paste nodes with the connections
+between them and the tags they use, in the same diagram or another; ⌘D duplicates the pick, Delete removes it. On a
+phone, **Select** in the bottom bar picks with taps (or a box), and its menu edits, moves or deletes them; Add offers
+Paste once something is copied.
 Reviewing the changes a followed diagram has made is still done in the prototype.
 
 What's left to port, and the order it's planned in: [`docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md`](../docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md).

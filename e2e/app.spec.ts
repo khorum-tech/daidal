@@ -744,4 +744,106 @@ test.describe("the app at /app", () => {
     await page.reload();
     await expect(page.getByRole("button", { name: "Snap nodes into line" })).toHaveAttribute("aria-pressed", "false");
   });
+  test("picks many with shift-click, retags and moves them together, and deletes them", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "Service: Edge Router" }).click();
+    await page.getByRole("button", { name: "Service: Identity" }).click({ modifiers: ["Shift"] });
+    await page.getByRole("button", { name: "Service: Postings Service" }).click({ modifiers: ["Shift"] });
+    const picked = page.getByRole("region", { name: "Picked" });
+    await expect(picked.getByRole("heading", { level: 2 })).toHaveText("3 nodes");
+    await picked.getByRole("button", { name: "Put Async on all" }).click();
+    await expect(picked.getByRole("button", { name: "Take Async off all" })).toBeVisible();
+
+    await dragBy(page, '[data-node="edge"]', 0, 400);
+    await expect(page.getByRole("button", { name: "Undo Move 3 nodes" })).toBeVisible();
+    let { doc } = await saved(page, request, id);
+    const at = (nid: string) => doc.nodes.find(n => n.id === nid)!;
+    expect([at("edge").layout, at("identity").layout, at("postings").layout]).toEqual([
+      { x: 340, y: 550, w: 190 },
+      { x: 340, y: 760, w: 190 },
+      { x: 620, y: 550, w: 190 }
+    ]);
+    expect(at("identity").tags).toEqual(["service", "auth", "async"]);
+
+    await page.keyboard.press("Delete");
+    await expect(picked).toHaveCount(0);
+    ({ doc } = await saved(page, request, id));
+    expect(doc.nodes.some(n => ["edge", "identity", "postings"].includes(n.id))).toBe(false);
+    expect(doc.edges.some(e => ["edge", "identity", "postings"].includes(e.from) || ["edge", "identity", "postings"].includes(e.to))).toBe(false);
+  });
+
+  test("draws a box with Multi-select to pick, and Escape lets go", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    const tool = page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Multi-select" });
+    await tool.click();
+    await expect(page.getByTestId("save-status")).toContainText("Click to pick, or drag a box");
+    const identity = (await page.locator('[data-node="identity"]').boundingBox())!;
+    const balances = (await page.locator('[data-node="balances"]').boundingBox())!;
+    await page.mouse.move(identity.x - 12, identity.y - 12);
+    await page.mouse.down();
+    await page.mouse.move(balances.x + balances.width / 2, balances.y + balances.height / 2, { steps: 8 });
+    await page.mouse.up();
+    const picked = page.getByRole("region", { name: "Picked" });
+    await expect(picked.getByRole("heading", { level: 2 })).toContainText("2 nodes");
+    await expect(page.getByRole("button", { name: "Service: Identity" })).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("Escape");
+    await expect(picked).toHaveCount(0);
+    await expect(tool).toHaveAttribute("aria-pressed", "false");
+  });
+
+  test("picks all with ⌘A, and copies and pastes in the diagram and into another one", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.locator(".canvas").focus();
+    await page.keyboard.press("ControlOrMeta+a");
+    await expect(page.getByRole("region", { name: "Picked" }).getByRole("heading", { level: 2 })).toHaveText("9 nodes");
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "Database: Journal DB" }).click();
+    await page.keyboard.press("ControlOrMeta+c");
+    await expect(page.getByTestId("save-status")).toContainText("Copied 1 node");
+    await page.keyboard.press("ControlOrMeta+v");
+    await expect(page.getByRole("button", { name: "Database: Journal DB" })).toHaveCount(2);
+    let { doc } = await saved(page, request, id);
+    const copies = doc.nodes.filter(n => n.name === "Journal DB");
+    expect(copies.map(n => n.layout)).toEqual([
+      { x: 900, y: 150, w: 190 },
+      { x: 928, y: 178, w: 190 }
+    ]);
+
+    await page.getByRole("button", { name: "Service: Edge Router" }).click();
+    await page.getByRole("button", { name: "Service: Postings Service" }).click({ modifiers: ["Shift"] });
+    await page.keyboard.press("ControlOrMeta+c");
+    await expect(page.getByTestId("save-status")).toContainText("Copied 2 nodes");
+
+    const other = diagrams["edge-ingress (platform copy)"];
+    await page.goto(`/app/d/${other}`);
+    await page.locator(".canvas").focus();
+    await page.keyboard.press("ControlOrMeta+v");
+    await expect(page.getByRole("region", { name: "Picked" }).getByRole("heading", { level: 2 })).toHaveText("2 nodes");
+    ({ doc } = await saved(page, request, other));
+    const router = doc.nodes.find(n => n.name === "Edge Router")!;
+    const postings = doc.nodes.find(n => n.name === "Postings Service")!;
+    expect(doc.edges).toContainEqual({ from: router.id, to: postings.id, label: "gRPC", route: "straight" });
+    expect(doc.tags.service).toEqual(expect.objectContaining({ label: "Service" }));
+  });
+
+  test("cuts with ⌘X and pastes back from the Add menu", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "Database: Balance Cache" }).click();
+    await page.keyboard.press("ControlOrMeta+x");
+    await expect(page.getByRole("button", { name: "Database: Balance Cache" })).toHaveCount(0);
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).click();
+    await page.getByRole("dialog", { name: "Add a node" }).getByRole("button", { name: /Paste 1 node/ }).click();
+    await expect(page.getByRole("button", { name: "Database: Balance Cache" })).toHaveCount(1);
+    const { doc } = await saved(page, request, id);
+    // Cut leaves nothing behind to nudge from, so it lands around the middle of the view.
+    expect(doc.nodes.filter(n => n.name === "Balance Cache")).toHaveLength(1);
+  });
 });

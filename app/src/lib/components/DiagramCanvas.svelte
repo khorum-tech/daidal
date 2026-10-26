@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { bounds, isHidden, type Scene, type SceneBoundary, type SceneNode } from '../diagram/model';
-	import { contentsOf, MIN_BOX, MIN_NODE } from '../diagram/edit';
+	import { contentsOf, MIN_BOX, MIN_NODE, type Picked } from '../diagram/edit';
 	import { edgePath, type Box } from '../diagram/geometry';
 	import { clampView, fitView, panBy, toContent, zoomAt, type Point, type View } from '../diagram/zoom';
 	import { SNAP_PX, snapBox, type Guide } from '../diagram/snap';
@@ -26,6 +26,11 @@
  * The selected node has a corner handle to resize it ([onresize]), for a finger as well as a mouse. With a mouse,
  * a double-click on empty canvas asks for a node there ([onaddat]) and on a node renames it in place: [renaming]
  * is the node whose name is being typed, and [onrename] reports the new name, or null when left as it was.
+ *
+ * Many can be picked at once ([multi]): shift-click (or ⌘-click) adds or takes away a node or connection
+ * ([ontoggle]), and a drag on empty canvas with shift held, or in [manyMode] (the toolbar's Multi-select, a
+ * phone's Select), draws a box that picks what it touches ([onpick]). In [manyMode] a plain tap adds or takes away
+ * too. A mouse dragging one of the picked nodes moves them all ([onmovemany]), and so does a finger in [moving].
 	 *
 	 * Containers are picked by their border or label ([onselectbox]). A mouse drags the border to move one, with
 	 * what sits wholly inside unless it moves alone ([onmovebox]), and the corner handle to resize it
@@ -58,6 +63,11 @@
 		onrename,
 		snap = true,
 		onsnap,
+		multi = null,
+		manyMode = false,
+		onpick,
+		ontoggle,
+		onmovemany,
 		ghostOpacity = 0.22,
 		edgeStyle = 'curved'
 	}: {
@@ -97,6 +107,14 @@
 		snap?: boolean;
 		/** Given, the zoom bar has a button to switch snapping. */
 		onsnap?: (on: boolean) => void;
+		/** What is picked at once, when more than one thing is. */
+		multi?: Picked | null;
+		/** Taps add and take away, and a drag on empty canvas draws a box. */
+		manyMode?: boolean;
+		/** A box drawn: what it touched, and whether to add that to what was picked ([add], shift held). */
+		onpick?: (picked: Picked, add: boolean) => void;
+		ontoggle?: (item: { node?: string; edge?: number }) => void;
+		onmovemany?: (ids: string[], dx: number, dy: number) => void;
 		ghostOpacity?: number;
 		edgeStyle?: 'curved' | 'straight' | 'angled';
 	} = $props();
@@ -121,8 +139,15 @@
 	let guides = $state<Guide[]>([]);
 	// A container being moved or resized is drawn as it goes, with what it carries.
 	let draggedBox = $state<{ id: string; x: number; y: number; w: number; h: number; dx: number; dy: number; kids: { nodes: string[]; boxes: string[] } } | null>(null);
+	// Picked nodes being dragged together, by how far they have gone.
+	let draggedMany = $state<{ ids: string[]; dx: number; dy: number } | null>(null);
+	// A box being drawn to pick with, in diagram units.
+	let marquee = $state<{ x: number; y: number; w: number; h: number } | null>(null);
+	const pickedNodes = $derived(new Set(multi?.nodes ?? []));
+	const pickedEdges = $derived(new Set(multi?.edges ?? []));
 	const nodes = $derived<SceneNode[]>(
 		scene.nodes.map(n => {
+			if (draggedMany?.ids.includes(n.id)) return { ...n, x: n.x + draggedMany.dx, y: n.y + draggedMany.dy };
 			if (dragged && n.id === dragged.id) return { ...n, x: dragged.x, y: dragged.y, w: dragged.w ?? n.w, h: dragged.h ?? n.h };
 			if (draggedBox?.kids.nodes.includes(n.id)) return { ...n, x: n.x + draggedBox.dx, y: n.y + draggedBox.dy };
 			return n;
@@ -220,6 +245,8 @@
 		| { kind: 'pan'; pointer: number; start: Point; last: Point; moved: boolean }
 		| { kind: 'node'; pointer: number; start: Point; node: SceneNode; moved: boolean; touch: boolean }
 		| { kind: 'size'; pointer: number; start: Point; node: SceneNode; moved: boolean }
+		| { kind: 'many'; pointer: number; start: Point; ids: string[]; moved: boolean }
+		| { kind: 'marquee'; pointer: number; start: Point; add: boolean; moved: boolean }
 		| { kind: 'connect'; pointer: number; start: Point; from: string; moved: boolean }
 		| { kind: 'box'; mode: 'move' | 'resize'; pointer: number; start: Point; box: SceneBoundary; kids: { nodes: string[]; boxes: string[] }; moved: boolean }
 		| { kind: 'pinch'; dist: number; mid: Point; from: View };
@@ -245,6 +272,8 @@
 		if (pointers.size === 2) {
 			// A second finger turns whatever the first was doing into a pinch; a half-dragged node goes back.
 			dragged = null;
+			draggedMany = null;
+			marquee = null;
 			const { dist, mid } = spread();
 			gesture = { kind: 'pinch', dist, mid, from: view };
 			return;
@@ -266,12 +295,28 @@
 			gesture = { ...boxGesture, pointer: e.pointerId, start: p, moved: false };
 			return;
 		}
+		const many = manyPress(target, touch, e.shiftKey);
+		if (many) {
+			gesture = { ...many, pointer: e.pointerId, start: p, moved: false };
+			return;
+		}
 		// In moving mode the selected node follows a drag from anywhere; otherwise a mouse drags the node under it.
 		const id = moving ? selected : touch || connectFrom || picking ? null : (target.closest<HTMLElement>('[data-node]')?.dataset.node ?? null);
 		const node = editable && id ? scene.nodes.find(n => n.id === id) : undefined;
 		gesture = node
 			? { kind: 'node', pointer: e.pointerId, start: p, node, moved: false, touch }
 			: { kind: 'pan', pointer: e.pointerId, start: p, last: p, moved: false };
+	}
+
+	/** What a press starts on what is picked: the picked nodes moved together, or a box drawn to pick with. */
+	function manyPress(target: Element, touch: boolean, shift: boolean) {
+		if (connectFrom || picking) return null;
+		const under = target.closest<HTMLElement>('[data-node]')?.dataset.node;
+		const group = multi?.nodes.length ? multi.nodes : null;
+		if (editable && group && (moving || (!touch && under && pickedNodes.has(under)))) return { kind: 'many' as const, ids: group };
+		const empty = !target.closest('[data-node], [data-hit], [data-box], .port, .resize, .n-resize');
+		if (onpick && empty && (manyMode || (shift && !touch))) return { kind: 'marquee' as const, add: shift };
+		return null;
 	}
 
 	/** What a press starts on a container, if anything. */
@@ -321,6 +366,12 @@
 	function follow(g: Exclude<Gesture, { kind: 'pinch' }>, p: Point, alt: boolean) {
 		if (g.kind === 'connect') {
 			loose = toContent(view, p);
+		} else if (g.kind === 'many') {
+			draggedMany = { ids: g.ids, dx: (p.x - g.start.x) / view.s, dy: (p.y - g.start.y) / view.s };
+		} else if (g.kind === 'marquee') {
+			const a = toContent(view, g.start);
+			const b = toContent(view, p);
+			marquee = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) };
 		} else if (g.kind === 'size') {
 			const n = g.node;
 			const w = Math.max(MIN_NODE.w, n.w + (p.x - g.start.x) / view.s);
@@ -368,6 +419,7 @@
 		dragged = null;
 		if (g.kind === 'node' && g.moved && d && !cancelled) onmove?.(d.id, Math.round(d.x), Math.round(d.y));
 		if (g.kind === 'size' && g.moved && d?.w && d.h && !cancelled) onresize?.(d.id, Math.round(d.w), Math.round(d.h));
+		if (g.kind === 'many' || g.kind === 'marquee') endMany(g, cancelled);
 		if (g.kind === 'box') {
 			const d = draggedBox;
 			draggedBox = null;
@@ -389,6 +441,25 @@
 		}
 	}
 
+	/** Ends a drag of the picked nodes, or a box drawn: it picks the nodes it touches and the connections whose label point it holds. */
+	function endMany(g: Extract<Gesture, { kind: 'many' | 'marquee' }>, cancelled: boolean) {
+		const moved = draggedMany;
+		const box = marquee;
+		draggedMany = null;
+		marquee = null;
+		if (!g.moved || cancelled) return;
+		if (g.kind === 'many' && moved) onmovemany?.(moved.ids, Math.round(moved.dx), Math.round(moved.dy));
+		if (g.kind !== 'marquee' || !box || box.w * view.s < 4 || box.h * view.s < 4) return;
+		const inBox = (x: number, y: number) => x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h;
+		onpick?.(
+			{
+				nodes: nodes.filter(n => n.x < box.x + box.w && n.x + n.w > box.x && n.y < box.y + box.h && n.y + n.h > box.y).map(n => n.id),
+				edges: edges.filter(({ p }) => inBox(p.lx, p.ly)).map(({ e }) => e.index)
+			},
+			g.add
+		);
+	}
+
 	/**
 	 * A tap on empty space clears the selection, or with a connection waiting for its other end, makes a new node
 	 * there for it (as dropping one does). Nodes handle their own taps (NodeCard).
@@ -407,6 +478,7 @@
 		if (connectFrom || picking) connectedAt = e.timeStamp;
 		if (connectFrom) onconnect?.(connectFrom, n.id, { x: n.x, y: n.y });
 		else if (picking) onconnectstart?.(n.id);
+		else if (ontoggle && (manyMode || e.shiftKey || e.metaKey || e.ctrlKey)) ontoggle({ node: n.id });
 		else onselect?.(n.id);
 	}
 
@@ -416,7 +488,7 @@
 	let lastPointer = '';
 	let connectedAt = -Infinity;
 	function doubleClick(e: MouseEvent) {
-		if (!editable || lastPointer !== 'mouse' || e.timeStamp - connectedAt < 700 || connectFrom || picking) return;
+		if (!editable || lastPointer !== 'mouse' || e.timeStamp - connectedAt < 700 || connectFrom || picking || manyMode || e.shiftKey) return;
 		const target = e.target as Element;
 		const id = target.closest<HTMLElement>('[data-node]')?.dataset.node;
 		if (id) onrenamestart?.(id);
@@ -474,7 +546,8 @@
 	class="canvas"
 	class:panning
 	class:editable
-	class:moving={moving && editable && !!selected}
+	class:moving={moving && editable && (!!selected || !!multi?.nodes.length)}
+	class:many={manyMode}
 	role="application"
 	aria-label="Diagram canvas. Drag or use the arrow keys to move around; pinch, ctrl+scroll or plus and minus to zoom; 0 fits the diagram{editable ? '. Drag a node to move it' : ''}."
 	tabindex="0"
@@ -541,8 +614,8 @@
 				<path
 					d={p.d}
 					fill="none"
-					stroke={selectedEdge === e.index ? 'var(--color-accent)' : '#595d6c'}
-					stroke-width={selectedEdge === e.index ? e.width + 0.8 : e.width}
+					stroke={selectedEdge === e.index || pickedEdges.has(e.index) ? 'var(--color-accent)' : '#595d6c'}
+					stroke-width={selectedEdge === e.index || pickedEdges.has(e.index) ? e.width + 0.8 : e.width}
 					stroke-linecap={p.cap}
 					stroke-dasharray={p.dash || undefined}
 					marker-end={p.markerEnd ? `url(#${p.markerEnd})` : undefined}
@@ -558,8 +631,10 @@
 					class="hit"
 					d={p.d}
 					data-hit={e.index}
-					onclick={() => {
-						if (!dragJustEnded && !connectFrom) onselectedge?.(e.index);
+					onclick={ev => {
+						if (dragJustEnded || connectFrom) return;
+						if (ontoggle && (manyMode || ev.shiftKey || ev.metaKey || ev.ctrlKey)) ontoggle({ edge: e.index });
+						else onselectedge?.(e.index);
 					}}
 				/>
 			{/each}
@@ -580,13 +655,17 @@
 				tags={tagByKey}
 				ghosted={isHidden(n, on)}
 				{ghostOpacity}
-				selected={selected === n.id}
-				dragging={dragged?.id === n.id}
+				selected={selected === n.id || pickedNodes.has(n.id)}
+				dragging={dragged?.id === n.id || !!draggedMany?.ids.includes(n.id)}
 				connecting={!!connectFrom || picking}
 				onselect={(_, e) => tapNode(n, e)}
 				ondetails={id => ondetails?.(id)}
 			/>
 		{/each}
+
+		{#if marquee}
+			<div class="marquee" style:left="{marquee.x}px" style:top="{marquee.y}px" style:width="{marquee.w}px" style:height="{marquee.h}px"></div>
+		{/if}
 
 		{#if renamingNode}
 			<input
@@ -830,6 +909,18 @@
 			margin: -15px 0 0 -15px;
 			border-radius: 50%;
 		}
+	}
+	.marquee {
+		position: absolute;
+		z-index: 3;
+		box-sizing: border-box;
+		border: 1px solid var(--color-accent);
+		border-radius: 4px;
+		background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+		pointer-events: none;
+	}
+	.canvas.many {
+		cursor: crosshair;
 	}
 	.rename {
 		position: absolute;
