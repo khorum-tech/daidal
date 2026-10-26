@@ -91,6 +91,17 @@ describe("diagrams", () => {
     expect(saved.body).toMatchObject({ decided: { "node:gw": "skip" }, paused: true, syncedSnapshotId: "s-1" });
   });
 
+  it("stops following on leadId null, forgetting where it was synced to, and refuses to set a lead", async () => {
+    const ws = await team("d-unlink@example.com");
+    const { body: lead } = await call.post("d-unlink@example.com", "/api/diagrams", { workspace: ws, doc: doc() });
+    await call.post("d-unlink@example.com", `/api/diagrams/${lead.id}/snapshots`, { label: "s", doc: doc() });
+    const { body: f } = await call.post("d-unlink@example.com", "/api/diagrams", { workspace: ws, from: lead.id, follow: true });
+    const marked = await call.put("d-unlink@example.com", `/api/diagrams/${f.id}`, { rev: f.rev, decided: { "s:na:x": "skipped" }, paused: true });
+    expect((await call.put("d-unlink@example.com", `/api/diagrams/${f.id}`, { rev: marked.body.rev, leadId: lead.id })).status).toBe(400);
+    const gone = await call.put("d-unlink@example.com", `/api/diagrams/${f.id}`, { rev: marked.body.rev, leadId: null });
+    expect(gone.body).toMatchObject({ leadId: null, syncedSnapshotId: null, decided: {}, paused: false, doc: doc() });
+  });
+
   it("clears lead_id on followers when the lead is deleted, and deletes the lead's history", async () => {
     const ws = await team("d-del@example.com");
     const { body: lead } = await call.post("d-del@example.com", "/api/diagrams", { workspace: ws, doc: doc() });

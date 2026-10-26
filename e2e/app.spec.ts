@@ -125,11 +125,10 @@ test.describe("the app at /app", () => {
   test("shows where a follower stands, and links to its lead", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["edge-ingress (platform copy)"]}`);
-    await expect(page.getByTestId("follow")).toContainText("synced to “Add the web firewall” · 1 newer snapshot to review");
+    await expect(page.getByTestId("follow")).toContainText("synced to “Add the web firewall” · 2 changes to review");
     await page.getByTestId("follow").getByRole("link", { name: "edge-ingress" }).click();
-    await expect(page.getByRole("heading", { name: "History" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Second region/ })).toBeVisible();
     await expect(page).toHaveTitle("edge-ingress · Skope");
+    await expect(page.getByRole("region", { name: "History" }).getByRole("button", { name: /Second region/ })).toBeVisible();
   });
 
   test("opens a deep link directly, and says when a diagram can't be found", async ({ page, request }) => {
@@ -845,5 +844,56 @@ test.describe("the app at /app", () => {
     const { doc } = await saved(page, request, id);
     // Cut leaves nothing behind to nudge from, so it lands around the middle of the view.
     expect(doc.nodes.filter(n => n.name === "Balance Cache")).toHaveLength(1);
+  });
+  test("reviews a followed diagram's updates: accepts one with what it needs, skips one, takes a verdict back, and catches up", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["edge-ingress (platform copy)"];
+    await page.goto(`/app/d/${id}`);
+    const panel = page.getByRole("region", { name: "Updates" });
+    await expect(panel.getByRole("heading", { name: "Updates · 2" })).toBeVisible();
+    const group = panel.getByRole("group", { name: "Snapshot Second region" });
+    await expect(group.getByText("Skipped")).toBeVisible(); // Web Pool B, skipped before
+
+    // Accepting the connection brings in Web Pool B too, which it needs.
+    await group.getByRole("button", { name: "Accept Connect Load Balancer → Web Pool B" }).click();
+    await expect(page.getByRole("button", { name: "Compute: Web Pool B" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Undo Accept/ })).toBeVisible();
+    await group.getByRole("button", { name: "Skip Add container “TWO REGIONS”" }).click();
+    await group.getByRole("button", { name: "Take back accepting Connect Load Balancer → Web Pool B" }).click();
+    let { doc } = await saved(page, request, id);
+    expect(doc.nodes.some(n => n.id === "pool-b")).toBe(true);
+    expect(doc.edges).toContainEqual({ from: "lb", to: "pool-b", label: "HTTP" });
+    let d = (await (await request.get(`/api/diagrams/${id}`)).json()) as { decided: Record<string, string>; syncedSnapshotId: string };
+    expect(Object.entries(d.decided).map(([k, v]) => [k.split(":").slice(1).join(":"), v]).sort()).toEqual([
+      ["ba:regions", "skipped"],
+      ["na:pool-b", "accepted"]
+    ]);
+
+    await panel.getByRole("button", { name: "Mark everything reviewed" }).click();
+    await expect(panel.getByText("Up to date with edge-ingress.")).toBeVisible();
+    await expect(page.getByTestId("follow")).toContainText("synced to “Second region” · up to date");
+    await saved(page, request, id);
+    d = await (await request.get(`/api/diagrams/${id}`)).json();
+    const lead = (await (await request.get(`/api/diagrams/${diagrams["edge-ingress (platform copy)"]}`)).json()) as { leadId: string };
+    const snaps = (await (await request.get(`/api/diagrams/${lead.leadId}/snapshots`)).json()) as { id: string }[];
+    expect(d.syncedSnapshotId).toBe(snaps.at(-1)!.id);
+  });
+
+  test("pauses following, and unlinks after asking", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["edge-ingress (platform copy)"];
+    await page.goto(`/app/d/${id}`);
+    const panel = page.getByRole("region", { name: "Updates" });
+    await panel.getByLabel("Keep pulling in future updates").uncheck();
+    await expect(page.getByTestId("follow")).toContainText("paused");
+    await panel.getByRole("button", { name: "Unlink" }).click();
+    await panel.getByRole("group", { name: "Stop following" }).getByRole("button", { name: "Unlink" }).click();
+    await expect(page.getByTestId("follow")).toHaveCount(0);
+    await expect(panel).toHaveCount(0);
+    await saved(page, request, id);
+    const d = await (await request.get(`/api/diagrams/${id}`)).json();
+    expect(d).toMatchObject({ leadId: null, syncedSnapshotId: null, paused: false, decided: {} });
+    await page.reload();
+    await expect(page.getByTestId("follow")).toHaveCount(0);
   });
 });

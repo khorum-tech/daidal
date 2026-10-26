@@ -34,6 +34,7 @@ Each slice keeps the habits of the ones before it:
 | Workspaces | New workspace, import a backup, rename, members, export, delete |
 | Toolbar and canvas tools (part of A) | Toolbar with Select, Connect and one-click adds; tap empty canvas to connect to a new node; double-click to add or rename; node resize; snapping toggle |
 | Multi-select and the clipboard (B) | Shift-click, box select, ⌘A; bulk type, tags, connection styles, move, delete; ⌘C, ⌘X, ⌘V across diagrams, ⌘D; phone Select mode |
+| Follow review (part of D) | Accept or skip each change of a lead's newer snapshots, or a whole snapshot; take a verdict back; mark everything reviewed; pause; unlink (server: `leadId: null` on save) |
 
 ## What's left
 

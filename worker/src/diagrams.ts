@@ -143,8 +143,9 @@ export async function getDiagram(db: D1Database, id: string, email: string): Pro
 }
 
 /**
- * Save `{rev, doc?, name?, syncedSnapshotId?, decided?, paused?}`. `rev` must be the one the client loaded; when
- * the diagram has moved on since, nothing changes and the answer is 409 with the current diagram.
+ * Save `{rev, doc?, name?, syncedSnapshotId?, decided?, paused?, leadId?}`. `rev` must be the one the client
+ * loaded; when the diagram has moved on since, nothing changes and the answer is 409 with the current diagram.
+ * `leadId: null` stops following (unlinks), clearing where it was synced to and its verdicts; a lead can't be set here.
  */
 export async function saveDiagram(db: D1Database, id: string, email: string, request: Request, now: number): Promise<Response> {
   await ownDiagram(db, id, email);
@@ -160,12 +161,7 @@ export async function saveDiagram(db: D1Database, id: string, email: string, req
   };
   if (body.doc !== undefined) set("doc", docText(body.doc));
   if (body.name !== undefined) set("name", nameOf(body.name));
-  if (body.syncedSnapshotId !== undefined) set("synced_snapshot_id", stringOrNull(body.syncedSnapshotId, "syncedSnapshotId"));
-  if (body.decided !== undefined) set("decided", decidedText(body.decided));
-  if (body.paused !== undefined) {
-    if (typeof body.paused !== "boolean") throw new HttpError(400, "paused must be true or false");
-    set("paused", body.paused ? 1 : 0);
-  }
+  followSets(body, set);
 
   const result = await db
     .prepare(`UPDATE diagrams SET ${[...sets, "rev = rev + 1", "updated_at = ?"].join(", ")} WHERE id = ? AND rev = ?`)
@@ -176,6 +172,24 @@ export async function saveDiagram(db: D1Database, id: string, email: string, req
     throw new HttpError(409, "the diagram changed since you loaded it", { diagram: diagramOut(current) });
   }
   return json(diagramOut(current));
+}
+
+/** The follow fields of a save: where it is synced to, verdicts and pause, or `leadId: null` to stop following. */
+function followSets(body: Record<string, unknown>, set: (column: string, value: unknown) => void): void {
+  if (body.leadId !== undefined) {
+    if (body.leadId !== null) throw new HttpError(400, "leadId can only be cleared (null), to stop following");
+    set("lead_id", null);
+    set("synced_snapshot_id", null);
+    set("decided", "{}");
+    set("paused", 0);
+    return;
+  }
+  if (body.syncedSnapshotId !== undefined) set("synced_snapshot_id", stringOrNull(body.syncedSnapshotId, "syncedSnapshotId"));
+  if (body.decided !== undefined) set("decided", decidedText(body.decided));
+  if (body.paused !== undefined) {
+    if (typeof body.paused !== "boolean") throw new HttpError(400, "paused must be true or false");
+    set("paused", body.paused ? 1 : 0);
+  }
 }
 
 /** Deletes the diagram with its history. Its followers keep their copies and stop following. */
