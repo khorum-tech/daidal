@@ -3,6 +3,7 @@ import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import DiagramCanvas from './DiagramCanvas.svelte';
 import { tagsOn, toScene } from '../diagram/model';
+import type { Picked } from '../diagram/edit';
 import { SAMPLE } from '../fixtures/docs';
 import '../styles/nocturne.css';
 
@@ -337,5 +338,90 @@ describe('the canvas tools', () => {
 		await expect.element(button).toHaveAttribute('aria-pressed', 'false');
 		await button.click();
 		expect(calls.snap).toEqual([true]);
+	});
+});
+
+describe('picking many', () => {
+	function mountMany(props: Record<string, unknown> = {}) {
+		const calls = { toggled: [] as { node?: string; edge?: number }[], picked: [] as [Picked, boolean][], moved: [] as [string[], number, number][], selected: [] as (string | null)[] };
+		const r = render(DiagramCanvas, {
+			target: stage,
+			props: {
+				scene,
+				on: tagsOn(scene, null),
+				editable: true,
+				onselect: id => calls.selected.push(id),
+				ontoggle: item => calls.toggled.push(item),
+				onpick: (p, add) => calls.picked.push([p, add]),
+				onmovemany: (ids, dx, dy) => calls.moved.push([ids, dx, dy]),
+				...props
+			}
+		});
+		return { ...r, calls };
+	}
+	const empty = () => {
+		const r = document.querySelector('.canvas')!.getBoundingClientRect();
+		return document.elementFromPoint(r.left + 5, r.top + 5)!;
+	};
+
+	it('adds or takes away with a shift-click, and with a plain tap in Multi-select', async () => {
+		const { calls, rerender } = mountMany();
+		await page.getByRole('button', { name: 'API Gateway: Gateway' }).click({ modifiers: ['Shift'] });
+		expect(calls.toggled).toEqual([{ node: 'gw' }]);
+		await rerender({ manyMode: true });
+		await page.getByRole('button', { name: 'Database: Orders DB' }).click();
+		expect(calls.toggled).toEqual([{ node: 'gw' }, { node: 'db' }]);
+		expect(calls.selected).toEqual([]);
+	});
+
+	it('marks every picked node and connection', async () => {
+		mountMany({ multi: { nodes: ['gw', 'db'], edges: [0] } });
+		await expect.element(page.getByRole('button', { name: 'API Gateway: Gateway' })).toHaveAttribute('aria-pressed', 'true');
+		await expect.element(page.getByRole('button', { name: 'Database: Orders DB' })).toHaveAttribute('aria-pressed', 'true');
+		const [first] = scene.edges;
+		expect(document.querySelector(`path[data-edge="${first.from}>${first.to}"]`)!.getAttribute('stroke')).toBe('var(--color-accent)');
+	});
+
+	it('draws a box with shift held, picking the nodes it touches', async () => {
+		const { calls } = mountMany();
+		const shop = document.querySelector('[data-node="shop"]')!.getBoundingClientRect();
+		const gw = document.querySelector('[data-node="gw"]')!.getBoundingClientRect();
+		const el = empty();
+		const fire = (type: string, x: number, y: number) =>
+			el.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0, buttons: 1, shiftKey: true, clientX: x, clientY: y }));
+		// From above and left of Shop to the middle of Gateway: both touched, nothing else.
+		fire('pointerdown', shop.left - 10, shop.top - 10);
+		fire('pointermove', gw.left + 10, gw.top + 10);
+		await expect.poll(() => document.querySelectorAll('.marquee').length).toBe(1);
+		fire('pointerup', gw.left + 10, gw.top + 10);
+		await expect.poll(() => calls.picked.length).toBe(1);
+		expect(calls.picked[0][0].nodes.sort()).toEqual(['gw', 'shop']);
+		expect(calls.picked[0][1]).toBe(true);
+		expect(document.querySelectorAll('.marquee')).toHaveLength(0);
+	});
+
+	it('pans on a plain drag of empty canvas, but draws a box in Multi-select, even with a finger', async () => {
+		const plain = mountMany();
+		await drag(empty(), 80, 60);
+		expect(plain.calls.picked).toEqual([]);
+		plain.unmount();
+		const many = mountMany({ manyMode: true });
+		await drag(empty(), 300, 250, { pointerType: 'touch' });
+		expect(many.calls.picked).toHaveLength(1);
+		expect(many.calls.picked[0][1]).toBe(false);
+	});
+
+	it('moves every picked node when one of them is dragged, without snapping', async () => {
+		const { calls } = mountMany({ multi: { nodes: ['gw', 'db'], edges: [] } });
+		const { s } = sheet();
+		await drag(document.querySelector('[data-node="gw"]')!, 40 * s, 263 * s);
+		expect(calls.moved).toEqual([[['gw', 'db'], 40, 263]]);
+	});
+
+	it('moves them with a finger from anywhere in moving mode', async () => {
+		const { calls } = mountMany({ multi: { nodes: ['gw', 'db'], edges: [] }, moving: true });
+		const { s } = sheet();
+		await drag(empty(), 0, 100 * s, { pointerType: 'touch' });
+		expect(calls.moved).toEqual([[['gw', 'db'], 0, 100]]);
 	});
 });

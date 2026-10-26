@@ -21,12 +21,17 @@
 		addNode,
 		addTag,
 		addView,
+		clipCentre,
 		connectToNew,
+		copyNodes,
 		duplicateBoundary,
 		duplicateNode,
 		moveBoundary,
+		moveNodes,
+		pasteNodes,
 		removeBoundary,
 		removeEdge,
+		removeMany,
 		removeNode,
 		removeTag,
 		removeView,
@@ -34,16 +39,22 @@
 		resizeNode,
 		reverseEdge,
 		setDefaultView,
+		toggleTagOn,
 		updateBoundary,
 		updateEdge,
+		updateEdges,
 		updateNode,
+		updateNodes,
 		updateTag,
 		updateView,
 		viewNameFree,
 		type BoundaryChange,
 		type EdgeChange,
-		type NodeChange
+		type NodeChange,
+		type Picked
 	} from '#lib/diagram/edit.ts';
+	import { getClip, putClip } from '#lib/clipboard.ts';
+	import MultiInspector from '#lib/components/MultiInspector.svelte';
 	import { History } from '#lib/history.svelte.ts';
 	import { tagsOn, toScene } from '#lib/diagram/model.ts';
 	import { followState } from '#lib/follow.ts';
@@ -105,6 +116,9 @@
 	let connectTool = $state(false);
 	// The node whose name is being typed on the canvas.
 	let renaming = $state<string | null>(null);
+	// Many picked at once, and the toolbar's Multi-select (a phone's Select): taps pick, a drag draws a box.
+	let multi = $state<Picked | null>(null);
+	let manyMode = $state(false);
 	$effect.pre(() => {
 		// A new diagram or snapshot starts from its own saved view. Moving a node changes the scene too, but keeps
 		// the view, so this reads which document is shown, not the scene itself.
@@ -120,6 +134,8 @@
 			boxMode = null;
 			connectTool = false;
 			renaming = null;
+			multi = null;
+			manyMode = false;
 		});
 	});
 
@@ -127,6 +143,8 @@
 	const selectedNode = $derived(selected ? scene.nodes.find(n => n.id === selected) : undefined);
 	const selectedBoxScene = $derived(selectedBox ? scene.boundaries.find(b => b.id === selectedBox) : undefined);
 	const selectedEdgeScene = $derived(selectedEdge === null ? undefined : scene.edges[selectedEdge]);
+	const multiNodes = $derived(multi ? scene.nodes.filter(n => multi!.nodes.includes(n.id)) : []);
+	const multiEdges = $derived(multi ? scene.edges.filter(e => multi!.edges.includes(e.index)) : []);
 	// What a connection's end is called: a node's name, or a container's label.
 	const nameOf = (id: string) => scene.nodes.find(n => n.id === id)?.name ?? scene.boundaries.find(b => b.id === id)?.label ?? id;
 	const connections = $derived(
@@ -149,6 +167,8 @@
 		if (!mine || replayed || working.saver.state === 'conflict' || working.saver.state === 'error') return '';
 		if (connectFrom) return `${narrow ? 'Tap' : 'Click'} the node to connect “${nameOf(connectFrom)}” to, or empty space for a new one · ${narrow ? 'Connecting' : 'Esc'} to cancel`;
 		if (connectTool) return 'Click the node to connect from · Esc to cancel';
+		if (moving && multiNodes.length) return `Drag anywhere to move ${plural(multiNodes.length, 'node')} · two fingers pan`;
+		if (manyMode) return `${narrow ? 'Tap' : 'Click'} to pick, or drag a box · ${narrow ? 'Done' : 'Esc'} to stop`;
 		if (boxMode && selectedBoxScene) return `Drag anywhere to ${boxMode} “${selectedBoxScene.label || 'the container'}” · two fingers pan`;
 		if (moving && selectedNode) return `Drag anywhere to move “${selectedNode.name}” · two fingers pan`;
 		return '';
@@ -169,6 +189,11 @@
 		if (selectedEdge !== null && selectedEdge >= (doc.edges?.length ?? 0)) selectedEdge = null;
 		if (selectedBox && !doc.boundaries?.some(b => b.id === selectedBox)) selectBox(null);
 		if (renaming && !doc.nodes?.some(n => n.id === renaming)) renaming = null;
+		if (multi) {
+			const nodes = multi.nodes.filter(id => doc.nodes?.some(n => n.id === id));
+			const edges = multi.edges.filter(i => i < (doc.edges?.length ?? 0));
+			multi = nodes.length || edges.length || manyMode ? { nodes, edges } : null;
+		}
 	}
 	function undo() {
 		const doc = editable && working.history.undo(current());
@@ -208,6 +233,114 @@
 		apply(made.doc, before, `Add ${type.toLowerCase()}`);
 		select(made.id);
 	}
+	// ---- many at once ----
+	const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+	/** What is picked now: the many, or the one node or connection selected. */
+	const pickNow = (): Picked => multi ?? { nodes: selected ? [selected] : [], edges: selectedEdge === null ? [] : [selectedEdge] };
+	const pickLabel = (p: Picked) => [p.nodes.length ? plural(p.nodes.length, 'node') : '', p.edges.length ? plural(p.edges.length, 'connection') : ''].filter(Boolean).join(' + ');
+	/** Picks these; just one (outside Multi-select) is an ordinary selection. */
+	function setPick(p: Picked) {
+		const nodes = [...new Set(p.nodes)];
+		const edges = [...new Set(p.edges)];
+		if (!manyMode && nodes.length + edges.length <= 1) {
+			if (nodes.length) select(nodes[0]);
+			else if (edges.length) selectEdge(edges[0]);
+			else select(null);
+			return;
+		}
+		const keepMoving = moving;
+		select(null);
+		moving = keepMoving && nodes.length > 0;
+		multi = nodes.length || edges.length || manyMode ? { nodes, edges } : null;
+	}
+	function togglePick({ node, edge }: { node?: string; edge?: number }) {
+		const p = pickNow();
+		const flip = <T,>(list: T[], v: T | undefined) => (v === undefined ? list : list.includes(v) ? list.filter(x => x !== v) : [...list, v]);
+		setPick({ nodes: flip(p.nodes, node), edges: flip(p.edges, edge) });
+	}
+	function boxPick(p: Picked, add: boolean) {
+		const was = pickNow();
+		setPick(add ? { nodes: [...was.nodes, ...p.nodes], edges: [...was.edges, ...p.edges] } : p);
+		if (!p.nodes.length && !p.edges.length) notify('Nothing in that box');
+	}
+	const pickAll = () => setPick({ nodes: scene.nodes.map(n => n.id), edges: [] });
+	function stopPicking() {
+		manyMode = false;
+		multi = null;
+		moving = false;
+	}
+	function removePicked() {
+		const p = pickNow();
+		if (!p.nodes.length && !p.edges.length) return;
+		const before = current();
+		sheet = null;
+		multi = null;
+		apply(removeMany(before, p), before, `Delete ${pickLabel(p)}`);
+	}
+	function typeMany(type: string) {
+		if (!multi) return;
+		const before = current();
+		apply(updateNodes(before, multi.nodes, { type }), before, `Set ${plural(multi.nodes.length, 'node')} to ${type}`);
+	}
+	function tagMany(key: string) {
+		if (!multi) return;
+		const before = current();
+		const name = scene.tags.find(t => t.key === key)?.label ?? key;
+		apply(toggleTagOn(before, multi.nodes, key), before, `Tag ${plural(multi.nodes.length, 'node')} “${name}”`);
+	}
+	function edgesMany(change: EdgeChange, label: string) {
+		if (!multi) return;
+		const before = current();
+		apply(updateEdges(before, multi.edges, change), before, label);
+	}
+	function moveMany(ids: string[], dx: number, dy: number) {
+		const before = current();
+		apply(moveNodes(before, ids, dx, dy), before, `Move ${plural(ids.length, 'node')}`);
+	}
+
+	// ⌘C, ⌘X and ⌘V: copied nodes keep the connections between them and the tags they use, and paste here (nudged
+	// down and right) or into another diagram (around the middle of the view).
+	let clipSize = $state(getClip()?.nodes.length ?? 0);
+	function copyPicked(cut: boolean) {
+		const p = pickNow();
+		if (!p.nodes.length) return notify('Pick a node to copy');
+		putClip(copyNodes(current(), p.nodes));
+		clipSize = p.nodes.length;
+		if (!cut) return notify(`Copied ${plural(p.nodes.length, 'node')}`);
+		const before = current();
+		multi = null;
+		apply(removeMany(before, { nodes: p.nodes, edges: [] }), before, `Cut ${plural(p.nodes.length, 'node')}`);
+	}
+	function paste() {
+		const clip = getClip();
+		if (!clip) return notify('Nothing copied yet');
+		const before = current();
+		const here = clip.nodes.every(n => before.nodes?.some(o => o.id === n.id));
+		const centre = canvasRef?.center() ?? { x: 400, y: 300 };
+		const from = clipCentre(clip);
+		const [dx, dy] = here ? [28, 28] : [centre.x - from.x, centre.y - from.y];
+		const made = pasteNodes(before, clip, dx, dy);
+		adding = false;
+		sheet = null;
+		apply(made.doc, before, `Paste ${plural(made.ids.length, 'node')}`);
+		setPick({ nodes: made.ids, edges: [] });
+	}
+	function duplicatePicked() {
+		if (!multi?.nodes.length) return;
+		const before = current();
+		const made = pasteNodes(before, copyNodes(before, multi.nodes), 28, 28);
+		apply(made.doc, before, `Duplicate ${plural(made.ids.length, 'node')}`);
+		setPick({ nodes: made.ids, edges: [] });
+	}
+	// A short note in the strip (over the canvas on a phone) for what has no other sign, like a copy.
+	let flash = $state('');
+	let flashTimer: ReturnType<typeof setTimeout> | undefined;
+	function notify(text: string) {
+		flash = text;
+		clearTimeout(flashTimer);
+		flashTimer = setTimeout(() => (flash = ''), 2200);
+	}
+
 	function duplicate() {
 		if (!selected) return;
 		const before = current();
@@ -228,7 +361,15 @@
 	function toggleConnectTool() {
 		if (connectTool || connectFrom) return stopConnecting();
 		select(null);
+		manyMode = false;
 		connectTool = true;
+	}
+	function toggleManyMode() {
+		stopConnecting();
+		if (manyMode) return stopPicking();
+		manyMode = true;
+		// What is selected now starts the pick.
+		setPick(pickNow());
 	}
 	function connect(from: string, to: string | null, at: { x: number; y: number }) {
 		connectFrom = null;
@@ -348,23 +489,42 @@
 		apply(removeNode(before, selected), before, `Delete “${name}”`);
 	}
 
-	// The prototype's shortcuts, away from text fields: ⌘Z / ⇧⌘Z (or ctrl+Y) undo and redo, ⌘D duplicates, and
-	// Delete or Backspace removes the selected node.
+	// The prototype's shortcuts, away from text fields: ⌘Z / ⇧⌘Z (or ctrl+Y) undo and redo, ⌘D duplicates, ⌘A picks
+	// every node, ⌘C / ⌘X / ⌘V copy, cut and paste, Delete or Backspace removes what is selected, and Escape lets go.
 	function shortcut(e: KeyboardEvent) {
-		if (!editable || e.defaultPrevented || (e.target as Element).closest?.('input, textarea, select, [contenteditable]')) return;
-		const meta = e.metaKey || e.ctrlKey;
+		// Keys pressed in a field or a sheet (Escape closing one, say) are theirs, not the canvas's.
+		if (e.defaultPrevented || (e.target as Element).closest?.('input, textarea, select, [contenteditable], dialog')) return;
 		const k = e.key.toLowerCase();
-		if (meta && k === 'z') e.shiftKey ? redo() : undo();
-		else if (meta && k === 'y') redo();
-		else if (meta && k === 'd' && selected) duplicate();
-		else if (meta && k === 'd' && selectedBox) duplicateBox();
-		else if ((k === 'delete' || k === 'backspace') && selected && !meta) remove();
-		else if ((k === 'delete' || k === 'backspace') && selectedEdge !== null && !meta) disconnect();
-		else if ((k === 'delete' || k === 'backspace') && selectedBox && !meta) removeBox();
-		else if (k === 'escape' && (connectFrom || connectTool)) stopConnecting();
-		else if (k === 'escape' && adding) adding = false;
-		else return;
+		const action = e.metaKey || e.ctrlKey ? metaKey(k, e.shiftKey) : k === 'delete' || k === 'backspace' ? deleteKey() : k === 'escape' ? escapeKey() : null;
+		if (!action) return;
 		e.preventDefault();
+		action();
+	}
+	function metaKey(k: string, shift: boolean): (() => void) | null {
+		// Picking and copying work on any diagram you can see; the rest change it.
+		if (k === 'a') return pickAll;
+		if (k === 'c') return pickNow().nodes.length ? () => copyPicked(false) : null;
+		if (!editable) return null;
+		const keys: Record<string, (() => void) | null> = {
+			z: shift ? redo : undo,
+			y: redo,
+			d: multi ? duplicatePicked : selected ? duplicate : selectedBox ? duplicateBox : null,
+			x: pickNow().nodes.length ? () => copyPicked(true) : null,
+			v: clipSize ? paste : null
+		};
+		return keys[k] ?? null;
+	}
+	function deleteKey(): (() => void) | null {
+		if (!editable) return null;
+		if (multi) return removePicked;
+		if (selected) return remove;
+		if (selectedEdge !== null) return disconnect;
+		return selectedBox ? removeBox : null;
+	}
+	function escapeKey(): (() => void) | null {
+		if (connectFrom || connectTool) return stopConnecting;
+		if (adding) return () => (adding = false);
+		return manyMode || multi ? stopPicking : null;
 	}
 	// Don't let a change go unsaved by leaving: save it on the way to another page, and ask before a reload or close.
 	beforeNavigate(() => {
@@ -414,12 +574,13 @@
 		mq.addEventListener('change', update);
 		return () => mq.removeEventListener('change', update);
 	});
-	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | 'box' | 'tags' | 'diagram' | null>(null);
+	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | 'box' | 'tags' | 'diagram' | 'multi' | null>(null);
 	// Moving mode: a drag anywhere on the canvas moves the selected node. It is how a finger moves a node (a mouse
 	// can drag one directly), chosen from the node menu, and ends with the selection.
 	let moving = $state(false);
 	function select(id: string | null) {
 		if (id !== selected) moving = false;
+		multi = null;
 		selected = id;
 		selectedEdge = null;
 		connectFrom = null;
@@ -562,6 +723,8 @@
 				{narrow ? 'Changed elsewhere' : 'This diagram changed somewhere else'} · <button type="button" class="link" onclick={() => invalidateAll()}>Load the latest</button>
 			{:else if replayed}
 				{narrow ? 'Replaying' : 'Replaying history: go back to the working copy to edit'}
+			{:else if flash && !narrow}
+				{flash}
 			{:else if modeHint && !narrow}
 				{modeHint}
 			{:else}
@@ -613,8 +776,28 @@
 	</button>
 {/snippet}
 {#snippet addChoices(focus: boolean)}
+	{#if clipSize}
+		<button type="button" class="add-box" onclick={paste}><Icon name="note" size={15} />Paste {plural(clipSize, 'node')}<span>what you copied</span></button>
+	{/if}
 	<button type="button" class="add-box" onclick={addBox}><Icon name="frameCorners" size={15} />Container<span>a labelled box to group nodes</span></button>
 	<TypePicker autofocus={focus} onpick={add} />
+{/snippet}
+{#snippet multiInspector()}
+	{#if multi}
+		<MultiInspector
+			nodes={multiNodes}
+			edges={multiEdges}
+			tags={scene.tags}
+			{editable}
+			ontype={typeMany}
+			ontag={tagMany}
+			onedges={edgesMany}
+			oncopy={() => copyPicked(false)}
+			onduplicate={duplicatePicked}
+			ondelete={removePicked}
+			onclear={stopPicking}
+		/>
+	{/if}
 {/snippet}
 {#snippet boxInspector()}
 	{#if selectedBoxScene}
@@ -688,9 +871,14 @@
 			onrename={renameNode}
 			{snap}
 			onsnap={editable ? setSnap : undefined}
+			{multi}
+			{manyMode}
+			onpick={boxPick}
+			ontoggle={togglePick}
+			onmovemany={moveMany}
 		/>
-		{#if narrow && modeHint}
-			<p class="mode-hint" data-testid="mode-hint">{modeHint}</p>
+		{#if narrow && (flash || modeHint)}
+			<p class="mode-hint" data-testid="mode-hint">{flash || modeHint}</p>
 		{/if}
 		{#if editable}
 			<!-- The prototype's toolbar: undo and redo, how a click on the canvas works, then one click to add the
@@ -707,8 +895,22 @@
 				</button>
 				{#if !narrow}
 					<span class="sep" aria-hidden="true"></span>
-					<button type="button" class="tool" class:on={!connectTool && !connectFrom} aria-pressed={!connectTool && !connectFrom} aria-label="Select" title="Select · drag to move, double-click to rename" onclick={stopConnecting}>
+					<button
+						type="button"
+						class="tool"
+						class:on={!connectTool && !connectFrom && !manyMode}
+						aria-pressed={!connectTool && !connectFrom && !manyMode}
+						aria-label="Select"
+						title="Select · drag to move, double-click to rename, ⌘A for all"
+						onclick={() => {
+							stopConnecting();
+							manyMode = false;
+						}}
+					>
 						<Icon name="cursor" size={15} />
+					</button>
+					<button type="button" class="tool" class:on={manyMode} aria-pressed={manyMode} aria-label="Multi-select" title="Multi-select · drag a box, or click to pick; shift-click works any time" onclick={toggleManyMode}>
+						<Icon name="marquee" size={15} />
 					</button>
 					<button type="button" class="tool" class:on={connectTool || !!connectFrom} aria-pressed={connectTool || !!connectFrom} aria-label="Connect" title="Connect two nodes · click one, then the other" onclick={toggleConnectTool}>
 						<Icon name="flowArrow" size={15} />
@@ -735,6 +937,7 @@
 	</main>
 	{#if !narrow}
 		<aside class="right">
+			{@render multiInspector()}
 			{@render nodeInspector()}
 			{@render edgeInspector()}
 			{@render boxInspector()}
@@ -744,7 +947,25 @@
 </div>
 
 {#if narrow}
-	{#if selectedNode}
+	{#if manyMode || multi}
+		<!-- Picking many: what they are, moving them together, deleting them, and Done. -->
+		<nav class="toolbar node-menu" aria-label="Picked" data-testid="multi-menu">
+			<button type="button" disabled={!multi?.nodes.length && !multi?.edges.length} onclick={() => (sheet = 'multi')}>
+				<span class="t-label">{editable ? 'Edit' : 'Picked'}</span><span class="t-value">{multi?.nodes.length || multi?.edges.length ? pickLabel(multi) : 'Tap to pick'}</span>
+			</button>
+			{#if editable}
+				<button type="button" class:active={moving} aria-pressed={moving} disabled={!multi?.nodes.length} onclick={() => (moving = !moving)}>
+					<span class="t-label">{moving ? 'Moving' : 'Move'}</span><span class="t-value">{moving ? 'Drag anywhere' : 'All together'}</span>
+				</button>
+				<button type="button" class="narrow-btn" disabled={!multi?.nodes.length && !multi?.edges.length} onclick={removePicked}>
+					<span class="t-label">Delete</span><span class="t-value">Picked</span>
+				</button>
+			{/if}
+			<button type="button" class="done" aria-label="Done picking" onclick={stopPicking}>
+				<span class="t-label">Done</span><span class="t-value">×</span>
+			</button>
+		</nav>
+	{:else if selectedNode}
 		<!-- The node menu takes the toolbar's place while a node is selected. -->
 		<nav class="toolbar node-menu" aria-label="Selected node" data-testid="node-menu">
 			<!-- Edit leads, as View leads the bar it replaces; the ways to change the canvas follow. -->
@@ -803,8 +1024,8 @@
 			<button type="button" onclick={() => (sheet = 'history')}>
 				<span class="t-label">History</span><span class="t-value">{replayed ? replayed.label : `${working.snapshots.length} ${working.snapshots.length === 1 ? 'snapshot' : 'snapshots'}`}</span>
 			</button>
-			<button type="button" disabled>
-				<span class="t-label">Node</span><span class="t-value">Tap one</span>
+			<button type="button" onclick={toggleManyMode}>
+				<span class="t-label">Select</span><span class="t-value">Many</span>
 			</button>
 		</nav>
 	{/if}
@@ -815,6 +1036,9 @@
 	</Sheet>
 	<Sheet open={sheet === 'details' && !!selectedNode} title="Node details" onclose={() => (sheet = null)}>
 		{@render nodeInspector()}
+	</Sheet>
+	<Sheet open={sheet === 'multi' && !!multi} title="Picked" onclose={() => (sheet = null)}>
+		{@render multiInspector()}
 	</Sheet>
 	<Sheet open={sheet === 'box' && !!selectedBoxScene} title="Container" onclose={() => (sheet = null)}>
 		{@render boxInspector()}

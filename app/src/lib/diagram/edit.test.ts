@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkopeDoc } from '../types';
-import { addBoundary, addEdge, addNode, addTag, addView, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, removeTag, removeView, resizeBoundary, resizeNode, reverseEdge, setDefaultView, TAG_COLORS, updateBoundary, updateEdge, updateNode, updateTag, updateView, viewNameFree } from './edit';
+import { addBoundary, clipCentre, copyNodes, moveNodes, pasteNodes, removeMany, toggleTagOn, updateEdges, updateNodes, addEdge, addNode, addTag, addView, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, removeTag, removeView, resizeBoundary, resizeNode, reverseEdge, setDefaultView, TAG_COLORS, updateBoundary, updateEdge, updateNode, updateTag, updateView, viewNameFree } from './edit';
 import { toScene } from './model';
 
 const base = (): SkopeDoc => ({
@@ -294,5 +294,81 @@ describe('views', () => {
 	it('sets the view the diagram opens on, or everything', () => {
 		expect(setDefaultView(viewed(), 'View 3').diagram!.view).toBe('View 3');
 		expect(setDefaultView(viewed(), null).diagram).toEqual({ name: 'd' });
+	});
+});
+
+describe('many at once', () => {
+	const tagged = (): SkopeDoc => ({ ...base(), tags: { core: { label: 'Core', color: '#fff' }, data: { label: 'Data', color: '#000' } } });
+
+	it('removes picked nodes with their connections, and picked connections', () => {
+		const doc: SkopeDoc = { ...base(), nodes: [...base().nodes!, { id: 'q', name: 'Q', type: 'queue', layout: { x: 0, y: 0 } }], edges: [...base().edges!, { from: 'q', to: 'api' }] };
+		const next = removeMany(doc, { nodes: ['db'], edges: [2] });
+		expect(next.nodes!.map(n => n.id)).toEqual(['api', 'q']);
+		expect(next.edges).toEqual([]);
+		expect(removeMany(base(), { nodes: [], edges: [1] }).edges).toEqual([base().edges![0]]);
+	});
+
+	it('changes the type of many nodes', () => {
+		const next = updateNodes(base(), ['api', 'db'], { type: 'Message Queue' });
+		expect(next.nodes!.map(n => n.type)).toEqual(['message-queue', 'message-queue']);
+	});
+
+	it('puts a tag on all, or takes it off all when every one has it', () => {
+		const on = toggleTagOn(tagged(), ['api', 'db'], 'core');
+		expect(on.nodes!.map(n => n.tags)).toEqual([['core'], ['core']]);
+		// One already carrying it keeps its tags in order.
+		const some = toggleTagOn(tagged(), ['api', 'db'], 'data');
+		expect(toggleTagOn(some, ['api', 'db'], 'core').nodes!.map(n => n.tags)).toEqual([['core', 'data'], ['data', 'core']]);
+		const off = toggleTagOn(on, ['api', 'db'], 'core');
+		expect(off.nodes!.map(n => n.tags)).toEqual([undefined, undefined]);
+	});
+
+	it('restyles many connections', () => {
+		const next = updateEdges(base(), [0, 1], { line: 'dashed', width: 2.6 });
+		expect(next.edges!.map(e => [e.line, e.width])).toEqual([['dashed', 2.6], ['dashed', 2.6]]);
+	});
+
+	it('moves nodes together, including one placed by default', () => {
+		const doc: SkopeDoc = { version: 1, nodes: [...base().nodes!, { id: 'free', name: 'Free', type: 'service' }] };
+		const at = toScene(doc).nodes[2];
+		const next = moveNodes(doc, ['api', 'free'], 10, -20);
+		expect(next.nodes!.map(n => n.layout)).toEqual([{ x: 110, y: 80 }, { x: 400, y: 100 }, { x: at.x + 10, y: at.y - 20 }]);
+	});
+
+	it('copies nodes with the connections between them and the tags they use', () => {
+		const clip = copyNodes(tagged(), ['api']);
+		expect(clip.nodes.map(n => n.id)).toEqual(['api']);
+		expect(clip.edges).toEqual([]);
+		expect(clip.tags).toEqual({ core: { label: 'Core', color: '#fff' } });
+		expect(copyNodes(base(), ['api', 'db']).edges).toHaveLength(2);
+	});
+
+	it('pastes as new nodes, shifted, rewiring the connections between them', () => {
+		const clip = copyNodes(base(), ['api', 'db']);
+		const { doc, ids } = pasteNodes(base(), clip, 28, 28, 1000);
+		expect(ids).toHaveLength(2);
+		expect(new Set(ids).size).toBe(2);
+		expect(ids.some(id => id === 'api' || id === 'db')).toBe(false);
+		const pasted = doc.nodes!.slice(2);
+		expect(pasted.map(n => [n.name, n.layout])).toEqual([
+			['API', { x: 128, y: 128 }],
+			['Orders DB', { x: 428, y: 128 }]
+		]);
+		expect(doc.edges!.slice(2)).toEqual([
+			{ from: ids[0], to: ids[1], label: 'SQL' },
+			{ from: ids[1], to: ids[0] }
+		]);
+	});
+
+	it('brings missing tags along on a paste into another diagram, and keeps the ones there', () => {
+		const clip = copyNodes(tagged(), ['api']);
+		const other: SkopeDoc = { version: 1, tags: { core: { label: 'Mine', color: '#123' } } };
+		expect(pasteNodes(other, clip, 0, 0).doc.tags).toEqual({ core: { label: 'Mine', color: '#123' } });
+		expect(pasteNodes({ version: 1 }, clip, 0, 0).doc.tags).toEqual({ core: { label: 'Core', color: '#fff' } });
+	});
+
+	it('finds the middle of a clip', () => {
+		// API at (100, 100) and Orders DB at (400, 100), both 190 × 88.
+		expect(clipCentre(copyNodes(base(), ['api', 'db']))).toEqual({ x: 345, y: 144 });
 	});
 });

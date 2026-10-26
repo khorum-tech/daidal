@@ -1,4 +1,4 @@
-import type { DocBoundary, DocEdge, DocNode, SkopeDoc } from '../types';
+import type { DocBoundary, DocEdge, DocNode, DocTag, SkopeDoc } from '../types';
 import { NODE_H, NODE_W, slug, toScene, type Scene } from './model';
 
 /**
@@ -441,4 +441,111 @@ export function setDefaultView(doc: SkopeDoc, name: string | null): SkopeDoc {
 	if (name) diagram.view = name;
 	else delete diagram.view;
 	return { ...doc, diagram };
+}
+
+// ---- many at once ----
+
+/** What is picked at once: nodes by id, connections by their place in the document. */
+export interface Picked {
+	nodes: string[];
+	edges: number[];
+}
+
+/** Drops the picked nodes (with every connection to or from them) and the picked connections. */
+export function removeMany(doc: SkopeDoc, picked: Picked): SkopeDoc {
+	const gone = new Set(picked.nodes);
+	return {
+		...doc,
+		nodes: (doc.nodes ?? []).filter(n => !gone.has(n.id)),
+		edges: (doc.edges ?? []).filter((e, i) => !picked.edges.includes(i) && !gone.has(e.from) && !gone.has(e.to))
+	};
+}
+
+export function updateNodes(doc: SkopeDoc, ids: string[], change: NodeChange): SkopeDoc {
+	return ids.reduce((d, id) => updateNode(d, id, change), doc);
+}
+
+/** A tag on every one of [ids], or, when they all carry it already, off every one (the prototype's chip). */
+export function toggleTagOn(doc: SkopeDoc, ids: string[], key: string): SkopeDoc {
+	const picked = (doc.nodes ?? []).filter(n => ids.includes(n.id));
+	const all = picked.length > 0 && picked.every(n => n.tags?.includes(key));
+	return picked.reduce((d, n) => {
+		let tags = n.tags ?? [];
+		if (all) tags = tags.filter(t => t !== key);
+		else if (!tags.includes(key)) tags = [...tags, key];
+		return updateNode(d, n.id, { tags });
+	}, doc);
+}
+
+export function updateEdges(doc: SkopeDoc, indices: number[], change: EdgeChange): SkopeDoc {
+	return indices.reduce((d, i) => updateEdge(d, i, change), doc);
+}
+
+/** Moves [ids] together by ([dx], [dy]). */
+export function moveNodes(doc: SkopeDoc, ids: string[], dx: number, dy: number): SkopeDoc {
+	const scene = toScene(doc);
+	return {
+		...doc,
+		nodes: (doc.nodes ?? []).map((n, i) => {
+			if (!ids.includes(n.id)) return n;
+			const s = scene.nodes[i];
+			return { ...n, layout: { ...(n.layout ?? { x: s.x, y: s.y }), x: Math.round(s.x + dx), y: Math.round(s.y + dy) } };
+		})
+	};
+}
+
+/** What a copy carries: the nodes, the connections between them, and the tags they use. */
+export interface Clip {
+	nodes: DocNode[];
+	edges: DocEdge[];
+	tags: Record<string, DocTag>;
+}
+
+export function copyNodes(doc: SkopeDoc, ids: string[]): Clip {
+	const scene = toScene(doc);
+	const nodes = (doc.nodes ?? []).flatMap((n, i) => {
+		if (!ids.includes(n.id)) return [];
+		const s = scene.nodes[i];
+		// Every copied node carries where it was drawn, so a paste keeps the group's shape.
+		return [{ ...structuredClone(n), layout: { ...n.layout, x: s.x, y: s.y } }];
+	});
+	const keys = new Set(nodes.flatMap(n => n.tags ?? []));
+	return {
+		nodes,
+		edges: (doc.edges ?? []).filter(e => ids.includes(e.from) && ids.includes(e.to)).map(e => structuredClone(e)),
+		tags: Object.fromEntries(Object.entries(doc.tags ?? {}).filter(([k]) => keys.has(k)))
+	};
+}
+
+/**
+ * The clip's nodes added as new ones, shifted by ([dx], [dy]), with the connections between them. A tag the
+ * document doesn't have comes along; one it has stays as the document has it. Returns the new ids.
+ */
+export function pasteNodes(doc: SkopeDoc, clip: Clip, dx: number, dy: number, now = Date.now()): { doc: SkopeDoc; ids: string[] } {
+	const map = new Map<string, string>();
+	let nodes = doc.nodes ?? [];
+	for (const n of clip.nodes) {
+		const id = newNodeId({ ...doc, nodes }, now);
+		map.set(n.id, id);
+		const at = n.layout ?? { x: 0, y: 0 };
+		nodes = [...nodes, { ...structuredClone(n), id, layout: { ...at, x: Math.round(at.x + dx), y: Math.round(at.y + dy) } }];
+	}
+	const edges = clip.edges.filter(e => map.has(e.from) && map.has(e.to)).map(e => ({ ...structuredClone(e), from: map.get(e.from)!, to: map.get(e.to)! }));
+	const tags = { ...doc.tags };
+	for (const [k, t] of Object.entries(clip.tags)) if (!tags[k]) tags[k] = structuredClone(t);
+	return {
+		doc: { ...doc, nodes, edges: [...(doc.edges ?? []), ...edges], ...(Object.keys(tags).length ? { tags } : {}) },
+		ids: [...map.values()]
+	};
+}
+
+/** The middle of the clip's nodes, so a paste into another diagram can land them around a point. */
+export function clipCentre(clip: Clip): { x: number; y: number } {
+	const boxes = toScene({ version: 1, nodes: clip.nodes }).nodes;
+	if (!boxes.length) return { x: 0, y: 0 };
+	const x0 = Math.min(...boxes.map(b => b.x));
+	const y0 = Math.min(...boxes.map(b => b.y));
+	const x1 = Math.max(...boxes.map(b => b.x + b.w));
+	const y1 = Math.max(...boxes.map(b => b.y + b.h));
+	return { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
 }

@@ -363,4 +363,39 @@ test.describe("the app on a phone", () => {
     expect(resized.layout.w).toBeCloseTo(250, -1);
     expect(resized.layout.h).toBeCloseTo(118, -1);
   });
+  test("picks many in Select mode, tags them from a sheet, moves them together and deletes them", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("navigation", { name: "Diagram panels" }).getByRole("button", { name: /^Select/ }).tap();
+    const menu = page.getByTestId("multi-menu");
+    await expect(menu).toContainText("Tap to pick");
+    await page.locator('[data-node="identity"]').tap();
+    await page.locator('[data-node="balances"]').tap();
+    await expect(menu).toContainText("2 nodes");
+
+    await menu.getByRole("button", { name: /^Edit/ }).tap();
+    const sheetEl = page.getByRole("dialog", { name: "Picked" });
+    await sheetEl.getByRole("button", { name: "Put Observability on all" }).tap();
+    await page.keyboard.press("Escape");
+
+    await menu.getByRole("button", { name: /^Move/ }).tap();
+    await expect(page.getByTestId("mode-hint")).toContainText("Drag anywhere to move 2 nodes");
+    const { s } = await sheet(page);
+    const spot = await emptySpot(page);
+    await swipe(page, spot.x, spot.y, 0, 100 * s);
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    let res = await (await request.get(`/api/diagrams/${id}`)).json();
+    const node = (nid: string) => res.doc.nodes.find((n: { id: string }) => n.id === nid);
+    expect(node("identity").tags).toEqual(["service", "auth", "obs"]);
+    expect(node("identity").layout.y).toBeCloseTo(460, -1);
+    expect(node("balances").layout.y).toBeCloseTo(460, -1);
+
+    await menu.getByRole("button", { name: /^Delete/ }).tap();
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    res = await (await request.get(`/api/diagrams/${id}`)).json();
+    expect(res.doc.nodes.some((n: { id: string }) => n.id === "identity" || n.id === "balances")).toBe(false);
+    await menu.getByRole("button", { name: "Done picking" }).tap();
+    await expect(page.getByRole("navigation", { name: "Diagram panels" })).toBeVisible();
+  });
 });
