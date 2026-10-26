@@ -31,6 +31,7 @@
 		removeTag,
 		removeView,
 		resizeBoundary,
+		resizeNode,
 		reverseEdge,
 		setDefaultView,
 		updateBoundary,
@@ -100,6 +101,10 @@
 	// The selected container, and on a phone whether a drag moves or resizes it.
 	let selectedBox = $state<string | null>(null);
 	let boxMode = $state<'move' | 'resize' | null>(null);
+	// The toolbar's Connect: the next node clicked is where a connection starts. It ends once one is made.
+	let connectTool = $state(false);
+	// The node whose name is being typed on the canvas.
+	let renaming = $state<string | null>(null);
 	$effect.pre(() => {
 		// A new diagram or snapshot starts from its own saved view. Moving a node changes the scene too, but keeps
 		// the view, so this reads which document is shown, not the scene itself.
@@ -113,6 +118,8 @@
 			connectFrom = null;
 			selectedBox = null;
 			boxMode = null;
+			connectTool = false;
+			renaming = null;
 		});
 	});
 
@@ -140,7 +147,8 @@
 	// so it never wraps the strip (and moves everything below) as it comes and goes.
 	const modeHint = $derived.by(() => {
 		if (!mine || replayed || working.saver.state === 'conflict' || working.saver.state === 'error') return '';
-		if (connectFrom) return `${narrow ? 'Tap' : 'Click'} the node to connect “${nameOf(connectFrom)}” to · ${narrow ? 'tap empty space' : 'Esc'} to cancel`;
+		if (connectFrom) return `${narrow ? 'Tap' : 'Click'} the node to connect “${nameOf(connectFrom)}” to, or empty space for a new one · ${narrow ? 'Connecting' : 'Esc'} to cancel`;
+		if (connectTool) return 'Click the node to connect from · Esc to cancel';
 		if (boxMode && selectedBoxScene) return `Drag anywhere to ${boxMode} “${selectedBoxScene.label || 'the container'}” · two fingers pan`;
 		if (moving && selectedNode) return `Drag anywhere to move “${selectedNode.name}” · two fingers pan`;
 		return '';
@@ -160,6 +168,7 @@
 		if (selected && !doc.nodes?.some(n => n.id === selected)) select(null);
 		if (selectedEdge !== null && selectedEdge >= (doc.edges?.length ?? 0)) selectedEdge = null;
 		if (selectedBox && !doc.boundaries?.some(b => b.id === selectedBox)) selectBox(null);
+		if (renaming && !doc.nodes?.some(n => n.id === renaming)) renaming = null;
 	}
 	function undo() {
 		const doc = editable && working.history.undo(current());
@@ -181,6 +190,15 @@
 	}
 
 	let canvasRef = $state<ReturnType<typeof DiagramCanvas>>();
+	// The prototype's one-click adds: the commonest types, each with its own icon.
+	const QUICK_ADD: [string, string][] = [
+		['Service', 'cube'],
+		['Database', 'database'],
+		['Queue', 'queue'],
+		['Actor', 'user'],
+		['Note', 'note'],
+		['Text', 'textT']
+	];
 	let adding = $state(false);
 	function add(type: string) {
 		adding = false;
@@ -203,8 +221,18 @@
 		moving = false;
 		connectFrom = from;
 	}
+	function stopConnecting() {
+		connectTool = false;
+		connectFrom = null;
+	}
+	function toggleConnectTool() {
+		if (connectTool || connectFrom) return stopConnecting();
+		select(null);
+		connectTool = true;
+	}
 	function connect(from: string, to: string | null, at: { x: number; y: number }) {
 		connectFrom = null;
+		connectTool = false;
 		if (to === from) return;
 		const before = current();
 		if (to) {
@@ -212,7 +240,7 @@
 			apply(made.doc, before, `Connect ${nameOf(from)} → ${nameOf(to)}`);
 			selectEdge(made.index);
 		} else {
-			// Dropped on empty canvas: a new node there, connected, as in the prototype.
+			// Dropped or tapped on empty canvas: a new node there, connected, as in the prototype.
 			const made = connectToNew(before, from, 'Service', at);
 			apply(made.doc, before, `Connect ${nameOf(from)} to a new service`);
 			select(made.id);
@@ -273,6 +301,45 @@
 		selectBox(null);
 		apply(removeBoundary(before, id), before, 'Delete container');
 	}
+	// The toolbar's one-click adds, and a double-click on empty canvas: that one names the node straight away.
+	function addAt(at: { x: number; y: number }) {
+		const before = current();
+		const made = addNode(before, 'Service', at);
+		apply(made.doc, before, 'Add service');
+		select(made.id);
+		renaming = made.id;
+	}
+	function startRename(id: string) {
+		select(id);
+		renaming = id;
+	}
+	function renameNode(id: string, name: string | null) {
+		renaming = null;
+		const node = current().nodes?.find(n => n.id === id);
+		if (!node || !name || name === node.name) return;
+		const before = current();
+		apply(updateNode(before, id, { name }), before, `Rename “${node.name}”`);
+	}
+	function resize(id: string, w: number, h: number) {
+		const before = current();
+		apply(resizeNode(before, id, w, h), before, `Resize “${nameOf(id)}”`);
+	}
+	// Snapping is how this browser drags nodes, not part of the diagram.
+	const SNAP_KEY = 'skope.snap';
+	let snap = $state(true);
+	try {
+		snap = localStorage.getItem(SNAP_KEY) !== 'off';
+	} catch {
+		// Storage can be blocked; snapping then starts on.
+	}
+	function setSnap(value: boolean) {
+		snap = value;
+		try {
+			localStorage.setItem(SNAP_KEY, value ? 'on' : 'off');
+		} catch {
+			// Kept for this visit only.
+		}
+	}
 	function remove() {
 		if (!selected) return;
 		const before = current();
@@ -294,7 +361,7 @@
 		else if ((k === 'delete' || k === 'backspace') && selected && !meta) remove();
 		else if ((k === 'delete' || k === 'backspace') && selectedEdge !== null && !meta) disconnect();
 		else if ((k === 'delete' || k === 'backspace') && selectedBox && !meta) removeBox();
-		else if (k === 'escape' && connectFrom) connectFrom = null;
+		else if (k === 'escape' && (connectFrom || connectTool)) stopConnecting();
 		else if (k === 'escape' && adding) adding = false;
 		else return;
 		e.preventDefault();
@@ -498,7 +565,7 @@
 			{:else if modeHint && !narrow}
 				{modeHint}
 			{:else}
-				Saved{working.history.undoLabel || narrow ? '' : ' · drag a node to move it, click one to edit it'}
+				Saved{working.history.undoLabel || narrow ? '' : ' · double-click the canvas to add a node, or a node to rename it'}
 			{/if}
 		</span>
 	{/if}
@@ -539,6 +606,11 @@
 			}}
 		/>
 	{/if}
+{/snippet}
+{#snippet addButton()}
+	<button type="button" class="tool add" title="Every type, and containers" aria-expanded={narrow ? sheet === 'add' : adding} onclick={() => (narrow ? (sheet = 'add') : (adding = !adding))}>
+		<span aria-hidden="true">+</span> Add
+	</button>
 {/snippet}
 {#snippet addChoices(focus: boolean)}
 	<button type="button" class="add-box" onclick={addBox}><Icon name="frameCorners" size={15} />Container<span>a labelled box to group nodes</span></button>
@@ -608,21 +680,51 @@
 			onmovebox={moveBox}
 			onresizebox={resizeBox}
 			boxMode={editable ? boxMode : null}
+			picking={editable && connectTool && !connectFrom}
+			onresize={resize}
+			onaddat={addAt}
+			{renaming}
+			onrenamestart={startRename}
+			onrename={renameNode}
+			{snap}
+			onsnap={editable ? setSnap : undefined}
 		/>
 		{#if narrow && modeHint}
 			<p class="mode-hint" data-testid="mode-hint">{modeHint}</p>
 		{/if}
 		{#if editable}
+			<!-- The prototype's toolbar: undo and redo, how a click on the canvas works, then one click to add the
+			     common types, with Add for the rest. A phone keeps Add, undo and redo; its node menu connects. -->
 			<div class="tools" role="toolbar" aria-label="Edit">
-				<button type="button" class="tool add" aria-expanded={narrow ? sheet === 'add' : adding} onclick={() => (narrow ? (sheet = 'add') : (adding = !adding))}>
-					<span aria-hidden="true">+</span> Add
-				</button>
-				<button type="button" class="tool" aria-label={working.history.undoLabel ? `Undo ${working.history.undoLabel}` : 'Nothing to undo'} title={working.history.undoLabel ? `Undo: ${working.history.undoLabel}` : 'Nothing to undo'} disabled={!working.history.undoLabel} onclick={undo}>
+				{#if narrow}
+					{@render addButton()}
+				{/if}
+				<button type="button" class="tool" aria-label={working.history.undoLabel ? `Undo ${working.history.undoLabel}` : 'Nothing to undo'} title={working.history.undoLabel ? `Undo: ${working.history.undoLabel} · ⌘Z` : 'Nothing to undo'} disabled={!working.history.undoLabel} onclick={undo}>
 					<Icon name="arrowCCW" size={15} />
 				</button>
-				<button type="button" class="tool" aria-label={working.history.redoLabel ? `Redo ${working.history.redoLabel}` : 'Nothing to redo'} title={working.history.redoLabel ? `Redo: ${working.history.redoLabel}` : 'Nothing to redo'} disabled={!working.history.redoLabel} onclick={redo}>
+				<button type="button" class="tool" aria-label={working.history.redoLabel ? `Redo ${working.history.redoLabel}` : 'Nothing to redo'} title={working.history.redoLabel ? `Redo: ${working.history.redoLabel} · ⇧⌘Z` : 'Nothing to redo'} disabled={!working.history.redoLabel} onclick={redo}>
 					<Icon name="arrowCW" size={15} />
 				</button>
+				{#if !narrow}
+					<span class="sep" aria-hidden="true"></span>
+					<button type="button" class="tool" class:on={!connectTool && !connectFrom} aria-pressed={!connectTool && !connectFrom} aria-label="Select" title="Select · drag to move, double-click to rename" onclick={stopConnecting}>
+						<Icon name="cursor" size={15} />
+					</button>
+					<button type="button" class="tool" class:on={connectTool || !!connectFrom} aria-pressed={connectTool || !!connectFrom} aria-label="Connect" title="Connect two nodes · click one, then the other" onclick={toggleConnectTool}>
+						<Icon name="flowArrow" size={15} />
+					</button>
+					<span class="sep" aria-hidden="true"></span>
+					{#each QUICK_ADD as [type, icon] (type)}
+						<button type="button" class="tool" aria-label="Add {type === 'Text' ? 'free text' : type.toLowerCase()}" title={type === 'Text' ? 'Free text' : type} onclick={() => add(type)}>
+							<Icon name={icon} size={15} />
+						</button>
+					{/each}
+					<button type="button" class="tool" aria-label="Add container" title="Container" onclick={addBox}>
+						<Icon name="frameCorners" size={15} />
+					</button>
+					<span class="sep" aria-hidden="true"></span>
+					{@render addButton()}
+				{/if}
 			</div>
 			{#if adding && !narrow}
 				<div class="add-menu" role="dialog" aria-label="Add a node">
@@ -654,7 +756,7 @@
 			</button>
 			{#if editable}
 				<button type="button" class:active={connectFrom === selectedNode.id} aria-pressed={connectFrom === selectedNode.id} onclick={() => (connectFrom ? (connectFrom = null) : startConnect(selectedNode.id))}>
-					<span class="t-label">{connectFrom ? 'Connecting' : 'Connect'}</span><span class="t-value">{connectFrom ? 'Tap a node · tap to stop' : 'to a node'}</span>
+					<span class="t-label">{connectFrom ? 'Connecting' : 'Connect'}</span><span class="t-value">{connectFrom ? 'Tap a node or space · tap to stop' : 'to a node'}</span>
 				</button>
 			{/if}
 			<button type="button" class="done" aria-label="Done with {selectedNode.name}" onclick={() => select(null)}>
@@ -856,6 +958,15 @@
 	.tool:disabled {
 		color: var(--color-neutral-700);
 		cursor: default;
+	}
+	.tool.on {
+		color: var(--color-accent);
+		background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+	}
+	.tools .sep {
+		width: 1px;
+		margin: 8px 3px;
+		background: var(--color-divider);
 	}
 	.tool.add {
 		color: var(--color-accent);

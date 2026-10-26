@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { bounds, isHidden, type Scene, type SceneBoundary, type SceneNode } from '../diagram/model';
-	import { contentsOf, MIN_BOX } from '../diagram/edit';
+	import { contentsOf, MIN_BOX, MIN_NODE } from '../diagram/edit';
 	import { edgePath, type Box } from '../diagram/geometry';
 	import { clampView, fitView, panBy, toContent, zoomAt, type Point, type View } from '../diagram/zoom';
 	import { SNAP_PX, snapBox, type Guide } from '../diagram/snap';
+	import Icon from './Icon.svelte';
 	import NodeCard from './NodeCard.svelte';
 
 	/**
@@ -18,7 +19,13 @@
 	 *
 	 * Connections are tapped like nodes ([onselectedge]). With [editable] on, the selected node shows a port: drag
 	 * it to another node to connect them, or onto empty canvas for a new node ([onconnect]), or click it to start
-	 * connecting ([onconnectstart]). While [connectFrom] is set, the next node tapped is the other end.
+	 * connecting ([onconnectstart]). While [connectFrom] is set, the next node tapped is the other end, and a tap on
+ * empty canvas makes a new node there for it. With [picking] on (the toolbar's Connect), a tap on a node starts a
+ * connection from it instead of selecting it.
+ *
+ * The selected node has a corner handle to resize it ([onresize]), for a finger as well as a mouse. With a mouse,
+ * a double-click on empty canvas asks for a node there ([onaddat]) and on a node renames it in place: [renaming]
+ * is the node whose name is being typed, and [onrename] reports the new name, or null when left as it was.
 	 *
 	 * Containers are picked by their border or label ([onselectbox]). A mouse drags the border to move one, with
 	 * what sits wholly inside unless it moves alone ([onmovebox]), and the corner handle to resize it
@@ -43,6 +50,14 @@
 		onmovebox,
 		onresizebox,
 		boxMode = null,
+		picking = false,
+		onresize,
+		onaddat,
+		renaming = null,
+		onrenamestart,
+		onrename,
+		snap = true,
+		onsnap,
 		ghostOpacity = 0.22,
 		edgeStyle = 'curved'
 	}: {
@@ -69,6 +84,19 @@
 		onresizebox?: (id: string, w: number, h: number) => void;
 		/** A drag anywhere moves or resizes the selected container: how a finger does it. */
 		boxMode?: 'move' | 'resize' | null;
+		/** The toolbar's Connect: the next node tapped is where a connection starts. */
+		picking?: boolean;
+		onresize?: (id: string, w: number, h: number) => void;
+		/** A double-click on empty canvas: a node wanted at [at]. */
+		onaddat?: (at: Point) => void;
+		/** The node whose name is being typed in place. */
+		renaming?: string | null;
+		onrenamestart?: (id: string) => void;
+		onrename?: (id: string, name: string | null) => void;
+		/** Whether a dragged node snaps into line (Alt places it freely either way). */
+		snap?: boolean;
+		/** Given, the zoom bar has a button to switch snapping. */
+		onsnap?: (on: boolean) => void;
 		ghostOpacity?: number;
 		edgeStyle?: 'curved' | 'straight' | 'angled';
 	} = $props();
@@ -88,14 +116,14 @@
 	/** How far a press may wander and still count as a tap. */
 	const TAP_SLOP = 5;
 
-	// A node being dragged is drawn at its new spot (and its connections follow) before the move is reported.
-	let dragged = $state<{ id: string; x: number; y: number } | null>(null);
+	// A node being dragged or resized is drawn as it goes (and its connections follow) before the change is reported.
+	let dragged = $state<{ id: string; x: number; y: number; w?: number; h?: number } | null>(null);
 	let guides = $state<Guide[]>([]);
 	// A container being moved or resized is drawn as it goes, with what it carries.
 	let draggedBox = $state<{ id: string; x: number; y: number; w: number; h: number; dx: number; dy: number; kids: { nodes: string[]; boxes: string[] } } | null>(null);
 	const nodes = $derived<SceneNode[]>(
 		scene.nodes.map(n => {
-			if (dragged && n.id === dragged.id) return { ...n, x: dragged.x, y: dragged.y };
+			if (dragged && n.id === dragged.id) return { ...n, x: dragged.x, y: dragged.y, w: dragged.w ?? n.w, h: dragged.h ?? n.h };
 			if (draggedBox?.kids.nodes.includes(n.id)) return { ...n, x: n.x + draggedBox.dx, y: n.y + draggedBox.dy };
 			return n;
 		})
@@ -144,7 +172,8 @@
 		const id = connectFrom ?? (gestureFrom || null);
 		return id ? nodes.find(n => n.id === id) : undefined;
 	});
-	const port = $derived(editable && !connectFrom && selected ? nodes.find(n => n.id === selected) : undefined);
+	const port = $derived(editable && !connectFrom && !picking && selected ? nodes.find(n => n.id === selected) : undefined);
+	const renamingNode = $derived(renaming ? nodes.find(n => n.id === renaming) : undefined);
 
 	let viewW = $state(0);
 	let viewH = $state(0);
@@ -190,6 +219,7 @@
 	type Gesture =
 		| { kind: 'pan'; pointer: number; start: Point; last: Point; moved: boolean }
 		| { kind: 'node'; pointer: number; start: Point; node: SceneNode; moved: boolean; touch: boolean }
+		| { kind: 'size'; pointer: number; start: Point; node: SceneNode; moved: boolean }
 		| { kind: 'connect'; pointer: number; start: Point; from: string; moved: boolean }
 		| { kind: 'box'; mode: 'move' | 'resize'; pointer: number; start: Point; box: SceneBoundary; kids: { nodes: string[]; boxes: string[] }; moved: boolean }
 		| { kind: 'pinch'; dist: number; mid: Point; from: View };
@@ -207,7 +237,8 @@
 	function down(e: PointerEvent) {
 		if (e.pointerType === 'mouse' && e.button !== 0) return;
 		const target = e.target as Element;
-		if (target.closest('.zoom')) return; // the zoom buttons are plain buttons
+		if (target.closest('.zoom, .rename')) return; // the zoom buttons and the name being typed are plain controls
+		lastPointer = e.pointerType;
 		dragJustEnded = false;
 		const p = local(e);
 		pointers.set(e.pointerId, p);
@@ -220,6 +251,10 @@
 		}
 		if (pointers.size > 2) return;
 		const touch = e.pointerType !== 'mouse';
+		if (editable && port && target.closest('.n-resize')) {
+			gesture = { kind: 'size', pointer: e.pointerId, start: p, node: port, moved: false };
+			return;
+		}
 		if (editable && port && target.closest('.port')) {
 			gesture = { kind: 'connect', pointer: e.pointerId, start: p, from: port.id, moved: false };
 			gestureFrom = port.id;
@@ -232,7 +267,7 @@
 			return;
 		}
 		// In moving mode the selected node follows a drag from anywhere; otherwise a mouse drags the node under it.
-		const id = moving ? selected : touch || connectFrom ? null : (target.closest<HTMLElement>('[data-node]')?.dataset.node ?? null);
+		const id = moving ? selected : touch || connectFrom || picking ? null : (target.closest<HTMLElement>('[data-node]')?.dataset.node ?? null);
 		const node = editable && id ? scene.nodes.find(n => n.id === id) : undefined;
 		gesture = node
 			? { kind: 'node', pointer: e.pointerId, start: p, node, moved: false, touch }
@@ -279,27 +314,38 @@
 			}
 		}
 		gesture.moved = true;
-		if (gesture.kind === 'connect') {
+		follow(gesture, p, e.altKey);
+	}
+
+	/** Draws a drag as it goes: the loose end of a connection, a node or container moved or resized, or the view panned. */
+	function follow(g: Exclude<Gesture, { kind: 'pinch' }>, p: Point, alt: boolean) {
+		if (g.kind === 'connect') {
 			loose = toContent(view, p);
-		} else if (gesture.kind === 'box') {
-			const b = gesture.box;
-			const dx = (p.x - gesture.start.x) / view.s;
-			const dy = (p.y - gesture.start.y) / view.s;
+		} else if (g.kind === 'size') {
+			const n = g.node;
+			const w = Math.max(MIN_NODE.w, n.w + (p.x - g.start.x) / view.s);
+			const h = Math.max(MIN_NODE.h, n.h + (p.y - g.start.y) / view.s);
+			dragged = { id: n.id, x: n.x, y: n.y, w, h };
+		} else if (g.kind === 'box') {
+			const b = g.box;
+			const dx = (p.x - g.start.x) / view.s;
+			const dy = (p.y - g.start.y) / view.s;
 			draggedBox =
-				gesture.mode === 'move'
-					? { id: b.id, x: b.x + dx, y: b.y + dy, w: b.w, h: b.h, dx, dy, kids: gesture.kids }
-					: { id: b.id, x: b.x, y: b.y, w: Math.max(MIN_BOX.w, b.w + dx), h: Math.max(MIN_BOX.h, b.h + dy), dx: 0, dy: 0, kids: gesture.kids };
-		} else if (gesture.kind === 'pan') {
+				g.mode === 'move'
+					? { id: b.id, x: b.x + dx, y: b.y + dy, w: b.w, h: b.h, dx, dy, kids: g.kids }
+					: { id: b.id, x: b.x, y: b.y, w: Math.max(MIN_BOX.w, b.w + dx), h: Math.max(MIN_BOX.h, b.h + dy), dx: 0, dy: 0, kids: g.kids };
+		} else if (g.kind === 'pan') {
 			panning = true;
-			setView(panBy(view, p.x - gesture.last.x, p.y - gesture.last.y));
-			gesture.last = p;
+			setView(panBy(view, p.x - g.last.x, p.y - g.last.y));
+			g.last = p;
 		} else {
-			const n = gesture.node;
-			const box = { x: n.x + (p.x - gesture.start.x) / view.s, y: n.y + (p.y - gesture.start.y) / view.s, w: n.w, h: n.h };
-			// Alt places a node freely, as in the prototype.
-			const snapped = e.altKey
-				? { x: box.x, y: box.y, guides: [] }
-				: snapBox(box, scene.nodes.filter(o => o.id !== n.id), SNAP_PX[gesture.touch ? 'touch' : 'mouse'] / view.s);
+			const n = g.node;
+			const box = { x: n.x + (p.x - g.start.x) / view.s, y: n.y + (p.y - g.start.y) / view.s, w: n.w, h: n.h };
+			// Alt places a node freely, as in the prototype, and so does switching snapping off.
+			const snapped =
+				alt || !snap
+					? { x: box.x, y: box.y, guides: [] }
+					: snapBox(box, scene.nodes.filter(o => o.id !== n.id), SNAP_PX[g.touch ? 'touch' : 'mouse'] / view.s);
 			dragged = { id: n.id, x: snapped.x, y: snapped.y };
 			guides = snapped.guides;
 		}
@@ -321,6 +367,7 @@
 		const d = dragged;
 		dragged = null;
 		if (g.kind === 'node' && g.moved && d && !cancelled) onmove?.(d.id, Math.round(d.x), Math.round(d.y));
+		if (g.kind === 'size' && g.moved && d?.w && d.h && !cancelled) onresize?.(d.id, Math.round(d.w), Math.round(d.h));
 		if (g.kind === 'box') {
 			const d = draggedBox;
 			draggedBox = null;
@@ -342,12 +389,60 @@
 		}
 	}
 
-	/** A tap on empty space clears the selection. Nodes handle their own taps (NodeCard). */
+	/**
+	 * A tap on empty space clears the selection, or with a connection waiting for its other end, makes a new node
+	 * there for it (as dropping one does). Nodes handle their own taps (NodeCard).
+	 */
 	function tapEmpty(e: MouseEvent) {
-		if (dragJustEnded || (e.target as Element).closest('[data-node], [data-hit], [data-box], .zoom, .port, .resize')) return;
+		if (dragJustEnded || (e.target as Element).closest('[data-node], [data-hit], [data-box], .zoom, .port, .resize, .n-resize, .rename')) return;
 		loose = null;
-		onselect?.(null);
+		if (connectFrom && editable) {
+			connectedAt = e.timeStamp;
+			onconnect?.(connectFrom, null, toContent(view, local(e)));
+		} else onselect?.(null);
 	}
+	/** A tap on a node: the other end of a connection, where one starts (with [picking]), or a selection. */
+	function tapNode(n: SceneNode, e: MouseEvent) {
+		if (dragJustEnded) return;
+		if (connectFrom || picking) connectedAt = e.timeStamp;
+		if (connectFrom) onconnect?.(connectFrom, n.id, { x: n.x, y: n.y });
+		else if (picking) onconnectstart?.(n.id);
+		else onselect?.(n.id);
+	}
+
+	// The pointer that last pressed: a double-click only adds or renames with a mouse (a finger's double tap is
+	// too easy to make by accident, and the node menu's Edit renames). And when the last tap made or started a
+	// connection, the double-click it was part of does nothing more.
+	let lastPointer = '';
+	let connectedAt = -Infinity;
+	function doubleClick(e: MouseEvent) {
+		if (!editable || lastPointer !== 'mouse' || e.timeStamp - connectedAt < 700 || connectFrom || picking) return;
+		const target = e.target as Element;
+		const id = target.closest<HTMLElement>('[data-node]')?.dataset.node;
+		if (id) onrenamestart?.(id);
+		else if (!target.closest('[data-hit], [data-box], .zoom, .port, .resize, .n-resize, .rename')) onaddat?.(toContent(view, local(e)));
+	}
+
+	// The name being typed: Enter or leaving the field keeps it, Escape leaves the name as it was.
+	let renameCancelled = false;
+	function renameKeys(e: KeyboardEvent & { currentTarget: HTMLInputElement }) {
+		if (e.key === 'Enter' || e.key === 'Escape') {
+			e.preventDefault();
+			renameCancelled = e.key === 'Escape';
+			e.currentTarget.blur();
+		}
+	}
+	function renameDone(e: FocusEvent & { currentTarget: HTMLInputElement }) {
+		const id = renaming;
+		if (!id) return;
+		const name = e.currentTarget.value.trim();
+		onrename?.(id, renameCancelled || !name ? null : name);
+		renameCancelled = false;
+	}
+	const focusAll = (el: HTMLInputElement) => {
+		el.focus();
+		el.select();
+	};
 	$effect(() => {
 		if (!connectFrom) loose = null;
 	});
@@ -384,6 +479,7 @@
 	aria-label="Diagram canvas. Drag or use the arrow keys to move around; pinch, ctrl+scroll or plus and minus to zoom; 0 fits the diagram{editable ? '. Drag a node to move it' : ''}."
 	tabindex="0"
 	onclick={tapEmpty}
+	ondblclick={doubleClick}
 	bind:this={canvas}
 	bind:clientWidth={viewW}
 	bind:clientHeight={viewH}
@@ -486,15 +582,28 @@
 				{ghostOpacity}
 				selected={selected === n.id}
 				dragging={dragged?.id === n.id}
-				connecting={!!connectFrom}
-				onselect={id => {
-					if (dragJustEnded) return;
-					if (connectFrom) onconnect?.(connectFrom, id, { x: n.x, y: n.y });
-					else onselect?.(id);
-				}}
+				connecting={!!connectFrom || picking}
+				onselect={(_, e) => tapNode(n, e)}
 				ondetails={id => ondetails?.(id)}
 			/>
 		{/each}
+
+		{#if renamingNode}
+			<input
+				class="rename"
+				class:text={renamingNode.isText}
+				style:left="{renamingNode.x + (renamingNode.isText ? 4 : 8)}px"
+				style:top="{renamingNode.isText ? renamingNode.y + renamingNode.h / 2 - 16 : renamingNode.y + 30}px"
+				style:width="{renamingNode.w - (renamingNode.isText ? 8 : 16)}px"
+				value={renamingNode.name}
+				maxlength="100"
+				spellcheck="false"
+				aria-label="Name of {renamingNode.name}"
+				onkeydown={renameKeys}
+				onblur={renameDone}
+				{@attach focusAll}
+			/>
+		{/if}
 
 		{#if port}
 			<button
@@ -509,6 +618,7 @@
 					if (e.detail === 0) onconnectstart?.(port.id);
 				}}>+</button
 			>
+			<span class="n-resize" style:left="{port.x + port.w}px" style:top="{port.y + port.h}px" title="Drag to resize" aria-hidden="true"></span>
 		{/if}
 	</div>
 
@@ -516,6 +626,18 @@
 		<button type="button" onclick={() => zoomBy(1 / 1.2)} aria-label="Zoom out">−</button>
 		<button type="button" class="pct" onclick={() => (chosen = null)} title="Fit to view" aria-label="Fit to view, now {Math.round(view.s * 100)}%">{Math.round(view.s * 100)}%</button>
 		<button type="button" onclick={() => zoomBy(1.2)} aria-label="Zoom in">+</button>
+		{#if onsnap}
+			<span class="sep" aria-hidden="true"></span>
+			<button
+				type="button"
+				class="snap"
+				class:on={snap}
+				aria-pressed={snap}
+				aria-label="Snap nodes into line"
+				title={snap ? 'Snapping on: hold Alt to place freely' : 'Snapping off: nodes move freely'}
+				onclick={() => onsnap?.(!snap)}><Icon name="magnet" size={14} /></button
+			>
+		{/if}
 	</div>
 </div>
 
@@ -688,6 +810,48 @@
 			display: none;
 		}
 	}
+	.n-resize {
+		position: absolute;
+		width: 12px;
+		height: 12px;
+		margin: -8px 0 0 -8px;
+		box-sizing: border-box;
+		border-radius: 3px;
+		border: 1px solid var(--color-accent);
+		background: var(--color-surface);
+		cursor: nwse-resize;
+		z-index: 1;
+	}
+	/* A finger gets a bigger corner to grab. */
+	@media (pointer: coarse) {
+		.n-resize {
+			width: 26px;
+			height: 26px;
+			margin: -15px 0 0 -15px;
+			border-radius: 50%;
+		}
+	}
+	.rename {
+		position: absolute;
+		z-index: 3;
+		box-sizing: border-box;
+		height: 26px;
+		padding: 2px 6px;
+		border-radius: 6px;
+		border: 1px solid var(--color-accent);
+		background: var(--color-bg);
+		color: var(--color-text);
+		font-family: var(--font-heading);
+		font-weight: 500;
+		font-size: 15px;
+		outline: none;
+		user-select: text;
+		-webkit-user-select: text;
+	}
+	.rename.text {
+		height: 32px;
+		font-size: 17px;
+	}
 	.guide {
 		stroke: var(--color-accent-2-300, var(--color-accent-300));
 		stroke-width: 1;
@@ -734,5 +898,18 @@
 	.zoom .pct {
 		font-size: 11.5px;
 		min-width: 44px;
+	}
+	.zoom .sep {
+		width: 1px;
+		margin: 6px 2px;
+		background: var(--color-divider);
+	}
+	.zoom .snap {
+		display: grid;
+		place-items: center;
+	}
+	.zoom .snap.on {
+		color: var(--color-accent);
+		background: color-mix(in srgb, var(--color-accent) 16%, transparent);
 	}
 </style>

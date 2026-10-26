@@ -82,6 +82,24 @@ export function duplicateNode(doc: SkopeDoc, id: string, now = Date.now()): { do
 	return { doc: { ...doc, nodes: [...(doc.nodes ?? []), copy] }, id: copy.id };
 }
 
+/** The smallest a node can be resized to (the prototype's limit). */
+export const MIN_NODE = { w: 130, h: 64 };
+
+/** Resizes a node; a size back at the default leaves the document, as the prototype's export does. */
+export function resizeNode(doc: SkopeDoc, id: string, w: number, h: number): SkopeDoc {
+	const scene = toScene(doc);
+	return {
+		...doc,
+		nodes: (doc.nodes ?? []).map((n, i) => {
+			if (n.id !== id) return n;
+			const s = scene.nodes[i];
+			const nw = Math.max(MIN_NODE.w, Math.round(w));
+			const nh = Math.max(MIN_NODE.h, Math.round(h));
+			return { ...n, layout: { x: s.x, y: s.y, ...(nw === NODE_W ? {} : { w: nw }), ...(nh === NODE_H ? {} : { h: nh }) } };
+		})
+	};
+}
+
 /** What the inspector edits on a node. Empty text fields leave the document. */
 export type NodeChange = Partial<Pick<DocNode, 'name' | 'subtitle' | 'notes' | 'flags' | 'tags' | 'links'>> & {
 	/** A display name, e.g. "Web App"; stored slugged. */
