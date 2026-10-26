@@ -10,7 +10,7 @@ interface SavedNode {
   flags?: string[];
   tags?: string[];
   links?: { label?: string; url: string }[];
-  layout: { x: number; y: number };
+  layout: { x: number; y: number; w?: number; h?: number };
 }
 
 interface SavedBox {
@@ -41,6 +41,22 @@ async function drag(page: Page, from: string, to: string | { x: number; y: numbe
   await page.mouse.down();
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 8 });
   await page.mouse.up();
+}
+
+/** A point on the canvas with nothing on it (no node, container, connection or control), on screen. */
+async function emptySpot(page: Page): Promise<{ x: number; y: number }> {
+  const spot = await page.locator(".canvas").evaluate(`(() => {
+    const canvas = document.querySelector(".canvas");
+    const r = canvas.getBoundingClientRect();
+    for (let y = r.bottom - 60; y > r.top + 60; y -= 20)
+      for (let x = r.right - 60; x > r.left + 60; x -= 20) {
+        const el = document.elementFromPoint(x, y);
+        if (el === canvas || (el && el.matches("[data-testid=diagram-sheet]"))) return { x, y };
+      }
+    return null;
+  })()`);
+  expect(spot).not.toBeNull();
+  return spot as { x: number; y: number };
 }
 
 /** The canvas's current zoom. */
@@ -134,7 +150,7 @@ test.describe("the app at /app", () => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];
     await page.goto(`/app/d/${id}`);
-    await expect(page.getByTestId("save-status")).toContainText("Saved · drag a node to move it");
+    await expect(page.getByTestId("save-status")).toContainText("Saved · double-click the canvas to add a node");
     const box = (await page.locator('[data-node="journal"]').boundingBox())!;
     const scale = await page.getByTestId("diagram-sheet").evaluate(el => Number(/scale\(([-\d.]+)\)/.exec((el as HTMLElement).style.transform)![1]));
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -164,7 +180,7 @@ test.describe("the app at /app", () => {
     await page.mouse.up();
     await expect(page.getByTestId("save-status")).toContainText("This diagram changed somewhere else");
     await page.getByRole("button", { name: "Load the latest" }).click();
-    await expect(page.getByTestId("save-status")).toContainText("Saved · drag a node to move it");
+    await expect(page.getByTestId("save-status")).toContainText("Saved · double-click the canvas to add a node");
     await expect(page).toHaveTitle("renamed elsewhere · Skope");
   });
 
@@ -172,7 +188,7 @@ test.describe("the app at /app", () => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];
     await page.goto(`/app/d/${id}`);
-    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add" }).click();
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).click();
     const menu = page.getByRole("dialog", { name: "Add a node" });
     await menu.getByPlaceholder("Search all types…").fill("cach");
     await menu.getByRole("button", { name: "Cache" }).click();
@@ -337,7 +353,7 @@ test.describe("the app at /app", () => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];
     await page.goto(`/app/d/${id}`);
-    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add" }).click();
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).click();
     await page.getByRole("dialog", { name: "Add a node" }).getByRole("button", { name: /labelled box/ }).click();
 
     const inspector = page.getByRole("region", { name: "Selected container" });
@@ -644,5 +660,88 @@ test.describe("the app at /app", () => {
     await import("node:fs/promises").then(fs => fs.writeFile(path, "not json"));
     await page.getByLabel("Backup file to import").setInputFiles(path);
     await expect(page.getByRole("alert")).toContainText("“notes.json” isn't a Skope backup");
+  });
+  test("adds a type in one click from the toolbar, undoes and redoes it, and connects with the Connect tool to empty canvas", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    const tools = page.getByRole("toolbar", { name: "Edit" });
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    await tools.getByRole("button", { name: "Add database" }).click();
+    await expect(inspector.getByLabel("Name")).toHaveValue("New Database");
+    await tools.getByRole("button", { name: "Undo Add database" }).click();
+    await expect(page.getByRole("button", { name: "Database: New Database" })).toHaveCount(0);
+    await tools.getByRole("button", { name: "Redo Add database" }).click();
+    await expect(page.getByRole("button", { name: "Database: New Database" })).toHaveCount(1);
+
+    const connectTool = tools.getByRole("button", { name: "Connect", exact: true });
+    await connectTool.click();
+    await expect(connectTool).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("save-status")).toContainText("Click the node to connect from");
+    await page.getByRole("button", { name: "Service: Edge Router" }).click();
+    await expect(page.getByTestId("save-status")).toContainText("Click the node to connect “Edge Router” to, or empty space for a new one");
+    const spot = await emptySpot(page);
+    await page.mouse.click(spot.x, spot.y);
+    await expect(inspector.getByLabel("Name")).toHaveValue("New Service");
+    await expect(connectTool).toHaveAttribute("aria-pressed", "false");
+    const { doc } = await saved(page, request, id);
+    const made = doc.nodes.filter(n => n.name === "New Service");
+    expect(made).toHaveLength(1);
+    expect(doc.edges.at(-1)).toEqual({ from: "edge", to: made[0].id });
+  });
+
+  test("makes a new node when a connection started from the port ends on empty canvas", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "Database: Journal DB" }).click();
+    await page.locator(".port").click();
+    const spot = await emptySpot(page);
+    await page.mouse.click(spot.x, spot.y);
+    await expect(page.getByRole("region", { name: "Selected node" }).getByLabel("Name")).toHaveValue("New Service");
+    const { doc } = await saved(page, request, id);
+    expect(doc.edges.at(-1)!.from).toBe("journal");
+  });
+
+  test("double-click adds a node and names it, renames another in place, and the corner handle resizes it", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    const spot = await emptySpot(page);
+    await page.mouse.dblclick(spot.x, spot.y);
+    const name = page.getByRole("textbox", { name: "Name of New Service" });
+    await expect(name).toBeFocused();
+    await page.keyboard.type("Billing");
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", { name: "Service: Billing" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Database: Journal DB" }).dblclick();
+    await page.getByRole("textbox", { name: "Name of Journal DB" }).fill("Ledger DB");
+    await page.keyboard.press("Enter");
+    await page.getByRole("button", { name: "Telemetry: Collector" }).dblclick();
+    await page.keyboard.type("Not this");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "Telemetry: Collector" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Database: Ledger DB" }).click();
+    await dragBy(page, ".n-resize", 60, 30);
+    await expect(page.getByRole("button", { name: "Undo Resize “Ledger DB”" })).toBeVisible();
+    const { doc } = await saved(page, request, id);
+    expect(doc.nodes.find(n => n.name === "Billing")?.type).toBe("service");
+    expect(doc.nodes.some(n => n.name === "Not this")).toBe(false);
+    const journal = doc.nodes.find(n => n.id === "journal")!;
+    expect(journal.name).toBe("Ledger DB");
+    expect(journal.layout).toEqual({ x: 900, y: 150, w: 250, h: 118 });
+  });
+
+  test("switches snapping off from the zoom bar, and remembers it", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    const snap = page.getByRole("button", { name: "Snap nodes into line" });
+    await expect(snap).toHaveAttribute("aria-pressed", "true");
+    await snap.click();
+    await expect(snap).toHaveAttribute("aria-pressed", "false");
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Snap nodes into line" })).toHaveAttribute("aria-pressed", "false");
   });
 });

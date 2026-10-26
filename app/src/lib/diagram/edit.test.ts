@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkopeDoc } from '../types';
-import { addBoundary, addEdge, addNode, addTag, addView, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, removeTag, removeView, resizeBoundary, reverseEdge, setDefaultView, TAG_COLORS, updateBoundary, updateEdge, updateNode, updateTag, updateView, viewNameFree } from './edit';
+import { addBoundary, addEdge, addNode, addTag, addView, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, removeTag, removeView, resizeBoundary, resizeNode, reverseEdge, setDefaultView, TAG_COLORS, updateBoundary, updateEdge, updateNode, updateTag, updateView, viewNameFree } from './edit';
 import { toScene } from './model';
 
 const base = (): SkopeDoc => ({
@@ -68,6 +68,23 @@ describe('removeNode', () => {
 		expect(next.nodes!.map(n => n.id)).toEqual(['api']);
 		expect(next.edges).toEqual([]);
 		expect(removeNode(base(), 'nope')).toEqual(base());
+	});
+});
+
+describe('resizeNode', () => {
+	it('sets a new size, keeping it no smaller than the limit', () => {
+		const next = resizeNode(base(), 'api', 260.4, 40);
+		expect(next.nodes![0].layout).toEqual({ x: 100, y: 100, w: 260, h: 64 });
+		expect(next.nodes![1]).toEqual(base().nodes![1]);
+	});
+	it('leaves a default size out of the document', () => {
+		const wide = resizeNode(base(), 'api', 300, 120);
+		expect(resizeNode(wide, 'api', 190, 88).nodes![0].layout).toEqual({ x: 100, y: 100 });
+	});
+	it('keeps where a node without a layout is drawn', () => {
+		const doc: SkopeDoc = { version: 1, nodes: [{ id: 'a', name: 'A', type: 'service' }] };
+		const at = toScene(doc).nodes[0];
+		expect(resizeNode(doc, 'a', 220, 88).nodes![0].layout).toEqual({ x: at.x, y: at.y, w: 220 });
 	});
 });
 

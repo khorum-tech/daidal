@@ -23,7 +23,7 @@
 		dragging?: boolean;
 		/** A connection is waiting for its other end: tapping this node makes it. */
 		connecting?: boolean;
-		onselect?: (id: string) => void;
+		onselect?: (id: string, e: MouseEvent) => void;
 		ondetails?: (id: string) => void;
 	} = $props();
 
@@ -60,7 +60,7 @@
 		// The browser's own tap detection, so a tap works wherever a click does. Enter on the selected node (a click
 		// with no pointer behind it) asks for its details.
 		if (e.detail === 0 && selected) ondetails?.(node.id);
-		else onselect?.(node.id);
+		else onselect?.(node.id, e);
 	}}
 >
 	{#if node.isText}

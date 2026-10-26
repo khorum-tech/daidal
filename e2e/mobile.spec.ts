@@ -28,6 +28,22 @@ const sheet = (page: Page) =>
     return { tx: Number(m[1]), ty: Number(m[2]), s: Number(m[3]) };
   });
 
+/** A point near the top of the canvas with nothing on it (no node, container, connection or control), clear of the toolbar and zoom bar. */
+async function emptySpot(page: Page): Promise<{ x: number; y: number }> {
+  const spot = await page.locator(".canvas").evaluate(`(() => {
+    const canvas = document.querySelector(".canvas");
+    const r = canvas.getBoundingClientRect();
+    for (let y = r.top + 160; y < r.bottom - 160; y += 20)
+      for (let x = r.left + 100; x < r.right - 100; x += 20) {
+        const el = document.elementFromPoint(x, y);
+        if (el === canvas || (el && el.matches("[data-testid=diagram-sheet]"))) return { x, y };
+      }
+    return null;
+  })()`);
+  expect(spot).not.toBeNull();
+  return spot as { x: number; y: number };
+}
+
 /** The middle of [selector]'s box on screen. */
 const middle = async (page: Page, selector: string) => {
   const b = (await page.locator(selector).boundingBox())!;
@@ -143,7 +159,7 @@ test.describe("the app on a phone", () => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];
     await page.goto(`/app/d/${id}`);
-    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add" }).tap();
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).tap();
     const add = page.getByRole("dialog", { name: "Add a node" });
     await add.getByRole("button", { name: "Queue" }).first().tap();
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -322,5 +338,29 @@ test.describe("the app on a phone", () => {
       await expect(page.locator("main")).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth), path).toBeLessThanOrEqual(0);
     }
+  });
+  test("connects from the node menu to empty space for a new node, and resizes it by the corner", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.locator('[data-node="collector"]').tap();
+    await page.getByTestId("node-menu").getByRole("button", { name: /^Connect/ }).tap();
+    await expect(page.getByTestId("mode-hint")).toContainText("or empty space for a new one");
+    const spot = await emptySpot(page);
+    await page.touchscreen.tap(spot.x, spot.y);
+    await expect(page.getByTestId("node-menu")).toContainText("New Service");
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    let res = await (await request.get(`/api/diagrams/${id}`)).json();
+    const made = res.doc.nodes.find((n: { name: string }) => n.name === "New Service");
+    expect(res.doc.edges.at(-1)).toEqual({ from: "collector", to: made.id });
+
+    const { s } = await sheet(page);
+    const handle = await middle(page, ".n-resize");
+    await swipe(page, handle.x, handle.y, 60 * s, 30 * s);
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    res = await (await request.get(`/api/diagrams/${id}`)).json();
+    const resized = res.doc.nodes.find((n: { id: string }) => n.id === made.id);
+    expect(resized.layout.w).toBeCloseTo(250, -1);
+    expect(resized.layout.h).toBeCloseTo(118, -1);
   });
 });

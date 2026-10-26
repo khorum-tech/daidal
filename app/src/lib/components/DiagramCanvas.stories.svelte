@@ -22,5 +22,8 @@
 <Story name="Everything" template={frame} />
 <Story name="A view ghosts the rest" args={{ on: tagsOn(scene, 'Request path') }} template={frame} />
 <Story name="Node selected" args={{ selected: 'gw' }} template={frame} />
+<Story name="Editing: selected, with its port and resize handle" args={{ selected: 'gw', editable: true, onsnap: () => {} }} template={frame} />
+<Story name="Editing: renaming a node in place" args={{ selected: 'gw', editable: true, renaming: 'gw' }} template={frame} />
+<Story name="Editing: snapping off" args={{ editable: true, snap: false, onsnap: () => {} }} template={frame} />
 <Story name="Straight lines" args={{ edgeStyle: 'straight' }} template={frame} />
 <Story name="Empty" args={{ scene: toScene({ version: 1 }), on: {} }} template={frame} />

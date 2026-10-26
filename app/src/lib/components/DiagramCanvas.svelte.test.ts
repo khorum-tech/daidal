@@ -230,3 +230,112 @@ describe('the canvas', () => {
 		expect(sheet()).toEqual(before);
 	});
 });
+
+describe('the canvas tools', () => {
+	function mountTools(props: Record<string, unknown> = {}) {
+		const calls: { connect: [string, string | null][]; start: string[]; picked: (string | null)[]; added: { x: number; y: number }[]; renameStart: string[]; renamed: [string, string | null][]; resized: [string, number, number][]; moved: [string, number, number][]; snap: boolean[] } = {
+			connect: [],
+			start: [],
+			picked: [],
+			added: [],
+			renameStart: [],
+			renamed: [],
+			resized: [],
+			moved: [],
+			snap: []
+		};
+		const r = render(DiagramCanvas, {
+			target: stage,
+			props: {
+				scene,
+				on: tagsOn(scene, null),
+				editable: true,
+				onselect: id => calls.picked.push(id),
+				onconnect: (from, to) => calls.connect.push([from, to]),
+				onconnectstart: id => calls.start.push(id),
+				onaddat: at => calls.added.push(at),
+				onrenamestart: id => calls.renameStart.push(id),
+				onrename: (id, name) => calls.renamed.push([id, name]),
+				onresize: (id, w, h) => calls.resized.push([id, w, h]),
+				onmove: (id, x, y) => calls.moved.push([id, x, y]),
+				onsnap: on => calls.snap.push(on),
+				...props
+			}
+		});
+		return { ...r, calls };
+	}
+	const empty = () => {
+		const r = document.querySelector('.canvas')!.getBoundingClientRect();
+		return document.elementFromPoint(r.left + 5, r.top + 5)!;
+	};
+
+	it('makes a new node for a connection when empty canvas is tapped, instead of cancelling it', async () => {
+		const { calls } = mountTools({ selected: 'gw', connectFrom: 'gw' });
+		await page.elementLocator(empty()).click();
+		expect(calls.connect).toEqual([['gw', null]]);
+		expect(calls.picked).toEqual([]);
+	});
+
+	it('starts a connection from the node tapped while picking, without selecting it', async () => {
+		const { calls } = mountTools({ picking: true });
+		await page.getByRole('button', { name: 'API Gateway: Gateway' }).click();
+		expect(calls.start).toEqual(['gw']);
+		expect(calls.picked).toEqual([]);
+		expect(document.querySelector('.port')).toBeNull();
+	});
+
+	it('asks for a node on a double-click of empty canvas, and to rename on a double-click of a node', async () => {
+		const { calls } = mountTools();
+		await userEvent.dblClick(page.elementLocator(empty()));
+		expect(calls.added).toHaveLength(1);
+		await userEvent.dblClick(page.getByRole('button', { name: 'API Gateway: Gateway' }));
+		expect(calls.renameStart).toEqual(['gw']);
+		expect(calls.added).toHaveLength(1);
+	});
+
+	it("ignores a finger's double tap", async () => {
+		const { calls } = mountTools();
+		const el = empty();
+		el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: 10, clientY: 10 }));
+		el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: 10, clientY: 10 }));
+		el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, detail: 2 }));
+		expect(calls.added).toEqual([]);
+	});
+
+	it('types a new name in place: Enter keeps it, Escape leaves the old one', async () => {
+		const { calls, rerender } = mountTools({ selected: 'gw', renaming: 'gw' });
+		const input = page.getByRole('textbox', { name: 'Name of Gateway' });
+		await expect.element(input).toHaveFocus();
+		await expect.element(input).toHaveValue('Gateway');
+		await userEvent.keyboard('Front door{Enter}');
+		expect(calls.renamed).toEqual([['gw', 'Front door']]);
+		await rerender({ renaming: null });
+		await rerender({ renaming: 'gw' });
+		await expect.element(page.getByRole('textbox', { name: 'Name of Gateway' })).toHaveFocus();
+		await userEvent.keyboard('Nope{Escape}');
+		expect(calls.renamed.at(-1)).toEqual(['gw', null]);
+	});
+
+	it('resizes the selected node by its corner handle, with a mouse or a finger, no smaller than the limit', async () => {
+		const { calls } = mountTools({ selected: 'gw' });
+		const { s } = sheet();
+		await drag(document.querySelector('.n-resize')!, 60 * s, 20 * s);
+		// Gateway is 190 × 88; the drag was 60 × 20 in diagram units.
+		expect(calls.resized).toEqual([['gw', 250, 108]]);
+		await drag(document.querySelector('.n-resize')!, -400 * s, -400 * s, { pointerType: 'touch' });
+		expect(calls.resized.at(-1)).toEqual(['gw', 130, 64]);
+		expect(calls.moved).toEqual([]);
+	});
+
+	it('places a dragged node freely with snapping off, and switches it from the zoom bar', async () => {
+		const { calls } = mountTools({ snap: false });
+		const gw = document.querySelector('[data-node="gw"]')!;
+		const { s } = sheet();
+		await drag(gw, 0, 263 * s); // with snapping on, this lands on the collector's line at 420 (see above)
+		expect(calls.moved).toEqual([['gw', 340, 413]]);
+		const button = page.getByRole('button', { name: 'Snap nodes into line' });
+		await expect.element(button).toHaveAttribute('aria-pressed', 'false');
+		await button.click();
+		expect(calls.snap).toEqual([true]);
+	});
+});

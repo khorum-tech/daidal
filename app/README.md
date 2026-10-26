@@ -18,8 +18,13 @@ diagram** on a workspace starts an empty one; the diagram's name in the header o
 (rename, as its owner; copy it into a workspace of yours as a duplicate or as a follower of its snapshots; delete it,
 as its owner); and the History panel takes a snapshot of the working copy, with a description. **Workspaces** too:
 **+ New workspace** and **Import a backup…** on the home screen, and **Manage** (or **Members**) by a workspace's
-name to rename it, add and remove members by email, export it as a backup, or delete it. Reviewing the changes a
-followed diagram has made is still done in the prototype.
+name to rename it, add and remove members by email, export it as a backup, or delete it. The **toolbar** over the
+canvas has undo and redo, Select and Connect (click a node, then the other end), one click to add a service,
+database, queue, actor, note, free text or container, and **+ Add** for every other type. While a connection waits
+for its other end, a click (or tap) on empty canvas makes a new node there for it. With a mouse, a double-click on
+empty canvas adds a node with its name ready to type, and on a node renames it in place; the selected node's corner
+handle resizes it, for a finger too. The magnet in the zoom bar switches snapping, remembered in this browser.
+Reviewing the changes a followed diagram has made is still done in the prototype.
 
 What's left to port, and the order it's planned in: [`docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md`](../docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md).
 
