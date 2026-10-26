@@ -16,8 +16,10 @@ the chosen view can be renamed, re-saved with the tags on now, made the one the 
 (the crosshair by a tag) shows one tag alone without saving anything. **Diagrams themselves** as well: **+ New
 diagram** on a workspace starts an empty one; the diagram's name in the header opens what can be done with it
 (rename, as its owner; copy it into a workspace of yours as a duplicate or as a follower of its snapshots; delete it,
-as its owner); and the History panel takes a snapshot of the working copy, with a description. Workspaces, members
-and sharing are still managed in the prototype.
+as its owner); and the History panel takes a snapshot of the working copy, with a description. **Workspaces** too:
+**+ New workspace** and **Import a backup…** on the home screen, and **Manage** (or **Members**) by a workspace's
+name to rename it, add and remove members by email, export it as a backup, or delete it. Reviewing the changes a
+followed diagram has made is still done in the prototype.
 
 | Route | What it shows |
 |-------|---------------|
