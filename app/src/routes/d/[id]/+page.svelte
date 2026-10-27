@@ -4,6 +4,8 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import NodeTip from '#lib/components/NodeTip.svelte';
+	import { exportName, toSvg } from '#lib/diagram/render.ts';
+	import { download, svgToPng } from '#lib/download.ts';
 	import { createApi } from '#lib/api.ts';
 	import AppHeader from '#lib/components/AppHeader.svelte';
 	import DiagramCanvas from '#lib/components/DiagramCanvas.svelte';
@@ -384,6 +386,14 @@
 		return { left: Math.max(8, left), top: Math.max(8, Math.min(top, box.height - 240)) };
 	});
 	const shareLink = $derived(page.url.origin + page.url.pathname);
+	/** The diagram as it shows now, as an image file. */
+	async function exportImage(format: 'png' | 'svg', ghosted: boolean) {
+		const { svg, width, height } = toSvg(scene, { on, ghosted });
+		const blob = format === 'svg' ? new Blob([svg], { type: 'image/svg+xml' }) : await svgToPng(svg, width, height);
+		const name = exportName(view ? `${working.name} ${view}` : working.name, format);
+		download(name, blob);
+		notify(`Downloaded ${name}`);
+	}
 
 	// ---- many at once ----
 	const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -1274,6 +1284,7 @@
 		onpresent={present}
 		{locked}
 		onlock={setLock}
+		onexport={exportImage}
 	/>
 </Sheet>
 <!-- The tag manager opens from the tags panel on any screen: a dialog on a wide one, a sheet on a phone. -->

@@ -20,7 +20,8 @@
 		viewName = null,
 		onpresent,
 		locked = false,
-		onlock
+		onlock,
+		onexport
 	}: {
 		name: string;
 		mine: boolean;
@@ -38,7 +39,11 @@
 		/** Editing switched off on this device, so nothing changes by mistake. */
 		locked?: boolean;
 		onlock?: (locked: boolean) => void;
+		/** Downloads the diagram as it shows now, as a PNG or SVG, keeping what the view ghosts or not. */
+		onexport?: (format: 'png' | 'svg', ghosted: boolean) => Promise<void>;
 	} = $props();
+
+	let ghosted = $state(true);
 
 	let withView = $state(true);
 	let copied = $state(false);
@@ -125,6 +130,21 @@
 			<p class="note">Picking, views and tags still work; nothing in the diagram changes until you unlock.</p>
 		{/if}
 	</section>
+
+	{#if onexport}
+		<section class="export" aria-label="Export an image">
+			<h3>Export an image</h3>
+			<div class="row">
+				<button type="button" class="btn btn-secondary" disabled={busy} onclick={() => run(() => onexport('png', ghosted))}>Download PNG</button>
+				<button type="button" class="btn btn-secondary" disabled={busy} onclick={() => run(() => onexport('svg', ghosted))}>Download SVG</button>
+			</div>
+			<label class="switch">
+				<input type="checkbox" bind:checked={ghosted} />
+				Keep what the view switches off, faintly
+			</label>
+			<p class="note">The diagram as it shows now: the view and tags on, and the history replayed, if one is.</p>
+		</section>
+	{/if}
 
 	<form class="copy" onsubmit={copy}>
 		<h3>Make a copy</h3>
@@ -216,6 +236,16 @@
 		gap: 8px;
 		padding-top: 12px;
 		border-top: 1px solid var(--color-divider);
+	}
+	.export {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		padding-top: 12px;
+		border-top: 1px solid var(--color-divider);
+	}
+	.export .btn {
+		font-size: 12.5px;
 	}
 	.link-row {
 		display: flex;

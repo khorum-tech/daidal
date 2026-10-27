@@ -976,4 +976,28 @@ test.describe("the app at /app", () => {
     ({ doc } = await saved(page, request, id));
     expect(doc.views.find(v => v.name === "Write path")).toEqual({ name: "Write path", tags: ["web", "service", "data", "auth"] });
   });
+  test("exports the diagram as it shows now, as a PNG and an SVG", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}?view=On%20call`);
+    await page.getByRole("button", { name: "ledger-platform" }).click();
+    const sheet = page.getByRole("dialog", { name: "Diagram" });
+
+    const [png] = await Promise.all([page.waitForEvent("download"), sheet.getByRole("button", { name: "Download PNG" }).click()]);
+    expect(png.suggestedFilename()).toBe("ledger-platform-On-call.png");
+    const bytes = await import("node:fs/promises").then(fs => png.path().then(p => fs.readFile(p)));
+    expect([...bytes.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]); // a PNG
+    expect(bytes.readUInt32BE(16)).toBeGreaterThan(1000); // drawn at twice the diagram's size
+
+    await sheet.getByLabel("Keep what the view switches off, faintly").uncheck();
+    const [svg] = await Promise.all([page.waitForEvent("download"), sheet.getByRole("button", { name: "Download SVG" }).click()]);
+    const text = await import("node:fs/promises").then(fs => svg.path().then(p => fs.readFile(p, "utf8")));
+    const parsed = await page.evaluate(src => {
+      const d = new DOMParser().parseFromString(src, "image/svg+xml");
+      return { ok: !d.querySelector("parsererror"), texts: [...d.querySelectorAll("text")].map(t => t.textContent) };
+    }, text);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.texts).toEqual(expect.arrayContaining(["Edge Router", "Collector", "gRPC"]));
+    expect(parsed.texts).not.toContain("Journal DB"); // switched off by On call, and left out
+    await expect(page.getByTestId("save-status")).toContainText("Downloaded ledger-platform-On-call.svg");
+  });
 });
