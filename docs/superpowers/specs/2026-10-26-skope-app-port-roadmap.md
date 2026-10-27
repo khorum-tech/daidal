@@ -37,6 +37,7 @@ Each slice keeps the habits of the ones before it:
 | Viewing and sharing (C) | Presentation mode with icon-only cards; lock editing on a device, or a view in the document; share links (`?view=`); PNG and SVG export; the config editor (YAML or JSON, replace or merge) |
 | Profile and appearance (C and part of D) | Name and title; dark, light or system theme; colour-vision condition (thins the tag colour pickers) and its simulation |
 | Home page summaries and search (D, E) | Cards drawn from a summary the server keeps with each diagram (one request, no documents), sixty at a time with Show more; search by diagram or node name, kept in the address |
+| Templates and the edit list (D) | New diagram from the prototype's four templates, with or without their example nodes; this visit's edits under History, to roll back or forward to any of them |
 | Follow review (part of D) | Accept or skip each change of a lead's newer snapshots, or a whole snapshot; take a verdict back; mark everything reviewed; pause; unlink (server: `leadId: null` on save) |
 | Presenting, locks and links (part of C) | Presentation mode with a hover (or tap) card and a view switcher; lock editing on a device; lock a view in the document; copy a link, optionally to a view (`?view=`) |
 | Image export (part of C) | PNG and SVG of the diagram as it shows now, drawn client side from the document; ghosted nodes kept or left out |
@@ -89,8 +90,6 @@ works well, on a phone especially) and bring back the rest around it.
 | Item | Prototype | Notes |
 |------|-----------|-------|
 | **Follow review**: go through a lead's changes, accept or skip each, mark as synced, pause, unlink | `goTabUpdates`, `markSeen`, `togglePause`, `unlink` | The server already takes `decided`, `syncedSnapshotId` and `paused` on save. This retires the "Preview" badge's last caveat |
-| **Templates** for a new diagram | `openTemplates`, `toggleTplSeed` | Ship a few as documents in the app; seed the new diagram from one |
-| **Undo history list** with roll back to a step | `openHistory` | The History already keeps labels |
 
 ### E. Smaller gaps and server work
 

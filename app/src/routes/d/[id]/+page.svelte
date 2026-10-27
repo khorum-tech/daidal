@@ -12,6 +12,7 @@
 	import AppHeader from '#lib/components/AppHeader.svelte';
 	import DiagramCanvas from '#lib/components/DiagramCanvas.svelte';
 	import HistoryPanel from '#lib/components/HistoryPanel.svelte';
+	import EditList from '#lib/components/EditList.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import BoxInspector from '#lib/components/BoxInspector.svelte';
 	import DiagramSheet from '#lib/components/DiagramSheet.svelte';
@@ -272,6 +273,10 @@
 	}
 	function redo() {
 		const doc = editable && working.history.redo(current());
+		if (doc) show(doc);
+	}
+	function goToEdit(count: number) {
+		const doc = editable && working.history.goTo(current(), count);
 		if (doc) show(doc);
 	}
 	function moveNode(id: string, x: number, y: number) {
@@ -1088,6 +1093,7 @@
 {/snippet}
 {#snippet history()}
 	<HistoryPanel snapshots={working.snapshots} current={replaying} onpick={pick} {now} ontake={mine && editable ? takeSnapshot : undefined} />
+	{#if editable && working.history.steps.length}<EditList steps={working.history.steps} ongoto={goToEdit} />{/if}
 {/snippet}
 
 <div class="body">

@@ -474,4 +474,26 @@ test.describe("the app on a phone", () => {
     await expect(page.getByRole("link", { name: /ledger-platform \(DR drill\)/ })).toContainText("Has Collector");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
+  test("starts a diagram from a template, and rolls an edit back from the History sheet", async ({ page, request }) => {
+    const { team } = await importStageData(request);
+    await page.goto(`/app/?ws=${encodeURIComponent(team)}`);
+    await page.getByRole("button", { name: "+ New diagram" }).tap();
+    const dialog = page.getByRole("dialog", { name: "New diagram" });
+    await dialog.getByLabel("Name").fill("phone-plan");
+    await dialog.getByRole("radio", { name: /C4 Container/ }).tap();
+    await dialog.getByRole("checkbox", { name: "Include the example nodes" }).check();
+    await dialog.getByRole("button", { name: "Create diagram" }).tap();
+    await expect(page).toHaveTitle("phone-plan · Skope");
+    await expect(page.locator("[data-node]")).toHaveCount(4);
+
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).tap();
+    await page.getByRole("dialog", { name: "Add a node" }).getByRole("button", { name: "Queue" }).first().tap();
+    await expect(page.locator("[data-node]")).toHaveCount(5);
+    await page.getByRole("button", { name: "Done with New Queue" }).tap();
+    await page.getByRole("navigation", { name: "Diagram panels" }).getByRole("button", { name: /History/ }).tap();
+    const history = page.getByRole("dialog", { name: "History" });
+    await history.getByRole("button", { name: /As it was when opened/ }).tap();
+    await expect(page.locator("[data-node]")).toHaveCount(4);
+    await expect(history.getByRole("button", { name: /Add queue/i })).toContainText("Undone");
+  });
 });
