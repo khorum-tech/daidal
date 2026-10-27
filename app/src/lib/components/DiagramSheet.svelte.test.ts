@@ -86,4 +86,31 @@ describe('the diagram sheet', () => {
 		await expect.element(page.getByRole('button', { name: 'Copy link' })).toBeVisible();
 		expect(page.getByLabelText('Lock editing on this device').elements()).toHaveLength(0);
 	});
+
+	it('exports an image as PNG or SVG, keeping what the view ghosts or not', async () => {
+		const asked: [string, boolean][] = [];
+		render(DiagramSheet, {
+			name: 'ledger',
+			mine: false,
+			workspaces,
+			here: 't',
+			onrename: () => {},
+			oncopy: async () => {},
+			ondelete: async () => {},
+			onexport: async (format: 'png' | 'svg', ghosted: boolean) => void asked.push([format, ghosted])
+		});
+		await page.getByRole('button', { name: 'Download PNG' }).click();
+		await page.getByLabelText('Keep what the view switches off, faintly').click();
+		await page.getByRole('button', { name: 'Download SVG' }).click();
+		expect(asked).toEqual([
+			['png', true],
+			['svg', false]
+		]);
+	});
+
+	it('says so when an export fails', async () => {
+		render(DiagramSheet, { name: 'ledger', mine: true, workspaces, here: 't', onrename: () => {}, oncopy: async () => {}, ondelete: async () => {}, onexport: async () => Promise.reject(new Error("Couldn't make the PNG")) });
+		await page.getByRole('button', { name: 'Download PNG' }).click();
+		await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't make the PNG");
+	});
 });

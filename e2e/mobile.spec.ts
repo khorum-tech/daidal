@@ -429,4 +429,18 @@ test.describe("the app on a phone", () => {
     await bar.getByRole("button", { name: "Exit" }).tap();
     await expect(page.getByRole("navigation", { name: "Diagram panels" })).toBeVisible();
   });
+  test("opens the config from the diagram sheet, and applies an edit", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "ledger-platform" }).tap();
+    await page.getByRole("dialog", { name: "Diagram" }).getByRole("button", { name: "Edit as YAML or JSON" }).tap();
+    const sheetEl = page.getByRole("dialog", { name: "Config" });
+    const text = sheetEl.getByLabel("Config text");
+    await text.fill((await text.inputValue()).replace("name: Collector", "name: OTel Collector"));
+    await sheetEl.getByRole("button", { name: "Apply" }).tap();
+    await expect(sheetEl.getByRole("status")).toContainText("Replaced with 9 nodes");
+    await page.keyboard.press("Escape");
+    await expect(page.locator('[data-node="collector"]')).toContainText("OTel Collector");
+  });
 });

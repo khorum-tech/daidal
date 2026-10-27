@@ -40,7 +40,13 @@ diagram's sheet) shows the canvas alone, full screen where the browser allows an
 and connections on hover (on a tap, on a phone) and the views to switch; Escape ends it. The diagram's sheet copies a
 **link** to it, which can open on the view on now (`?view=Name`), and its owner can **lock editing on this device**
 (kept in the browser: picking and views still work). A **view** can be locked too, in the document: it can still be
-shown, not renamed, re-saved or deleted.
+shown, not renamed, re-saved or deleted. The diagram's sheet also **exports an image**: a PNG (at twice the size) or an SVG of
+the diagram as it shows now, drawn from the document in the canvas's colours (`src/lib/diagram/render.ts`), with
+what the view switches off kept faintly or left out. The **config** (Config in the toolbar, or the diagram's sheet) is the
+document as YAML or JSON, written and read as the prototype does (`src/lib/diagram/yaml.ts`): its owner edits it, or
+drops or opens a `.skope.yaml` / `.skope.json` file, and applies it, replacing the diagram or merging it in (nodes by
+id), as one undo step. A config that can't be read says why, with the line, and changes nothing. Anyone can copy or
+download it.
 
 What's left to port, and the order it's planned in: [`docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md`](../docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md).
 

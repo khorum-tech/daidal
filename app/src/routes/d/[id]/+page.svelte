@@ -4,6 +4,10 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import NodeTip from '#lib/components/NodeTip.svelte';
+	import { exportName, toSvg } from '#lib/diagram/render.ts';
+	import { download, svgToPng } from '#lib/download.ts';
+	import ConfigPanel from '#lib/components/ConfigPanel.svelte';
+	import type { ConfigLang } from '#lib/diagram/config.ts';
 	import { createApi } from '#lib/api.ts';
 	import AppHeader from '#lib/components/AppHeader.svelte';
 	import DiagramCanvas from '#lib/components/DiagramCanvas.svelte';
@@ -384,6 +388,33 @@
 		return { left: Math.max(8, left), top: Math.max(8, Math.min(top, box.height - 240)) };
 	});
 	const shareLink = $derived(page.url.origin + page.url.pathname);
+	// The config (the document as YAML or JSON): beside the canvas on a wide screen, a sheet on a phone.
+	let configOpen = $state(false);
+	function openConfig() {
+		if (narrow) sheet = 'config';
+		else {
+			sheet = null;
+			configOpen = true;
+		}
+	}
+	function applyConfig(next: SkopeDoc, mode: 'replace' | 'merge', summary: string) {
+		const before = current();
+		apply(next, before, mode === 'replace' ? 'Replace from the config' : 'Merge in a config');
+		notify(summary);
+	}
+	function downloadConfig(text: string, lang: ConfigLang) {
+		const name = exportName(working.name, `skope.${lang}`);
+		download(name, new Blob([text], { type: lang === 'json' ? 'application/json' : 'text/yaml' }));
+		notify(`Downloaded ${name}`);
+	}
+	/** The diagram as it shows now, as an image file. */
+	async function exportImage(format: 'png' | 'svg', ghosted: boolean) {
+		const { svg, width, height } = toSvg(scene, { on, ghosted });
+		const blob = format === 'svg' ? new Blob([svg], { type: 'image/svg+xml' }) : await svgToPng(svg, width, height);
+		const name = exportName(view ? `${working.name} ${view}` : working.name, format);
+		download(name, blob);
+		notify(`Downloaded ${name}`);
+	}
 
 	// ---- many at once ----
 	const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -727,7 +758,7 @@
 		mq.addEventListener('change', update);
 		return () => mq.removeEventListener('change', update);
 	});
-	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | 'box' | 'tags' | 'diagram' | 'multi' | null>(null);
+	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | 'box' | 'tags' | 'diagram' | 'multi' | 'config' | null>(null);
 	// The updates are beside the canvas on a wide screen, and lead the History sheet on a phone.
 	function showUpdates() {
 		if (narrow) sheet = 'history';
@@ -1039,6 +1070,9 @@
 		</div>
 	{/if}
 {/snippet}
+{#snippet configPanel(close: boolean)}
+	<ConfigPanel doc={replayed?.doc ?? working.doc} {editable} onapply={applyConfig} ondownload={downloadConfig} onclose={close ? () => (configOpen = false) : undefined} />
+{/snippet}
 {#snippet history()}
 	<HistoryPanel snapshots={working.snapshots} current={replaying} onpick={pick} {now} ontake={mine && editable ? takeSnapshot : undefined} />
 {/snippet}
@@ -1135,6 +1169,10 @@
 					</button>
 					<span class="sep" aria-hidden="true"></span>
 					{@render addButton()}
+					<span class="sep" aria-hidden="true"></span>
+					<button type="button" class="tool" class:on={configOpen} aria-pressed={configOpen} aria-label="Config" title="The diagram as YAML or JSON: edit, download or open a file" onclick={() => (configOpen = !configOpen)}>
+						<Icon name="code" size={15} />
+					</button>
 				{/if}
 			</div>
 			{#if adding && !narrow}
@@ -1145,7 +1183,8 @@
 		{/if}
 	</main>
 	{#if !narrow && !presenting}
-		<aside class="right">
+		<aside class="right" class:wide={configOpen}>
+			{#if configOpen}{@render configPanel(true)}{/if}
 			{@render multiInspector()}
 			{@render nodeInspector()}
 			{@render edgeInspector()}
@@ -1250,6 +1289,7 @@
 	<Sheet open={sheet === 'details' && !!selectedNode} title="Node details" onclose={() => (sheet = null)}>
 		{@render nodeInspector()}
 	</Sheet>
+	<Sheet open={sheet === 'config'} title="Config" onclose={() => (sheet = null)}>{@render configPanel(false)}</Sheet>
 	<Sheet open={sheet === 'multi' && !!multi} title="Picked" onclose={() => (sheet = null)}>
 		{@render multiInspector()}
 	</Sheet>
@@ -1274,6 +1314,8 @@
 		onpresent={present}
 		{locked}
 		onlock={setLock}
+		onexport={exportImage}
+		onconfig={openConfig}
 	/>
 </Sheet>
 <!-- The tag manager opens from the tags panel on any screen: a dialog on a wide one, a sheet on a phone. -->
@@ -1538,6 +1580,9 @@
 	}
 	.add-sheet {
 		padding: 10px 16px 16px;
+	}
+	.right.wide {
+		width: 440px;
 	}
 	.right {
 		width: 260px;
