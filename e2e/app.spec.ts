@@ -1000,4 +1000,38 @@ test.describe("the app at /app", () => {
     expect(parsed.texts).not.toContain("Journal DB"); // switched off by On call, and left out
     await expect(page.getByTestId("save-status")).toContainText("Downloaded ledger-platform-On-call.svg");
   });
+  test("edits the diagram as YAML from the toolbar, undoes it, merges in a JSON file, and downloads the config", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Config" }).click();
+    const config = page.getByRole("region", { name: "Config" });
+    const text = config.getByLabel("Config text");
+    await expect(text).toHaveValue(/# ledger-platform: a Skope diagram config/);
+    await text.fill((await text.inputValue()).replace("name: Journal DB", "name: Ledger Journal"));
+    await config.getByRole("button", { name: "Apply" }).click();
+    await expect(page.getByRole("button", { name: "Database: Ledger Journal" })).toBeVisible();
+    await page.getByRole("button", { name: "Undo Replace from the config" }).click();
+    await expect(page.getByRole("button", { name: "Database: Journal DB" })).toBeVisible();
+
+    await config.getByLabel("Merge it in").check();
+    await config.getByLabel("Config file to open").setInputFiles({
+      name: "audit.skope.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify({ nodes: [{ id: "audit", name: "Audit Log", type: "log-sink", layout: { x: 900, y: 600 } }], edges: [{ from: "journal", to: "audit", label: "copies" }] }))
+    });
+    await expect(config.getByRole("status")).toContainText("Loaded audit.skope.json");
+    await config.getByRole("button", { name: "Apply" }).click();
+    await expect(config.getByRole("status")).toContainText("Merged in: 1 new node, 1 new connection");
+    await expect(page.getByRole("button", { name: "Log Sink: Audit Log" })).toBeVisible();
+    const { doc } = await saved(page, request, id);
+    expect(doc.nodes).toHaveLength(10);
+    expect(doc.edges.at(-1)).toEqual({ from: "journal", to: "audit", label: "copies" });
+
+    await config.getByRole("radio", { name: "JSON" }).click();
+    const [file] = await Promise.all([page.waitForEvent("download"), config.getByRole("button", { name: "Download .skope.json" }).click()]);
+    expect(file.suggestedFilename()).toBe("ledger-platform.skope.json");
+    const body = JSON.parse(await import("node:fs/promises").then(fs => file.path().then(p => fs.readFile(p, "utf8"))));
+    expect(body.nodes.map((n: { id: string }) => n.id)).toContain("audit");
+  });
 });
