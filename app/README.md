@@ -57,7 +57,7 @@ What's left to port, and the order it's planned in: [`docs/superpowers/specs/202
 
 | Route | What it shows |
 |-------|---------------|
-| `/app/` | Your workspaces (yours and shared with you) and the diagrams in one (`?ws=<id>`, else your personal one), as the prototype's project cards |
+| `/app/` | Your workspaces (yours and shared with you) and the diagrams in one (`?ws=<id>`, else your personal one), as the prototype's project cards, searched by `?q=` (diagram and node names). Cards come sixty at a time from one list request, drawn from the summary the server keeps for each diagram (`src/lib/diagram/summary.ts`), so no document loads here |
 | `/app/d/:id` | One diagram on the canvas: views and tags (switching them only changes what you see), the selected node's details, the history (pick a snapshot to replay it), and where a follower stands against its lead |
 
 The canvas handles every gesture itself, the same for a finger or a mouse: drag to pan, pinch or ctrl+scroll to zoom,

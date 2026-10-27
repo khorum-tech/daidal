@@ -1,6 +1,7 @@
 import { ensureUserStatements } from "./db";
 import { decidedText, docName, docText, MAX_DOC_BYTES, nameOf } from "./docs";
 import { HttpError, isPlainObject, json, noContent, readJson } from "./http";
+import { summaryText } from "./summary";
 import { requireMember } from "./workspaces";
 
 // A document plus the few fields around it; the document limit is checked on its own.
@@ -80,15 +81,59 @@ const stringOrNull = (value: unknown, what: string): string | null => {
   throw new HttpError(400, `${what} must be a string or null`);
 };
 
+/** The most a list returns at once, and how many when `limit` isn't given. */
+const MAX_LIST = 200;
+
+/**
+ * `GET /api/diagrams?workspace=<id>[&q=<text>][&limit=<n>&offset=<n>]`: the workspace's diagrams, newest first,
+ * without their documents. Each carries its summary (what a card draws; see summary.ts) and, for a follower, its
+ * lead's name when the caller can see the lead. `q` keeps the diagrams whose name or a node's name contains it.
+ */
 export async function listDiagrams(db: D1Database, email: string, url: URL): Promise<Response> {
   const workspace = url.searchParams.get("workspace");
   if (!workspace) throw new HttpError(400, "say which workspace: ?workspace=<id>");
   await requireMember(db, workspace, email);
+  await fillSummaries(db, workspace);
+
+  const limit = boundedInt(url.searchParams.get("limit"), 1, MAX_LIST, MAX_LIST);
+  const offset = boundedInt(url.searchParams.get("offset"), 0, Number.MAX_SAFE_INTEGER, 0);
+  const q = (url.searchParams.get("q") ?? "").trim().slice(0, 100);
+  // `!` escapes LIKE's wildcards, so a search for "100%" or "a_b" means just that.
+  const like = `%${q.replaceAll(/[!%_]/g, "!$&")}%`;
+  const columns = COLUMNS.split(", ")
+    .map(c => (c === "doc" ? "'{}' AS doc" : `d.${c}`))
+    .join(", ");
   const { results } = await db
-    .prepare(`SELECT ${COLUMNS.replace("doc, ", "'{}' AS doc, ")} FROM diagrams WHERE workspace_id = ? ORDER BY updated_at DESC, id`)
-    .bind(workspace)
-    .all<DiagramRow>();
-  return json(results.map(row => diagramOut(row, false)));
+    .prepare(
+      `SELECT ${columns}, d.summary, l.name AS lead_name FROM diagrams d ` +
+        // A lead's name only when the caller is in the lead's workspace.
+        `LEFT JOIN diagrams l ON l.id = d.lead_id AND EXISTS (SELECT 1 FROM workspace_members m WHERE m.workspace_id = l.workspace_id AND m.email = ?2) ` +
+        `WHERE d.workspace_id = ?1 AND (?3 = '' OR d.name LIKE ?4 ESCAPE '!' OR EXISTS (SELECT 1 FROM json_each(d.summary, '$.names') WHERE value LIKE ?4 ESCAPE '!')) ` +
+        `ORDER BY d.updated_at DESC, d.id LIMIT ?5 OFFSET ?6`,
+    )
+    .bind(workspace, email, q, like, limit, offset)
+    .all<DiagramRow & { summary: string; lead_name: string | null }>();
+  return json(results.map(row => ({ ...diagramOut(row, false), summary: JSON.parse(row.summary), leadName: row.lead_name })));
+}
+
+const boundedInt = (raw: string | null, min: number, max: number, fallback: number): number => {
+  const n = raw === null || raw === "" ? Number.NaN : Number(raw);
+  return Number.isInteger(n) ? Math.min(max, Math.max(min, n)) : fallback;
+};
+
+/** How many missing summaries one list works out; a workspace with more fills in over the next few lists. */
+const FILL_AT_ONCE = 200;
+
+/**
+ * Works out summaries a workspace's diagrams are missing: only ones written before summaries were kept, so this
+ * finds nothing once a workspace has been listed.
+ */
+async function fillSummaries(db: D1Database, workspace: string): Promise<void> {
+  const { results } = await db
+    .prepare("SELECT id, doc FROM diagrams WHERE workspace_id = ? AND summary IS NULL LIMIT ?")
+    .bind(workspace, FILL_AT_ONCE)
+    .all<{ id: string; doc: string }>();
+  if (results.length) await db.batch(results.map(r => db.prepare("UPDATE diagrams SET summary = ? WHERE id = ?").bind(summaryText(r.doc), r.id)));
 }
 
 /**
@@ -132,8 +177,8 @@ export async function createDiagram(db: D1Database, email: string, request: Requ
   await db.batch([
     ...ensureUserStatements(db, email, now),
     db
-      .prepare(`INSERT INTO diagrams (id, workspace_id, owner_email, name, doc, lead_id, synced_snapshot_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, workspace, email, name, doc, lead, synced, now),
+      .prepare(`INSERT INTO diagrams (id, workspace_id, owner_email, name, doc, summary, lead_id, synced_snapshot_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, workspace, email, name, doc, summaryText(doc), lead, synced, now),
   ]);
   return json(diagramOut(await visibleDiagram(db, id, email)), 201);
 }
@@ -159,7 +204,11 @@ export async function saveDiagram(db: D1Database, id: string, email: string, req
     sets.push(`${column} = ?`);
     values.push(value);
   };
-  if (body.doc !== undefined) set("doc", docText(body.doc));
+  if (body.doc !== undefined) {
+    const doc = docText(body.doc);
+    set("doc", doc);
+    set("summary", summaryText(doc));
+  }
   if (body.name !== undefined) set("name", nameOf(body.name));
   followSets(body, set);
 

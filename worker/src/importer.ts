@@ -1,6 +1,7 @@
 import { ensureUserStatements, personalWorkspaceId } from "./db";
 import { decidedText, docName, docText, nameOf } from "./docs";
 import { HttpError, isPlainObject, json, readJson } from "./http";
+import { summaryText } from "./summary";
 import { requireMember } from "./workspaces";
 
 /**
@@ -34,6 +35,7 @@ interface PlannedDiagram {
   workspace_id: string;
   name: string;
   doc: string;
+  summary: string;
   updated_at: number;
 }
 interface PlannedSnapshot {
@@ -123,7 +125,8 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
       newId.set(local, id);
       const where = `diagram ${local}`;
       const updated = time(d.updated, now);
-      diagrams.push({ id, workspace_id: workspaceId, name: nameOf(d.name ?? docName(d.doc), `${where}'s name`), doc: docText(d.doc, `${where}'s doc`), updated_at: updated });
+      const doc = docText(d.doc, `${where}'s doc`);
+      diagrams.push({ id, workspace_id: workspaceId, name: nameOf(d.name ?? docName(d.doc), `${where}'s name`), doc, summary: summaryText(doc), updated_at: updated });
       entry.diagrams += 1;
 
       const ids = new Map<string, string>();
@@ -183,7 +186,7 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
   statements.push(
     ...chunked(
       db,
-      `INSERT INTO diagrams (id, workspace_id, owner_email, name, doc, updated_at) SELECT ${cols(["id", "workspace_id"])}, ?1, ${cols(["name", "doc", "updated_at"])} FROM json_each(?2)`,
+      `INSERT INTO diagrams (id, workspace_id, owner_email, name, doc, summary, updated_at) SELECT ${cols(["id", "workspace_id"])}, ?1, ${cols(["name", "doc", "summary", "updated_at"])} FROM json_each(?2)`,
       [email],
       diagrams,
     ),

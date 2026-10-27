@@ -464,4 +464,14 @@ test.describe("the app on a phone", () => {
     await bar.getByRole("button", { name: "Icon-only cards" }).tap();
     await expect(page.locator('[data-node="journal"]')).not.toHaveClass(/icon-only/);
   });
+  test("searches the diagrams of a workspace", async ({ page, request }) => {
+    const { team } = await importStageData(request);
+    await page.goto(`/app/?ws=${encodeURIComponent(team)}`);
+    const search = page.getByRole("searchbox", { name: "Search diagrams" });
+    await search.tap();
+    await search.fill("collector");
+    await expect(page.getByTestId("diagram-count")).toHaveText("2 diagrams with “collector”");
+    await expect(page.getByRole("link", { name: /ledger-platform \(DR drill\)/ })).toContainText("Has Collector");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
 });

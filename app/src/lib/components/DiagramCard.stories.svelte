@@ -3,15 +3,17 @@
 	import type { ComponentProps } from 'svelte';
 	import DiagramCard from './DiagramCard.svelte';
 	import { SAMPLE } from '../fixtures/docs';
-	import type { Diagram } from '../types';
+	import { cardSummary } from '../diagram/summary';
+	import type { ListedDiagram } from '../types';
 
 	const NOW = Date.parse('2026-10-24T12:00:00Z');
-	const diagram: Diagram = {
+	const diagram: ListedDiagram = {
 		id: 'd1',
 		workspaceId: 'w',
 		ownerEmail: 'rowan@example.com',
 		name: 'checkout',
-		doc: SAMPLE,
+		summary: cardSummary(SAMPLE),
+		leadName: null,
 		rev: 3,
 		leadId: null,
 		syncedSnapshotId: null,
@@ -32,5 +34,5 @@
 {/snippet}
 
 <Story name="Standalone" template={narrow} />
-<Story name="Following" args={{ diagram: { ...diagram, leadId: 'l' }, leadName: 'checkout-lead' }} template={narrow} />
-<Story name="Lead out of reach, paused" args={{ diagram: { ...diagram, leadId: 'l', paused: true }, leadName: null }} template={narrow} />
+<Story name="Following" args={{ diagram: { ...diagram, leadId: 'l', leadName: 'checkout-lead' } }} template={narrow} />
+<Story name="Lead out of reach, paused" args={{ diagram: { ...diagram, leadId: 'l', paused: true } }} template={narrow} />

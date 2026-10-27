@@ -1,4 +1,4 @@
-import type { Diagram, DiagramSummary, Me, SkopeDoc, Snapshot, Workspace } from './types';
+import type { Diagram, ListedDiagram, Me, SkopeDoc, Snapshot, Workspace } from './types';
 
 /** An API answer other than 2xx, with the server's `{ error }` message. */
 export class ApiError extends Error {
@@ -41,7 +41,14 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		/** Saves the signed-in person's name and title. */
 		updateMe: (profile: { name: string; title: string }) => send<Me>('/api/me', 'PUT', profile),
 		workspaces: () => get<Workspace[]>('/api/workspaces'),
-		diagrams: (workspace: string) => get<DiagramSummary[]>(`/api/diagrams?workspace=${q(workspace)}`),
+		/** A workspace's diagrams, newest first, as cards; [search] keeps those whose name or a node's name has it. */
+		diagrams: (workspace: string, page: { search?: string; limit?: number; offset?: number } = {}) => {
+			const params = new URLSearchParams({ workspace });
+			if (page.search?.trim()) params.set('q', page.search.trim());
+			if (page.limit !== undefined) params.set('limit', String(page.limit));
+			if (page.offset) params.set('offset', String(page.offset));
+			return get<ListedDiagram[]>(`/api/diagrams?${params}`);
+		},
 		diagram: (id: string) => get<Diagram>(`/api/diagrams/${q(id)}`),
 		snapshots: (id: string) => get<Snapshot[]>(`/api/diagrams/${q(id)}/snapshots`),
 		/** Save as the owner. [rev] is the revision the change was made against; a stale one gets a 409. */

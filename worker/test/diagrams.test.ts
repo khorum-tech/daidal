@@ -29,6 +29,63 @@ describe("diagrams", () => {
     expect(listed.body).toHaveLength(1);
     expect(listed.body[0]).not.toHaveProperty("doc");
     expect(listed.body[0].name).toBe("orders");
+    expect(listed.body[0].summary).toEqual({
+      kind: "c4",
+      nodes: 1,
+      edges: 0,
+      tags: ["#968ae0"],
+      names: ["Gateway"],
+      boxes: [[10, 20, 190, 88]],
+      frames: [],
+    });
+  });
+
+  it("keeps the summary in step with saves, and works out ones written before summaries were kept", async () => {
+    const ws = await team("d-summary@example.com");
+    const { body: d } = await call.post("d-summary@example.com", "/api/diagrams", { workspace: ws, doc: doc() });
+    const nodes = [
+      { id: "a", name: "Billing", type: "service", layout: { x: 0, y: 0 } },
+      { id: "b", name: "Ledger DB", type: "database", layout: { x: 300, y: 0 } },
+    ];
+    await call.put("d-summary@example.com", `/api/diagrams/${d.id}`, { rev: 1, doc: doc("x", { nodes, edges: [{ from: "a", to: "b" }] }) });
+    const [saved] = (await call.get("d-summary@example.com", `/api/diagrams?workspace=${ws}`)).body;
+    expect(saved.summary).toMatchObject({ nodes: 2, edges: 1, names: ["Billing", "Ledger DB"] });
+
+    await env.DB.prepare("UPDATE diagrams SET summary = NULL WHERE id = ?").bind(d.id).run();
+    const [filled] = (await call.get("d-summary@example.com", `/api/diagrams?workspace=${ws}`)).body;
+    expect(filled.summary).toEqual(saved.summary);
+  });
+
+  it("searches names and node names, and pages through a long list", async () => {
+    const ws = await team("d-search@example.com");
+    const make = (name: string, node: string) =>
+      call.post("d-search@example.com", "/api/diagrams", { workspace: ws, name, doc: doc(name, { nodes: [{ id: "n", name: node, type: "service", layout: { x: 0, y: 0 } }] }) });
+    await make("Checkout flow", "Cart");
+    await make("Payments", "Card vault");
+    await make("100%_done", "Plain");
+    await make("wow!", "Bang");
+    const names = async (query: string) =>
+      ((await call.get("d-search@example.com", `/api/diagrams?workspace=${ws}${query}`)).body as { name: string }[]).map(d => d.name).sort();
+    expect(await names("&q=checkout")).toEqual(["Checkout flow"]);
+    expect(await names("&q=CAR")).toEqual(["Checkout flow", "Payments"]);
+    expect(await names("&q=%25_")).toEqual(["100%_done"]);
+    expect(await names("&q=_")).toEqual(["100%_done"]);
+    expect(await names("&q=nothing")).toEqual([]);
+    expect(await names("&q=!")).toEqual(["wow!"]);
+    expect(await names("&q=%20%20")).toHaveLength(4);
+    expect(await names("&limit=2")).toHaveLength(2);
+    expect(await names("&limit=2&offset=2")).toHaveLength(2);
+    expect(await names("&limit=2&offset=3")).toHaveLength(1);
+    expect(await names("&limit=junk")).toHaveLength(4);
+  });
+
+  it("names a follower's lead only for someone who can see it", async () => {
+    const lead = await team("d-leadname@example.com");
+    const { body: d } = await call.post("d-leadname@example.com", "/api/diagrams", { workspace: lead, name: "Upstream", doc: doc() });
+    const follower = await team("d-leadname@example.com", "d-outside-lead@example.com");
+    await call.post("d-leadname@example.com", "/api/diagrams", { workspace: follower, from: d.id, follow: true });
+    expect((await call.get("d-leadname@example.com", `/api/diagrams?workspace=${follower}`)).body[0]).toMatchObject({ leadId: d.id, leadName: "Upstream" });
+    expect((await call.get("d-outside-lead@example.com", `/api/diagrams?workspace=${follower}`)).body[0]).toMatchObject({ leadId: d.id, leadName: null });
   });
 
   it("lets a member read and clone but not save, snapshot or delete someone else's diagram", async () => {

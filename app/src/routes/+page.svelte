@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { createApi } from '#lib/api.ts';
@@ -8,7 +9,7 @@
 	import Sheet from '#lib/components/Sheet.svelte';
 	import WorkspaceSheet from '#lib/components/WorkspaceSheet.svelte';
 	import { slug } from '#lib/diagram/model.ts';
-	import type { Workspace } from '#lib/types.ts';
+	import type { ListedDiagram, Workspace } from '#lib/types.ts';
 
 	let { data } = $props();
 
@@ -16,6 +17,47 @@
 	const shared = $derived(data.workspaces.filter(w => w.ownerEmail !== data.me.email));
 	const wsHref = (w: Workspace) => `${resolve('/')}?ws=${encodeURIComponent(w.id)}`;
 	const now = Date.now();
+
+	// The cards: the first lot comes with the page, Show more fetches the next. Searching reloads the page with ?q=
+	// (so a search can be shared or kept on a reload), a moment after typing stops.
+	let later = $state<ListedDiagram[]>([]);
+	let exhausted = $state(false);
+	let loadingMore = $state(false);
+	let search = $state('');
+	$effect.pre(() => {
+		const d = data;
+		untrack(() => {
+			later = [];
+			exhausted = d.diagrams.length < d.pageSize;
+			search = d.search;
+		});
+	});
+	const cards = $derived([...data.diagrams, ...later]);
+	async function showMore() {
+		if (!data.workspace) return;
+		loadingMore = true;
+		try {
+			const next = await api.diagrams(data.workspace.id, { search: data.search, limit: data.pageSize, offset: cards.length });
+			later = [...later, ...next];
+			exhausted = next.length < data.pageSize;
+		} catch (err) {
+			notice = { text: `Couldn't load more: ${err instanceof Error ? err.message : 'something went wrong'}.`, failed: true };
+		} finally {
+			loadingMore = false;
+		}
+	}
+	let searchTimer: ReturnType<typeof setTimeout> | undefined;
+	function searchFor(text: string) {
+		search = text;
+		clearTimeout(searchTimer);
+		searchTimer = setTimeout(() => {
+			if (!data.workspace) return;
+			const params = new URLSearchParams({ ws: data.workspace.id });
+			if (text.trim()) params.set('q', text.trim());
+			void goto(`${resolve('/')}?${params}`, { replace: true, reset: false });
+		}, 250);
+	}
+	const count = $derived(`${cards.length}${exhausted ? '' : '+'} ${cards.length === 1 && exhausted ? 'diagram' : 'diagrams'}`);
 
 	// A new, empty diagram in the workspace on show; it opens straight away, ready for + Add.
 	const api = createApi(fetch);
@@ -145,18 +187,39 @@
 		{#if data.workspace}
 			<div class="heading">
 				<h1>{data.workspace.name}</h1>
-				<span class="n">{data.diagrams.length} {data.diagrams.length === 1 ? 'diagram' : 'diagrams'}</span>
+				<span class="n" data-testid="diagram-count">{data.search ? `${count} with “${data.search}”` : count}</span>
 				{#if data.workspace.ownerEmail !== data.me.email}<span class="tag tag-outline">Shared by {data.workspace.ownerEmail}</span>{/if}
 				<button type="button" class="btn btn-ghost manage" aria-label="Manage {data.workspace.name}" onclick={() => (managing = true)}>
 					<Icon name="members" size={14} />{data.workspace.ownerEmail === data.me.email ? 'Manage' : 'Members'}
 				</button>
 				<button type="button" class="btn btn-primary new" onclick={() => (creating = true)}>+ New diagram</button>
 			</div>
-			{#if data.diagrams.length}
+			<label class="search">
+				<Icon name="magnifyingGlass" size={14} />
+				<input
+					type="search"
+					class="input"
+					placeholder="Search diagrams and their nodes"
+					aria-label="Search diagrams"
+					value={search}
+					oninput={e => searchFor(e.currentTarget.value)}
+					onkeydown={e => e.key === 'Escape' && search && searchFor('')}
+				/>
+			</label>
+			{#if cards.length}
 				<div class="grid">
-					{#each data.diagrams as d (d.id)}
-						<DiagramCard diagram={d} href={resolve('/d/[id]', { id: d.id })} leadName={d.leadId ? data.leadNames[d.leadId] : null} {now} />
+					{#each cards as d (d.id)}
+						<DiagramCard diagram={d} href={resolve('/d/[id]', { id: d.id })} search={data.search} {now} />
 					{/each}
+				</div>
+				{#if !exhausted}
+					<button type="button" class="btn btn-secondary more" disabled={loadingMore} onclick={showMore}>{loadingMore ? 'Loading…' : 'Show more'}</button>
+				{/if}
+			{:else if data.search}
+				<div class="empty">
+					<span class="empty-icon"><Icon name="magnifyingGlass" size={30} /></span>
+					<h2>Nothing matches “{data.search}”</h2>
+					<p>Search looks through diagram names and the names of their nodes.</p>
 				</div>
 			{:else}
 				<div class="empty">
@@ -311,6 +374,31 @@
 	.heading .tag {
 		font-size: 10px;
 	}
+	.search {
+		position: relative;
+		display: flex;
+		align-items: center;
+		max-width: 420px;
+		margin-bottom: 18px;
+		color: var(--color-neutral-500);
+	}
+	.search :global(svg) {
+		position: absolute;
+		left: 11px;
+		pointer-events: none;
+	}
+	.search .input {
+		width: 100%;
+		box-sizing: border-box;
+		min-height: 36px;
+		padding: 6px 10px 6px 32px;
+		font-size: 13px;
+	}
+	.more {
+		display: block;
+		margin: 22px auto 0;
+		font-size: 13px;
+	}
 	.grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
@@ -454,7 +542,8 @@
 	}
 	/* Safari on iOS zooms the page into any field set smaller than 16px. */
 	@media (pointer: coarse) {
-		.create .input {
+		.create .input,
+		.search .input {
 			font-size: 16px;
 		}
 	}

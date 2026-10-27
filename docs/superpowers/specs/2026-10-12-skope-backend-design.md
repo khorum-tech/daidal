@@ -190,7 +190,7 @@ All bodies are JSON. Errors are `{ "error": "<message>" }`.
 | `DELETE /api/workspaces/:id` | owner | Delete with its diagrams; the personal workspace cannot be deleted |
 | `POST /api/workspaces/:id/members` | owner | Add by email |
 | `DELETE /api/workspaces/:id/members/:email` | owner | Remove; the owner cannot be removed |
-| `GET /api/diagrams?workspace=:id` | member | List without documents |
+| `GET /api/diagrams?workspace=:id[&q=&limit=&offset=]` | member | List without documents, newest first: each with its card summary (`diagrams.summary`, kept on every write) and its lead's name if the caller can see the lead. `q` searches names and node names; `limit` is at most 200 |
 | `POST /api/diagrams` | member of target | Create from a document, or clone with `{from, follow}` |
 | `GET /api/diagrams/:id` | member | Full row including `doc` |
 | `PUT /api/diagrams/:id` | diagram owner | Save `{doc, name, rev, synced_snapshot_id, decided, paused}` |

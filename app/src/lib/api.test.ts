@@ -8,6 +8,8 @@ describe('createApi', () => {
 		const fetchFn = respond(200, []);
 		await createApi(fetchFn).diagrams('personal:a@example.com');
 		expect(fetchFn).toHaveBeenCalledWith('/api/diagrams?workspace=personal%3Aa%40example.com', { headers: { accept: 'application/json' } });
+		await createApi(fetchFn).diagrams('w', { search: ' cart ', limit: 60, offset: 120 });
+		expect(fetchFn).toHaveBeenLastCalledWith('/api/diagrams?workspace=w&q=cart&limit=60&offset=120', expect.anything());
 		await createApi(fetchFn).snapshots('a/b');
 		expect(fetchFn).toHaveBeenLastCalledWith('/api/diagrams/a%2Fb/snapshots', expect.anything());
 	});

@@ -1,44 +1,53 @@
 <script lang="ts">
-	import type { Diagram } from '../types';
-	import { SHEET_H, SHEET_W, toScene } from '../diagram/model';
+	import type { ListedDiagram } from '../types';
+	import { SHEET_H, SHEET_W } from '../diagram/model';
 	import { ago } from '../time';
 	import Icon from './Icon.svelte';
 
-	/** A diagram in the list, as the prototype's project card: a thumbnail, its name and kind, and what it follows. */
-	let {
-		diagram,
-		href,
-		leadName = null,
-		now = Date.now()
-	}: { diagram: Diagram; href: string; leadName?: string | null; now?: number } = $props();
+	/**
+	 * A diagram in the list, as the prototype's project card: a thumbnail, its name and kind, and what it follows. All
+	 * of it comes from the diagram's summary, so the list never loads documents. With [search], the nodes whose names
+	 * matched are named.
+	 */
+	let { diagram, href, search = '', now = Date.now() }: { diagram: ListedDiagram; href: string; search?: string; now?: number } = $props();
 
-	const scene = $derived(toScene(diagram.doc));
-	const dots = $derived(scene.tags.slice(0, 5).map(t => t.color));
-	const meta = $derived(`${scene.nodes.length} ${scene.nodes.length === 1 ? 'node' : 'nodes'} · ${scene.edges.length} ${scene.edges.length === 1 ? 'connection' : 'connections'}`);
+	const s = $derived(diagram.summary);
+	const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+	const meta = $derived(`${plural(s.nodes, 'node', 'nodes')} · ${plural(s.edges, 'connection', 'connections')}`);
+	const matched = $derived.by(() => {
+		const q = search.trim().toLowerCase();
+		if (!q || diagram.name.toLowerCase().includes(q)) return [];
+		return s.names.filter(n => n.toLowerCase().includes(q));
+	});
 </script>
 
 <a class="card" {href}>
 	<span class="thumb">
 		<svg viewBox="0 0 {SHEET_W} {SHEET_H}" aria-hidden="true">
-			{#each scene.boundaries as b (b.id)}
-				<rect x={b.x} y={b.y} width={b.w} height={b.h} rx="18" fill="none" stroke-dasharray="12 12" class="b" />
+			{#each s.frames as [x, y, w, h], i (i)}
+				<rect {x} {y} width={w} height={h} rx="18" fill="none" stroke-dasharray="12 12" class="b" />
 			{/each}
-			{#each scene.nodes as n (n.id)}
-				<rect x={n.x} y={n.y} width={n.w} height={n.h} rx="14" class="n" />
+			{#each s.boxes as [x, y, w, h], i (i)}
+				<rect {x} {y} width={w} height={h} rx="14" class="n" />
 			{/each}
 		</svg>
 	</span>
 	<span class="body">
 		<span class="title">
 			<span class="name">{diagram.name}</span>
-			{#if scene.kind}<span class="tag tag-neutral kind">{scene.kind}</span>{/if}
+			{#if s.kind}<span class="tag tag-neutral kind">{s.kind}</span>{/if}
 		</span>
 		{#if diagram.leadId}
-			<span class="follows"><Icon name="follow" size={11} />{leadName ? `Follows ${leadName}` : 'Follows a diagram you can no longer see'}{diagram.paused ? ' · paused' : ''}</span>
+			<span class="follows"
+				><Icon name="follow" size={11} />{diagram.leadName ? `Follows ${diagram.leadName}` : 'Follows a diagram you can no longer see'}{diagram.paused ? ' · paused' : ''}</span
+			>
+		{/if}
+		{#if matched.length}
+			<span class="matched">Has {matched.slice(0, 3).join(', ')}{matched.length > 3 ? ` and ${matched.length - 3} more` : ''}</span>
 		{/if}
 		<span class="meta">
 			<span>{meta}</span>
-			<span class="dots">{#each dots as c, i (i)}<span style:background={c}></span>{/each}</span>
+			<span class="dots">{#each s.tags as c, i (i)}<span style:background={c}></span>{/each}</span>
 		</span>
 		<span class="updated">Updated {ago(diagram.updatedAt, now)}</span>
 	</span>
@@ -60,6 +69,14 @@
 	.card:focus-visible {
 		border-color: var(--color-neutral-600);
 		color: var(--color-text);
+	}
+	.matched {
+		margin-top: 6px;
+		font-size: 11.5px;
+		color: var(--color-accent-300);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.thumb {
 		display: block;
