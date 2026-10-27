@@ -21,6 +21,7 @@
 		onresaveview,
 		ondeleteview,
 		ondefaultview,
+		onlockview,
 		onmanage
 	}: {
 		scene: Scene;
@@ -38,6 +39,8 @@
 		onresaveview?: (name: string) => void;
 		ondeleteview?: (name: string) => void;
 		ondefaultview?: (name: string | null) => void;
+		/** Locks a view (it can still be shown, not changed) or unlocks it. */
+		onlockview?: (name: string, locked: boolean) => void;
 		onmanage?: () => void;
 	} = $props();
 
@@ -82,7 +85,7 @@
 				{#each scene.views as v (v.label)}
 					<li class="view-row">
 						<button type="button" class:active={view === v.label} aria-pressed={view === v.label} onclick={() => onview(v.label)}>
-							{v.label}{#if view === v.label && changed}<span class="changed" title="The tags on now differ from this view">changed</span>{/if}{#if scene.initialView === v.label}<span class="default" title="The diagram opens on this view">default</span>{/if}
+							{v.label}{#if view === v.label && changed}<span class="changed" title="The tags on now differ from this view">changed</span>{/if}{#if scene.initialView === v.label}<span class="default" title="The diagram opens on this view">default</span>{/if}{#if v.locked}<span class="lock" title="Locked: it can be shown, not changed"><Icon name="lock" size={11} label="locked" /></span>{/if}
 						</button>
 						{#if editable && view === v.label}
 							<button type="button" class="edit-view" aria-expanded={editing} aria-label="Edit view {v.label}" title="Rename, re-save or delete this view" onclick={() => (editing = !editing)}>
@@ -95,17 +98,25 @@
 			{#if editable && current && editing}
 				<div class="view-edit" role="group" aria-label="Edit view {current.label}">
 					{#key current.label}
-						<input class="input" aria-label="View name" value={current.label} onchange={rename} onkeydown={e => e.key === 'Enter' && e.currentTarget.blur()} />
+						<input class="input" aria-label="View name" value={current.label} disabled={current.locked} onchange={rename} onkeydown={e => e.key === 'Enter' && e.currentTarget.blur()} />
 					{/key}
 					{#if nameError}<p class="error" role="alert">Another view has that name, or it is empty.</p>{/if}
-					<button type="button" class="act" disabled={!changed} onclick={() => onresaveview?.(current.label)}>
+					<button type="button" class="act" disabled={!changed || current.locked} onclick={() => onresaveview?.(current.label)}>
 						{changed ? 'Save the tags on now' : 'Matches the tags on now'}
 					</button>
 					<label class="switch">
 						<input type="checkbox" checked={scene.initialView === current.label} onchange={() => ondefaultview?.(scene.initialView === current.label ? null : current.label)} />
 						The diagram opens on this view
 					</label>
-					<button type="button" class="act danger" onclick={() => ondeleteview?.(current.label)}>Delete view</button>
+					<label class="switch">
+						<input type="checkbox" checked={current.locked} onchange={() => onlockview?.(current.label, !current.locked)} />
+						Lock this view
+					</label>
+					{#if current.locked}
+						<p class="locked-note">Locked: it can still be shown, but not renamed, re-saved or deleted.</p>
+					{:else}
+						<button type="button" class="act danger" onclick={() => ondeleteview?.(current.label)}>Delete view</button>
+					{/if}
 				</div>
 			{/if}
 			{#if editable}
@@ -151,6 +162,18 @@
 </aside>
 
 <style>
+	.lock {
+		display: inline-flex;
+		margin-left: 6px;
+		vertical-align: -1px;
+		color: var(--color-neutral-500);
+	}
+	.locked-note {
+		margin: 2px 0 0;
+		font-size: 11px;
+		line-height: 1.45;
+		color: var(--color-neutral-500);
+	}
 	.panel {
 		width: 232px;
 		flex: none;

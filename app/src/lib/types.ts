@@ -86,7 +86,8 @@ export interface SkopeDoc {
 	version: 1;
 	diagram?: { id?: string; name?: string; kind?: string; view?: string };
 	tags?: Record<string, DocTag>;
-	views?: { name: string; tags: string[] }[];
+	/** A locked view can still be shown, but not renamed, re-saved or deleted. */
+	views?: { name: string; tags: string[]; locked?: boolean }[];
 	nodes?: DocNode[];
 	edges?: DocEdge[];
 	boundaries?: DocBoundary[];

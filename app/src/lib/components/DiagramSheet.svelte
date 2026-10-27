@@ -5,7 +5,8 @@
 	/**
 	 * What can be done with a diagram as a whole: the owner renames or deletes it; anyone who can see it copies it into
 	 * a workspace of theirs, as a duplicate (on its own from now on) or a follower (which tracks this diagram's
-	 * snapshots). Copying and deleting report back by promise, so a failure shows here.
+	 * snapshots). Copying and deleting report back by promise, so a failure shows here. Anyone can copy a link to it
+	 * (to the view on now, if one is) and present it; its owner can lock editing on this device.
 	 */
 	let {
 		name,
@@ -14,7 +15,12 @@
 		here,
 		onrename,
 		oncopy,
-		ondelete
+		ondelete,
+		link = '',
+		viewName = null,
+		onpresent,
+		locked = false,
+		onlock
 	}: {
 		name: string;
 		mine: boolean;
@@ -25,7 +31,27 @@
 		onrename: (name: string) => void;
 		oncopy: (copy: { workspace: string; name: string; follow: boolean }) => Promise<void>;
 		ondelete: () => Promise<void>;
+		/** The diagram's address, and with [viewName] the view on now, which a link can open on. */
+		link?: string;
+		viewName?: string | null;
+		onpresent?: () => void;
+		/** Editing switched off on this device, so nothing changes by mistake. */
+		locked?: boolean;
+		onlock?: (locked: boolean) => void;
 	} = $props();
+
+	let withView = $state(true);
+	let copied = $state(false);
+	const shared = $derived(viewName && withView ? `${link}?view=${encodeURIComponent(viewName)}` : link);
+	async function copyLink() {
+		try {
+			await navigator.clipboard.writeText(shared);
+		} catch {
+			// No clipboard (an insecure page, or refused): the field below holds the link to copy by hand.
+		}
+		copied = true;
+		setTimeout(() => (copied = false), 2000);
+	}
 
 	let follow = $state(false);
 	let target = $state('');
@@ -76,6 +102,29 @@
 	{:else}
 		<p class="owned">You can look at this diagram, and copy it into a workspace of yours.</p>
 	{/if}
+
+	<section class="share" aria-label="Share and present">
+		<h3>Share and present</h3>
+		<div class="link-row">
+			<input class="input" readonly aria-label="Link to this diagram" value={shared} onfocus={e => e.currentTarget.select()} />
+			<button type="button" class="btn btn-secondary" onclick={copyLink}>{copied ? 'Copied' : 'Copy link'}</button>
+		</div>
+		{#if viewName}
+			<label class="switch">
+				<input type="checkbox" bind:checked={withView} />
+				Open on the view “{viewName}”
+			</label>
+		{/if}
+		<p class="note">Anyone in its workspace can open the link.</p>
+		{#if onpresent}<button type="button" class="btn btn-secondary present" onclick={onpresent}>Present</button>{/if}
+		{#if mine && onlock}
+			<label class="switch">
+				<input type="checkbox" checked={locked} onchange={() => onlock(!locked)} />
+				Lock editing on this device
+			</label>
+			<p class="note">Picking, views and tags still work; nothing in the diagram changes until you unlock.</p>
+		{/if}
+	</section>
 
 	<form class="copy" onsubmit={copy}>
 		<h3>Make a copy</h3>
@@ -160,6 +209,50 @@
 		text-transform: uppercase;
 		color: var(--color-neutral-600);
 		font-weight: 500;
+	}
+	.share {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		padding-top: 12px;
+		border-top: 1px solid var(--color-divider);
+	}
+	.link-row {
+		display: flex;
+		gap: 6px;
+	}
+	.link-row .input {
+		flex: 1;
+		min-width: 0;
+		color: var(--color-neutral-400);
+	}
+	.link-row .btn,
+	.present {
+		flex: none;
+		font-size: 12.5px;
+	}
+	.present {
+		align-self: flex-start;
+	}
+	.switch {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 12px;
+		color: var(--color-neutral-400);
+		cursor: pointer;
+	}
+	.switch input {
+		accent-color: var(--color-accent);
+		width: 16px;
+		height: 16px;
+		margin: 0;
+	}
+	.note {
+		margin: 0;
+		font-size: 11.5px;
+		line-height: 1.5;
+		color: var(--color-neutral-500);
 	}
 	.copy {
 		display: flex;

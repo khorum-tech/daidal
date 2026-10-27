@@ -50,4 +50,40 @@ describe('the diagram sheet', () => {
 		await page.getByRole('button', { name: 'Make a duplicate' }).click();
 		await expect.element(page.getByRole('alert')).toHaveTextContent('workspace not found');
 	});
+
+	it('copies a link, to the view on now if wanted, presents, and locks editing on this device', async () => {
+		const calls: unknown[] = [];
+		const written: string[] = [];
+		Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (t: string) => void written.push(t) }, configurable: true });
+		render(DiagramSheet, {
+			name: 'ledger',
+			mine: true,
+			workspaces,
+			here: 't',
+			onrename: () => {},
+			oncopy: async () => {},
+			ondelete: async () => {},
+			link: 'https://skope.example/app/d/abc',
+			viewName: 'On call',
+			onpresent: () => calls.push('present'),
+			locked: false,
+			onlock: (l: boolean) => calls.push(['lock', l])
+		});
+		const field = page.getByLabelText('Link to this diagram');
+		await expect.element(field).toHaveValue('https://skope.example/app/d/abc?view=On%20call');
+		await page.getByRole('button', { name: 'Copy link' }).click();
+		await expect.element(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+		await page.getByLabelText('Open on the view “On call”').click();
+		await expect.element(field).toHaveValue('https://skope.example/app/d/abc');
+		await page.getByRole('button', { name: 'Present' }).click();
+		await page.getByLabelText('Lock editing on this device').click();
+		expect(written).toEqual(['https://skope.example/app/d/abc?view=On%20call']);
+		expect(calls).toEqual(['present', ['lock', true]]);
+	});
+
+	it('offers no lock to someone who does not own the diagram', async () => {
+		render(DiagramSheet, { name: 'ledger', mine: false, workspaces, here: 't', onrename: () => {}, oncopy: async () => {}, ondelete: async () => {}, link: 'x', onlock: () => {} });
+		await expect.element(page.getByRole('button', { name: 'Copy link' })).toBeVisible();
+		expect(page.getByLabelText('Lock editing on this device').elements()).toHaveLength(0);
+	});
 });

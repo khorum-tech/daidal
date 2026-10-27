@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkopeDoc } from '../types';
-import { addBoundary, clipCentre, copyNodes, moveNodes, pasteNodes, removeMany, toggleTagOn, updateEdges, updateNodes, addEdge, addNode, addTag, addView, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, removeTag, removeView, resizeBoundary, resizeNode, reverseEdge, setDefaultView, TAG_COLORS, updateBoundary, updateEdge, updateNode, updateTag, updateView, viewNameFree } from './edit';
+import { lockView, addBoundary, clipCentre, copyNodes, moveNodes, pasteNodes, removeMany, toggleTagOn, updateEdges, updateNodes, addEdge, addNode, addTag, addView, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, removeTag, removeView, resizeBoundary, resizeNode, reverseEdge, setDefaultView, TAG_COLORS, updateBoundary, updateEdge, updateNode, updateTag, updateView, viewNameFree } from './edit';
 import { toScene } from './model';
 
 const base = (): SkopeDoc => ({
@@ -264,6 +264,21 @@ describe('tags', () => {
 
 describe('views', () => {
 	const viewed = (): SkopeDoc => ({ ...base(), diagram: { name: 'd', view: 'Main' }, views: [{ name: 'Main', tags: ['core'] }, { name: 'View 3', tags: [] }] });
+
+	it('locks a view so it is not renamed, re-saved or deleted, and unlocks it', () => {
+		const locked = lockView(viewed(), 'Main', true);
+		expect(locked.views![0]).toEqual({ name: 'Main', tags: ['core'], locked: true });
+		expect(updateView(locked, 'Main', { name: 'Other', tags: [] })).toBe(locked);
+		expect(removeView(locked, 'Main')).toBe(locked);
+		const open = lockView(locked, 'Main', false);
+		expect(open.views![0]).toEqual({ name: 'Main', tags: ['core'] });
+		// A rename keeps the flag of another view untouched, and a view's own flag stays with it.
+		expect(updateView(lockView(viewed(), 'View 3', true), 'Main', { name: 'Core' }).views).toEqual([
+			{ name: 'Core', tags: ['core'] },
+			{ name: 'View 3', tags: [], locked: true }
+		]);
+		expect(toScene(locked).views[0].locked).toBe(true);
+	});
 
 	it('saves the tags on now as "View N", skipping names in use', () => {
 		const { doc, name } = addView(viewed(), ['core', 'x']);

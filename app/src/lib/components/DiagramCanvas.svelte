@@ -68,6 +68,7 @@
 		onpick,
 		ontoggle,
 		onmovemany,
+		onhover,
 		ghostOpacity = 0.22,
 		edgeStyle = 'curved'
 	}: {
@@ -115,6 +116,8 @@
 		onpick?: (picked: Picked, add: boolean) => void;
 		ontoggle?: (item: { node?: string; edge?: number }) => void;
 		onmovemany?: (ids: string[], dx: number, dy: number) => void;
+		/** A mouse over a node, with where the node is on screen, or (null) over none. */
+		onhover?: (id: string | null, at: DOMRect | null) => void;
 		ghostOpacity?: number;
 		edgeStyle?: 'curved' | 'straight' | 'angled';
 	} = $props();
@@ -525,6 +528,22 @@
 		else onselectbox?.(b.id);
 	}
 
+	// Which node a mouse is over, reported as it changes (a finger taps instead).
+	let hovered: string | null = null;
+	function over(e: PointerEvent) {
+		if (!onhover || e.pointerType !== 'mouse') return;
+		const el = (e.target as Element).closest<HTMLElement>('[data-node]');
+		const id = gesture ? null : (el?.dataset.node ?? null);
+		if (id === hovered) return;
+		hovered = id;
+		onhover(id, el && id ? el.getBoundingClientRect() : null);
+	}
+	function leave() {
+		if (hovered === null) return;
+		hovered = null;
+		onhover?.(null, null);
+	}
+
 	// The keyboard can do what the pointer does, once the canvas has focus.
 	function keys(e: KeyboardEvent) {
 		if (e.target !== canvas) return;
@@ -557,7 +576,11 @@
 	bind:clientWidth={viewW}
 	bind:clientHeight={viewH}
 	onpointerdown={down}
-	onpointermove={move}
+	onpointermove={e => {
+		move(e);
+		over(e);
+	}}
+	onpointerleave={leave}
 	onpointerup={e => up(e)}
 	onpointercancel={e => up(e, true)}
 	onkeydown={keys}
