@@ -1,0 +1,444 @@
+[
+	{
+		"id": "c4container",
+		"name": "C4 Container",
+		"desc": "Containers of one system and how they talk.",
+		"doc": {
+			"version": 1,
+			"diagram": {
+				"name": "C4 Container",
+				"kind": "C4",
+				"view": "Full system"
+			},
+			"tags": {
+				"frontend": {
+					"label": "Frontend",
+					"color": "#b5abfc",
+					"group": "Layer"
+				},
+				"backend": {
+					"label": "Backend",
+					"color": "#968ae0",
+					"group": "Layer"
+				},
+				"data": {
+					"label": "Data",
+					"color": "#796cbf",
+					"group": "Layer"
+				}
+			},
+			"views": [
+				{
+					"name": "Full system",
+					"tags": [
+						"frontend",
+						"backend",
+						"data"
+					]
+				},
+				{
+					"name": "Request path",
+					"tags": [
+						"frontend",
+						"backend"
+					]
+				}
+			],
+			"nodes": [
+				{
+					"id": "a",
+					"name": "Web App",
+					"type": "web-app",
+					"subtitle": "framework tbd",
+					"notes": "The user-facing client.",
+					"tags": [
+						"frontend"
+					],
+					"layout": {
+						"x": 60,
+						"y": 200
+					}
+				},
+				{
+					"id": "b",
+					"name": "API Gateway",
+					"type": "service",
+					"subtitle": "entry point",
+					"notes": "Routes and guards all traffic.",
+					"tags": [
+						"backend"
+					],
+					"layout": {
+						"x": 340,
+						"y": 200
+					}
+				},
+				{
+					"id": "c",
+					"name": "Core Service",
+					"type": "service",
+					"subtitle": "domain logic",
+					"notes": "Owns the core domain.",
+					"tags": [
+						"backend"
+					],
+					"layout": {
+						"x": 620,
+						"y": 200
+					}
+				},
+				{
+					"id": "d",
+					"name": "Database",
+					"type": "database",
+					"subtitle": "engine tbd",
+					"notes": "System of record.",
+					"tags": [
+						"data"
+					],
+					"layout": {
+						"x": 900,
+						"y": 200
+					}
+				}
+			],
+			"edges": [
+				{
+					"from": "a",
+					"to": "b",
+					"label": "HTTPS"
+				},
+				{
+					"from": "b",
+					"to": "c",
+					"label": "REST"
+				},
+				{
+					"from": "c",
+					"to": "d",
+					"label": "SQL"
+				}
+			]
+		}
+	},
+	{
+		"id": "c4context",
+		"name": "C4 Context",
+		"desc": "People and external systems around yours.",
+		"doc": {
+			"version": 1,
+			"diagram": {
+				"name": "C4 Context",
+				"kind": "C4",
+				"view": "Full system"
+			},
+			"tags": {
+				"core": {
+					"label": "Core",
+					"color": "#968ae0",
+					"group": "Layer"
+				},
+				"external": {
+					"label": "External",
+					"color": "#9397ab",
+					"group": "Layer"
+				}
+			},
+			"views": [
+				{
+					"name": "Full system",
+					"tags": [
+						"core",
+						"external"
+					]
+				},
+				{
+					"name": "Core only",
+					"tags": [
+						"core"
+					]
+				}
+			],
+			"nodes": [
+				{
+					"id": "u",
+					"name": "Customer",
+					"type": "actor",
+					"subtitle": "end user",
+					"notes": "Primary persona.",
+					"tags": [
+						"core"
+					],
+					"layout": {
+						"x": 70,
+						"y": 180,
+						"w": 180
+					}
+				},
+				{
+					"id": "s",
+					"name": "Your System",
+					"type": "system",
+					"subtitle": "the thing you build",
+					"notes": "The system in scope.",
+					"tags": [
+						"core"
+					],
+					"layout": {
+						"x": 380,
+						"y": 300,
+						"w": 220
+					}
+				},
+				{
+					"id": "p",
+					"name": "Payments Provider",
+					"type": "external",
+					"subtitle": "Stripe",
+					"notes": "Charges cards on your behalf.",
+					"tags": [
+						"external"
+					],
+					"layout": {
+						"x": 740,
+						"y": 180,
+						"w": 200
+					}
+				},
+				{
+					"id": "e",
+					"name": "Email Service",
+					"type": "external",
+					"subtitle": "SES",
+					"notes": "Transactional email delivery.",
+					"tags": [
+						"external"
+					],
+					"layout": {
+						"x": 740,
+						"y": 440,
+						"w": 200
+					}
+				}
+			],
+			"edges": [
+				{
+					"from": "u",
+					"to": "s",
+					"label": "uses"
+				},
+				{
+					"from": "s",
+					"to": "p",
+					"label": "charges via"
+				},
+				{
+					"from": "s",
+					"to": "e",
+					"label": "sends via"
+				}
+			]
+		}
+	},
+	{
+		"id": "deploy",
+		"name": "Deployment topology",
+		"desc": "LB, services and stores inside a VPC.",
+		"doc": {
+			"version": 1,
+			"diagram": {
+				"name": "Deployment topology",
+				"kind": "Infra",
+				"view": "Full system"
+			},
+			"tags": {
+				"edge": {
+					"label": "Edge",
+					"color": "#d2cefd",
+					"group": "Layer"
+				},
+				"compute": {
+					"label": "Compute",
+					"color": "#968ae0",
+					"group": "Layer"
+				},
+				"data": {
+					"label": "Data",
+					"color": "#796cbf",
+					"group": "Layer"
+				}
+			},
+			"views": [
+				{
+					"name": "Full system",
+					"tags": [
+						"edge",
+						"compute",
+						"data"
+					]
+				},
+				{
+					"name": "Request path",
+					"tags": [
+						"edge",
+						"compute"
+					]
+				}
+			],
+			"nodes": [
+				{
+					"id": "lb",
+					"name": "Load Balancer",
+					"type": "edge",
+					"subtitle": "L7",
+					"notes": "Terminates TLS.",
+					"tags": [
+						"edge"
+					],
+					"layout": {
+						"x": 310,
+						"y": 180
+					}
+				},
+				{
+					"id": "app",
+					"name": "App Service",
+					"type": "service",
+					"subtitle": "deployment × N",
+					"notes": "Stateless workload.",
+					"tags": [
+						"compute"
+					],
+					"layout": {
+						"x": 600,
+						"y": 180
+					}
+				},
+				{
+					"id": "db",
+					"name": "Postgres",
+					"type": "database",
+					"subtitle": "multi-AZ",
+					"notes": "Primary store.",
+					"tags": [
+						"data"
+					],
+					"layout": {
+						"x": 600,
+						"y": 420
+					}
+				},
+				{
+					"id": "ch",
+					"name": "Cache",
+					"type": "database",
+					"subtitle": "Redis",
+					"notes": "Hot cache.",
+					"tags": [
+						"data"
+					],
+					"layout": {
+						"x": 850,
+						"y": 420
+					}
+				}
+			],
+			"edges": [
+				{
+					"from": "lb",
+					"to": "app",
+					"label": "forward"
+				},
+				{
+					"from": "app",
+					"to": "db",
+					"label": "SQL"
+				},
+				{
+					"from": "app",
+					"to": "ch",
+					"label": "cache"
+				}
+			],
+			"boundaries": [
+				{
+					"id": "b1",
+					"label": "VPC",
+					"layout": {
+						"x": 260,
+						"y": 100,
+						"w": 800,
+						"h": 520
+					}
+				}
+			]
+		}
+	},
+	{
+		"id": "free",
+		"name": "Freeform",
+		"desc": "Blank boxes and arrows, no rules.",
+		"doc": {
+			"version": 1,
+			"diagram": {
+				"name": "Freeform",
+				"kind": "Freeform",
+				"view": "Everything"
+			},
+			"tags": {
+				"draft": {
+					"label": "Draft",
+					"color": "#9690c9",
+					"group": "General"
+				}
+			},
+			"views": [
+				{
+					"name": "Everything",
+					"tags": [
+						"draft"
+					]
+				}
+			],
+			"nodes": [
+				{
+					"id": "n1",
+					"name": "Start here",
+					"type": "note",
+					"subtitle": "a first idea",
+					"notes": "Freeform note.",
+					"tags": [
+						"draft"
+					],
+					"layout": {
+						"x": 100,
+						"y": 160,
+						"w": 200
+					}
+				},
+				{
+					"id": "n2",
+					"name": "Then this",
+					"type": "note",
+					"subtitle": "where it leads",
+					"notes": "Freeform note.",
+					"tags": [
+						"draft"
+					],
+					"layout": {
+						"x": 420,
+						"y": 300,
+						"w": 200
+					}
+				}
+			],
+			"edges": [
+				{
+					"from": "n1",
+					"to": "n2",
+					"label": "leads to"
+				}
+			]
+		}
+	}
+]
