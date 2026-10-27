@@ -21,7 +21,8 @@
 		onpresent,
 		locked = false,
 		onlock,
-		onexport
+		onexport,
+		onconfig
 	}: {
 		name: string;
 		mine: boolean;
@@ -41,6 +42,8 @@
 		onlock?: (locked: boolean) => void;
 		/** Downloads the diagram as it shows now, as a PNG or SVG, keeping what the view ghosts or not. */
 		onexport?: (format: 'png' | 'svg', ghosted: boolean) => Promise<void>;
+		/** Opens the diagram as YAML or JSON. */
+		onconfig?: () => void;
 	} = $props();
 
 	let ghosted = $state(true);
@@ -143,6 +146,13 @@
 				Keep what the view switches off, faintly
 			</label>
 			<p class="note">The diagram as it shows now: the view and tags on, and the history replayed, if one is.</p>
+		</section>
+	{/if}
+	{#if onconfig}
+		<section class="export" aria-label="Config">
+			<h3>Config</h3>
+			<button type="button" class="btn btn-secondary present" onclick={onconfig}>{mine ? 'Edit as YAML or JSON' : 'View as YAML or JSON'}</button>
+			<p class="note">The diagram as a .skope.yaml or .skope.json file{mine ? ', to edit, download, or replace from a file' : ', to copy or download'}.</p>
 		</section>
 	{/if}
 

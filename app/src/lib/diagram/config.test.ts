@@ -1,0 +1,70 @@
+import { describe, expect, it } from 'vitest';
+import type { SkopeDoc } from '../types';
+import { ConfigError, configText, langOf, readConfig } from './config';
+
+const current = (): SkopeDoc => ({
+	version: 1,
+	diagram: { name: 'checkout', kind: 'c4' },
+	tags: { core: { label: 'Core', color: '#fff', group: 'Layer' } },
+	views: [{ name: 'Main', tags: ['core'] }],
+	nodes: [
+		{ id: 'api', name: 'API', type: 'service', tags: ['core'], notes: 'mine', layout: { x: 0, y: 0, w: 220 } },
+		{ id: 'db', name: 'Orders DB', type: 'database', layout: { x: 300, y: 0 } }
+	],
+	edges: [{ from: 'api', to: 'db', label: 'SQL' }]
+});
+
+const fails = (text: string, mode: 'replace' | 'merge' = 'replace') => {
+	try {
+		readConfig(text, current(), mode);
+	} catch (e) {
+		return e as ConfigError;
+	}
+	throw new Error('expected it to fail');
+};
+
+describe('config', () => {
+	it('writes the document as YAML or JSON, and reads either back unchanged on replace', () => {
+		for (const lang of ['yaml', 'json'] as const) {
+			const text = configText(current(), lang);
+			expect(langOf(text)).toBe(lang);
+			expect(readConfig(text, current(), 'replace').doc).toEqual({ ...current(), boundaries: [] });
+		}
+		expect(configText(current(), 'yaml').startsWith('# checkout: a Skope diagram config\n')).toBe(true);
+	});
+
+	it('replaces the diagram, keeping its name, slugging types and making up missing tags', () => {
+		const { doc, summary } = readConfig('nodes:\n  - id: q\n    name: Events\n    type: Message Queue\n    tags: [async]\ndiagram:\n  name: ignored', current(), 'replace');
+		expect(doc.diagram?.name).toBe('checkout');
+		expect(doc.nodes).toEqual([{ id: 'q', name: 'Events', type: 'message-queue', tags: ['async'] }]);
+		expect(doc.tags!.async).toMatchObject({ label: 'Async', group: 'Unlabelled' });
+		expect(doc.edges).toEqual([]);
+		expect(summary).toBe('Replaced with 1 node');
+	});
+
+	it('merges in: updates nodes by id, adds new ones and connections, keeps the rest', () => {
+		const text = JSON.stringify({ nodes: [{ id: 'api', name: 'Gateway', type: 'service', layout: { x: 40, y: 0 } }, { id: 'q', name: 'Events', type: 'queue' }], edges: [{ from: 'db', to: 'q' }, { from: 'api', to: 'db' }] });
+		const { doc, summary } = readConfig(text, current(), 'merge');
+		expect(doc.nodes![0]).toEqual({ id: 'api', name: 'Gateway', type: 'service', tags: ['core'], notes: 'mine', layout: { x: 40, y: 0, w: 220 } });
+		expect(doc.nodes!.map(n => n.id)).toEqual(['api', 'db', 'q']);
+		expect(doc.edges).toEqual([{ from: 'api', to: 'db', label: 'SQL' }, { from: 'db', to: 'q' }]);
+		expect(doc.views).toEqual(current().views);
+		expect(summary).toBe('Merged in: 1 new node, 1 updated, 1 new connection');
+	});
+
+	it('refuses configs that do not hold together, saying why', () => {
+		expect(fails('[1, 2]').message).toMatch(/map of sections/);
+		expect(fails('{ "nodes": [] }').message).toMatch(/No nodes/);
+		expect(fails('nodes:\n  - name: A').message).toMatch(/needs an id/);
+		expect(fails('nodes:\n  - id: a\n  - id: a').message).toMatch(/share the id “a”/);
+		expect(fails('nodes:\n  - id: a\nedges:\n  - from: a\n    to: api').message).toMatch(/no node or container with the id “api”/);
+		expect(fails('version: 2\nnodes:\n  - id: a').message).toMatch(/version 2/);
+		expect(fails('{ "nodes": ').message).toMatch(/isn't valid JSON/);
+		expect(fails('nodes:\n  - id: a\n   bad').line).toBe(3);
+	});
+
+	it('lets a merged connection end on a node the diagram already has', () => {
+		const { doc } = readConfig('nodes:\n  - id: q\nedges:\n  - from: api\n    to: q', current(), 'merge');
+		expect(doc.edges!.at(-1)).toEqual({ from: 'api', to: 'q' });
+	});
+});
