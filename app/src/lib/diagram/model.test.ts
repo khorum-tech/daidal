@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE } from '../fixtures/docs';
-import { bounds, isHidden, NODE_H, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName } from './model';
+import { bounds, ICON_CARD, iconScene, isHidden, NODE_H, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName } from './model';
 
 describe('typeName', () => {
 	it("turns a slug back into the prototype's own type name", () => {
@@ -85,5 +85,22 @@ describe('tags and views', () => {
 
 	it('measures the box around every node and boundary', () => {
 		expect(bounds(scene)).toEqual({ x: 60, y: 100, w: 800, h: 408 });
+	});
+});
+
+describe('iconScene', () => {
+	it('shrinks each card to a square on its own centre and leaves free text alone', () => {
+		const scene = toScene({
+			version: 1,
+			nodes: [
+				{ id: 'a', name: 'A', type: 'service', layout: { x: 100, y: 200, w: 190, h: 88 } },
+				{ id: 't', name: 'Note', type: 'text', layout: { x: 10, y: 10 } }
+			]
+		});
+		const out = iconScene(scene);
+		const a = out.nodes.find(n => n.id === 'a')!;
+		expect(a).toMatchObject({ w: ICON_CARD, h: ICON_CARD, x: 100 + (190 - ICON_CARD) / 2, y: 200 + (88 - ICON_CARD) / 2 });
+		expect(out.nodes.find(n => n.id === 't')).toEqual(scene.nodes.find(n => n.id === 't'));
+		expect(scene.nodes.find(n => n.id === 'a')!.w).toBe(190);
 	});
 });

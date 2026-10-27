@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { SceneTag } from '../diagram/model';
+	import { distinguishable, type Condition } from '../diagram/colour';
 	import { MORE_TAG_COLORS, NEW_TAG_GROUP, TAG_COLORS } from '../diagram/edit';
 
 	/**
@@ -12,7 +13,8 @@
 		onchange,
 		onfieldend,
 		ondelete,
-		onadd
+		onadd,
+		condition = 'none'
 	}: {
 		tags: SceneTag[];
 		counts: Record<string, number>;
@@ -20,7 +22,10 @@
 		onfieldend: () => void;
 		ondelete: (key: string) => void;
 		onadd: (label: string, group: string) => void;
+		/** A colour-vision condition (an appearance setting): colours that collide under it are left out. */
+		condition?: Condition;
 	} = $props();
+	const colours = $derived([...distinguishable(TAG_COLORS, condition), ...distinguishable(MORE_TAG_COLORS, condition)]);
 
 	const groups = $derived([...new Set(tags.map(t => t.group))]);
 	let picking = $state<string | null>(null);
@@ -66,7 +71,7 @@
 					</div>
 					{#if picking === t.key}
 						<div class="swatches" role="group" aria-label="Colours for {t.label}">
-							{#each [...TAG_COLORS, ...MORE_TAG_COLORS] as c (c)}
+							{#each colours.includes(t.color) ? colours : [t.color, ...colours] as c (c)}
 								<button
 									type="button"
 									class="pick"
@@ -94,6 +99,9 @@
 		<input class="input group" list="tag-groups" aria-label="New tag group" placeholder={groups[0] ?? NEW_TAG_GROUP} bind:value={newGroup} />
 		<button type="submit" class="btn btn-secondary" disabled={!newName.trim()}>Add tag</button>
 	</form>
+	{#if condition !== 'none'}
+		<p class="note">Colours that are hard to tell apart under your colour-vision setting are left out of the pickers (Appearance, in your menu).</p>
+	{/if}
 	<p class="note">Type in a row to rename a tag. A group can be one in use or a new name. Deleting a tag takes it off its nodes and out of every view.</p>
 </div>
 

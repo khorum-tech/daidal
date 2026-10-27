@@ -23,3 +23,57 @@ body {
 	height: 100vh;
 	height: 100dvh;
 }
+
+/* The light theme: the prototype's light tokens (web/index.html `LIGHT`) over Nocturne's dark ones. */
+:root[data-theme='light'] {
+	--color-bg: #f2f3f9;
+	--color-surface: #fbfbfe;
+	--color-text: #232532;
+	--color-divider: color-mix(in srgb, #232532 17%, transparent);
+	--color-accent: #6a5cb3;
+	--color-neutral-100: #1c1e28;
+	--color-neutral-200: #2b2e3a;
+	--color-neutral-300: #3d4150;
+	--color-neutral-400: #535869;
+	--color-neutral-500: #6b7082;
+	--color-neutral-600: #7e8395;
+	--color-neutral-700: #b9bdca;
+	--color-neutral-800: #d9dce6;
+	--color-neutral-900: #ecedf6;
+	--color-accent-100: #2b2741;
+	--color-accent-200: #423a6a;
+	--color-accent-300: #5d5294;
+	--color-accent-400: #796cbf;
+	--color-accent-500: #968ae0;
+	--color-accent-600: #b5abfc;
+	--color-accent-700: #cfc9fb;
+	--color-accent-800: #e7e5fe;
+	--color-accent-900: #f5f4ff;
+	--shadow-sm: 0 0 0 1px #d9dce6;
+	--shadow-md: 0 0 0 1px #e2e4ee, 0 6px 18px rgba(35, 37, 50, 0.1);
+	--shadow-lg: 0 0 0 1px #d9dce6, 0 16px 40px rgba(35, 37, 50, 0.18);
+	color-scheme: light;
+}
+:root[data-theme='dark'] {
+	color-scheme: dark;
+}
+
+/* Colour-vision simulation: the app, and the sheets in the browser's top layer (outside the app's box), drawn
+   through the condition's filter (the layout's <svg>). */
+:root[data-cvd='deuter'] :is(.app, dialog) {
+	filter: url(#cvd-deuter);
+}
+:root[data-cvd='protan'] :is(.app, dialog) {
+	filter: url(#cvd-protan);
+}
+:root[data-cvd='tritan'] :is(.app, dialog) {
+	filter: url(#cvd-tritan);
+}
+:root[data-cvd='mono'] :is(.app, dialog) {
+	filter: url(#cvd-mono);
+}
+.cvd-filters {
+	position: absolute;
+	width: 0;
+	height: 0;
+}

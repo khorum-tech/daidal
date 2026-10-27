@@ -233,3 +233,18 @@ export function bounds(scene: Scene): { x: number; y: number; w: number; h: numb
 	const y1 = Math.max(...boxes.map(b => b.y + b.h));
 	return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
+
+/** The square an icon-only card takes, as in the prototype's icon mode. */
+export const ICON_CARD = 104;
+
+/**
+ * The scene with each card shrunk to an icon-sized square on its own centre, so connections land near the icon.
+ * Free text stays as it is. Only what is drawn changes; the document keeps its sizes.
+ */
+export function iconScene(scene: Scene): Scene {
+	const S = ICON_CARD;
+	return {
+		...scene,
+		nodes: scene.nodes.map(n => (n.isText ? n : { ...n, x: Math.round(n.x + (n.w - S) / 2), y: Math.round(n.y + (n.h - S) / 2), w: S, h: S }))
+	};
+}

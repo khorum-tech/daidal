@@ -63,7 +63,8 @@
 	import { getClip, putClip } from '#lib/clipboard.ts';
 	import MultiInspector from '#lib/components/MultiInspector.svelte';
 	import { History } from '#lib/history.svelte.ts';
-	import { tagsOn, toScene } from '#lib/diagram/model.ts';
+	import { iconScene, tagsOn, toScene } from '#lib/diagram/model.ts';
+	import { appearance } from '#lib/appearance.svelte.ts';
 	import { followState } from '#lib/follow.ts';
 	import { applyChange, pending, withNeeded, type Change } from '#lib/diagram/review.ts';
 	import FollowPanel from '#lib/components/FollowPanel.svelte';
@@ -368,6 +369,8 @@
 		return () => document.removeEventListener('fullscreenchange', left);
 	});
 	// The node whose detail shows: the one under the mouse, or on a phone the one tapped.
+	// Icon-only cards, a viewer setting, apply while presenting.
+	const iconCards = $derived(presenting && appearance.iconCards);
 	const tipNode = $derived(presenting ? scene.nodes.find(n => n.id === (narrow ? selected : hover?.id)) : undefined);
 	const tipEdges = $derived(
 		tipNode
@@ -895,13 +898,23 @@
 
 {#if presenting}
 	<div class="present-bar" role="region" aria-label="Presenting">
-		<span class="p-title"><span class="p-name">{working.name}</span><span class="p-sub">Presenting · read-only</span></span>
+		<span class="p-title"><span class="p-name">{working.name}</span><span class="p-sub">Presenting · {appearance.iconCards ? 'icon cards' : 'read-only'}</span></span>
 		{#if scene.views.length}
 			<select class="p-view" aria-label="View" value={view ?? ''} onchange={e => setView(e.currentTarget.value || null)}>
 				<option value="">Everything</option>
 				{#each scene.views as v (v.label)}<option value={v.label}>{v.label}</option>{/each}
 			</select>
 		{/if}
+		<button
+			type="button"
+			class="p-icons"
+			aria-pressed={appearance.iconCards}
+			aria-label="Icon-only cards"
+			title={appearance.iconCards ? 'Show full node cards' : 'Icon-only cards: icons and names'}
+			onclick={() => appearance.set({ iconCards: !appearance.iconCards })}
+		>
+			<Icon name="grid" size={14} />
+		</button>
 		<button type="button" class="btn btn-ghost p-exit" onclick={exitPresent}>Exit{narrow ? '' : ' · Esc'}</button>
 	</div>
 {:else}
@@ -1082,7 +1095,9 @@
 	<main class="stage" aria-label="Diagram" bind:this={stageEl}>
 		<DiagramCanvas
 			bind:this={canvasRef}
-			{scene}
+			scene={iconCards ? iconScene(scene) : scene}
+			{iconCards}
+			frame={iconCards ? scene : undefined}
 			{on}
 			{selected}
 			onselect={select}
@@ -1320,7 +1335,7 @@
 </Sheet>
 <!-- The tag manager opens from the tags panel on any screen: a dialog on a wide one, a sheet on a phone. -->
 <Sheet open={sheet === 'tags' && editable} title="Manage tags" onclose={() => (sheet = null)}>
-	<TagManager tags={scene.tags} counts={tagCounts} onchange={changeTag} onfieldend={() => working.history.endGroup()} ondelete={deleteTag} onadd={newTag} />
+	<TagManager tags={scene.tags} counts={tagCounts} onchange={changeTag} onfieldend={() => working.history.endGroup()} ondelete={deleteTag} onadd={newTag} condition={appearance.condition} />
 </Sheet>
 
 <style>
@@ -1369,6 +1384,24 @@
 	.p-exit {
 		flex: none;
 		font-size: 12px;
+	}
+	.p-icons {
+		flex: none;
+		width: 32px;
+		height: 32px;
+		display: grid;
+		place-items: center;
+		padding: 0;
+		border-radius: 7px;
+		border: 1px solid var(--color-divider);
+		background: transparent;
+		color: var(--color-neutral-400);
+		cursor: pointer;
+	}
+	.p-icons[aria-pressed='true'] {
+		border-color: var(--color-accent-700);
+		background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+		color: var(--color-accent);
 	}
 	.present-link {
 		flex: none;

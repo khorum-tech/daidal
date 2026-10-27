@@ -34,6 +34,8 @@ Each slice keeps the habits of the ones before it:
 | Workspaces | New workspace, import a backup, rename, members, export, delete |
 | Toolbar and canvas tools (part of A) | Toolbar with Select, Connect and one-click adds; tap empty canvas to connect to a new node; double-click to add or rename; node resize; snapping toggle |
 | Multi-select and the clipboard (B) | Shift-click, box select, ⌘A; bulk type, tags, connection styles, move, delete; ⌘C, ⌘X, ⌘V across diagrams, ⌘D; phone Select mode |
+| Viewing and sharing (C) | Presentation mode with icon-only cards; lock editing on a device, or a view in the document; share links (`?view=`); PNG and SVG export; the config editor (YAML or JSON, replace or merge) |
+| Profile and appearance (C and part of D) | Name and title; dark, light or system theme; colour-vision condition (thins the tag colour pickers) and its simulation |
 | Follow review (part of D) | Accept or skip each change of a lead's newer snapshots, or a whole snapshot; take a verdict back; mark everything reviewed; pause; unlink (server: `leadId: null` on save) |
 | Presenting, locks and links (part of C) | Presentation mode with a hover (or tap) card and a view switcher; lock editing on a device; lock a view in the document; copy a link, optionally to a view (`?view=`) |
 | Image export (part of C) | PNG and SVG of the diagram as it shows now, drawn client side from the document; ghosted nodes kept or left out |
@@ -78,8 +80,7 @@ works well, on a phone especially) and bring back the rest around it.
 | **Lock**: a diagram or a view that can't be edited by mistake | `toggleLock`, `veToggleLock` | A lock in the document, so it applies to everyone |
 | **Config editor**: the document as JSON or YAML, edit and apply; upload, drop or download a `.skope.json` / `.skope.yaml` | `toggleCfg`, `cfgApply`, `cfgUpload`, `cfgDrop`, `copyCfg` | Validate before applying; one undo step. Lines up with the format work in `2026-10-24-skope-ecosystem-roadmap.md` |
 | **Image export** (PNG and SVG) | `doExport` | Client side first; the ecosystem roadmap's render endpoints can take over later |
-| **Colour-blindness simulation** and palettes | `toggleSim`, `cvdFilter` | An SVG filter over the canvas; a viewer setting, not saved in the document |
-| **Icon-only cards** | `toggleIconMode` | A viewer setting |
+| **Palettes**: switch the tag palette and recolour existing tags | the palette picker | Done: the condition and its simulation. Switching palettes recolours tags, so it would be a document edit |
 | **Share link**: copy a link to the diagram (or a view of it) | `openShare`, `copyLink`, `setAccess` | Copying a link for people already in the workspace needs nothing new. Public or embedded access needs server work (see the ecosystem roadmap's embedding step) |
 
 ### D. Diagrams and workspaces
@@ -89,8 +90,6 @@ works well, on a phone especially) and bring back the rest around it.
 | **Follow review**: go through a lead's changes, accept or skip each, mark as synced, pause, unlink | `goTabUpdates`, `markSeen`, `togglePause`, `unlink` | The server already takes `decided`, `syncedSnapshotId` and `paused` on save. This retires the "Preview" badge's last caveat |
 | **Templates** for a new diagram | `openTemplates`, `toggleTplSeed` | Ship a few as documents in the app; seed the new diagram from one |
 | **Search** diagrams on the home screen | `setSearch` | By name first, then node names |
-| **Profile**: name and title | `openProfile`, `saveProfile` | The server has `PUT /api/me` |
-| **Appearance**: theme | `openAppearance` | A viewer setting |
 | **Undo history list** with roll back to a step | `openHistory` | The History already keeps labels |
 
 ### E. Smaller gaps and server work
