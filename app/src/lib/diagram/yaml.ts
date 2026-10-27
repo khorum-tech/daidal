@@ -150,7 +150,7 @@ export function parseYaml(text: string): Value {
 		if (/^[>|]-?$/.test(r)) {
 			const parts: string[] = [];
 			while (p < L.length && L[p].ind > ind) parts.push(L[p++].t);
-			obj[key] = parts.join(r[0] === '>' ? ' ' : '\n');
+			obj[key] = parts.join(r.startsWith('>') ? ' ' : '\n');
 			return;
 		}
 		obj[key] = scalar(r, n);
