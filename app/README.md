@@ -47,6 +47,11 @@ document as YAML or JSON, written and read as the prototype does (`src/lib/diagr
 drops or opens a `.skope.yaml` / `.skope.json` file, and applies it, replacing the diagram or merging it in (nodes by
 id), as one undo step. A config that can't be read says why, with the line, and changes nothing. Anyone can copy or
 download it.
+**Profile** and **Appearance** (in the menu under your name) save your name and title to your account, and set how this
+browser shows Skope (`src/lib/appearance.svelte.ts`, kept in the browser like the prototype's): a dark, light or
+system theme; a colour-vision condition, which strikes the colours that collide under it from the tag colour pickers
+and can be simulated over the whole app (an SVG colour matrix, `src/lib/diagram/colour.ts`); and **icon-only cards**
+when presenting (also a switch in the presenting bar), each node drawn as its icon and name.
 
 What's left to port, and the order it's planned in: [`docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md`](../docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md).
 

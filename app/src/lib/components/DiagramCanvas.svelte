@@ -70,7 +70,9 @@
 		onmovemany,
 		onhover,
 		ghostOpacity = 0.22,
-		edgeStyle = 'curved'
+		edgeStyle = 'curved',
+		iconCards = false,
+		frame
 	}: {
 		scene: Scene;
 		on: Record<string, boolean>;
@@ -120,6 +122,10 @@
 		onhover?: (id: string | null, at: DOMRect | null) => void;
 		ghostOpacity?: number;
 		edgeStyle?: 'curved' | 'straight' | 'angled';
+		/** Draw cards as their icon and name (the scene should be sized for it: see `iconScene`). */
+		iconCards?: boolean;
+		/** What the view fits to, if not [scene]: icon cards keep the frame of the full ones, so nothing moves. */
+		frame?: Scene;
 	} = $props();
 
 	// Label placement around a container (web/index.html LP).
@@ -185,7 +191,7 @@
 
 	// The diagram itself with a margin: what "fit" fills the view with.
 	const area = $derived.by(() => {
-		const b = bounds(scene);
+		const b = bounds(frame ?? scene);
 		return { x0: b.x - PAD, y0: b.y - PAD, w: b.w + 2 * PAD, h: b.h + 2 * PAD };
 	});
 	// The connections layer covers the whole diagram (and a wide margin for a connection being dragged out), so a
@@ -681,6 +687,7 @@
 				selected={selected === n.id || pickedNodes.has(n.id)}
 				dragging={dragged?.id === n.id || !!draggedMany?.ids.includes(n.id)}
 				connecting={!!connectFrom || picking}
+				iconOnly={iconCards}
 				onselect={(_, e) => tapNode(n, e)}
 				ondetails={id => ondetails?.(id)}
 			/>

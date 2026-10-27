@@ -38,6 +38,8 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 	const q = encodeURIComponent;
 	return {
 		me: () => get<Me>('/api/me'),
+		/** Saves the signed-in person's name and title. */
+		updateMe: (profile: { name: string; title: string }) => send<Me>('/api/me', 'PUT', profile),
 		workspaces: () => get<Workspace[]>('/api/workspaces'),
 		diagrams: (workspace: string) => get<DiagramSummary[]>(`/api/diagrams?workspace=${q(workspace)}`),
 		diagram: (id: string) => get<Diagram>(`/api/diagrams/${q(id)}`),

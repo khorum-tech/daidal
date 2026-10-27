@@ -12,6 +12,7 @@
 		selected = false,
 		dragging = false,
 		connecting = false,
+		iconOnly = false,
 		onselect,
 		ondetails
 	}: {
@@ -23,6 +24,8 @@
 		dragging?: boolean;
 		/** A connection is waiting for its other end: tapping this node makes it. */
 		connecting?: boolean;
+		/** Presenting with icon-only cards: the type's icon and the name under it. Free text stays text. */
+		iconOnly?: boolean;
 		onselect?: (id: string, e: MouseEvent) => void;
 		ondetails?: (id: string) => void;
 	} = $props();
@@ -48,6 +51,7 @@
 	class:selected
 	class:dragging
 	class:connecting
+	class:icon-only={iconOnly && !node.isText}
 	data-node={node.id}
 	style:left="{node.x}px"
 	style:top="{node.y}px"
@@ -65,6 +69,9 @@
 >
 	{#if node.isText}
 		<span class="text-name">{node.name}</span>
+	{:else if iconOnly}
+		<span class="big-icon"><Icon name={typeIcon(node.type)} size={46} /></span>
+		<span class="icon-name">{node.name}</span>
 	{:else}
 		<span class="head">
 			<span class="type-icon"><Icon name={typeIcon(node.type)} size={15} /></span>
@@ -189,6 +196,43 @@
 		font-size: 11.5px;
 		color: var(--color-neutral-500);
 		margin-top: 3px;
+	}
+	.node.icon-only {
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		background: transparent;
+		border-color: transparent;
+		box-shadow: none;
+	}
+	.node.icon-only.selected:not(.ghost) {
+		border-color: transparent;
+		box-shadow: none;
+	}
+	.node.icon-only.ghost {
+		border-color: transparent;
+	}
+	.big-icon {
+		display: flex;
+		color: var(--color-accent);
+	}
+	.node.icon-only.selected .big-icon {
+		color: var(--color-accent-200);
+	}
+	.icon-name {
+		position: absolute;
+		left: -40px;
+		right: -40px;
+		top: calc(50% + 27px);
+		text-align: center;
+		font-family: var(--font-heading);
+		font-weight: 500;
+		font-size: 13px;
+		line-height: 1.25;
+		color: var(--color-neutral-300);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 	.node.connecting {
 		cursor: crosshair;

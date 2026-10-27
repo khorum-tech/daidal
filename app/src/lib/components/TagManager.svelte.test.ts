@@ -42,4 +42,17 @@ describe('the tag manager', () => {
 		render(TagManager, { tags: [], counts: {}, onchange: () => {}, onfieldend: () => {}, ondelete: () => {}, onadd: () => {} });
 		await expect.element(page.getByText('No tags yet.')).toBeVisible();
 	});
+
+	it('leaves out colours that collide under a colour-vision condition, but keeps the tag’s own', async () => {
+		const tags = [{ ...scene.tags[0], color: '#a9cc6a' }];
+		const props = { tags, counts: {}, onchange: () => {}, onfieldend: () => {}, ondelete: () => {}, onadd: () => {} };
+		const screen = render(TagManager, props);
+		await page.getByLabelText(`Colour of ${tags[0].label}`).click();
+		const all = page.getByRole('group').getByRole('button');
+		await expect.poll(() => all.elements().length).toBe(22);
+		await screen.rerender({ ...props, condition: 'mono' });
+		await expect.poll(() => all.elements().length).toBeLessThan(22);
+		await expect.element(page.getByRole('button', { name: 'Colour #a9cc6a' })).toBeVisible();
+		await expect.element(page.getByText(/hard to tell apart/)).toBeVisible();
+	});
 });

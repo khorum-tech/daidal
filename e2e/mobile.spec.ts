@@ -443,4 +443,25 @@ test.describe("the app on a phone", () => {
     await page.keyboard.press("Escape");
     await expect(page.locator('[data-node="collector"]')).toContainText("OTel Collector");
   });
+  test("changes the theme from the menu, and presents with icon-only cards", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await page.locator("header .who").tap();
+    await page.getByRole("menuitem", { name: "Appearance" }).tap();
+    const sheet = page.getByRole("dialog", { name: "Profile and appearance" });
+    await sheet.getByRole("radio", { name: "Light" }).tap();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await sheet.getByRole("checkbox", { name: /Icon-only cards:/ }).check();
+    await sheet.getByRole("button", { name: "Close Profile and appearance" }).tap();
+
+    await page.getByRole("button", { name: "ledger-platform" }).tap();
+    await page.getByRole("dialog", { name: "Diagram" }).getByRole("button", { name: "Present" }).tap();
+    const bar = page.getByRole("region", { name: "Presenting" });
+    await expect(bar.getByRole("button", { name: "Icon-only cards" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator('[data-node="journal"]')).toHaveClass(/icon-only/);
+    await page.locator('[data-node="journal"]').tap();
+    await expect(page.getByRole("tooltip", { name: "About Journal DB" })).toBeVisible();
+    await bar.getByRole("button", { name: "Icon-only cards" }).tap();
+    await expect(page.locator('[data-node="journal"]')).not.toHaveClass(/icon-only/);
+  });
 });

@@ -1,8 +1,16 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
+	import { createApi } from '../api';
+	import { appearance } from '../appearance.svelte';
 	import type { Me } from '../types';
 	import Icon from './Icon.svelte';
+	import ProfileSheet from './ProfileSheet.svelte';
+	import Sheet from './Sheet.svelte';
 
-	/** The app's top bar: the mark, where you are, and who is signed in. Sign-out goes through Cloudflare Access. */
+	/**
+	 * The app's top bar: the mark, where you are, and who is signed in, with their profile and appearance settings.
+	 * Sign-out goes through Cloudflare Access.
+	 */
 	let {
 		me,
 		homeHref,
@@ -14,6 +22,19 @@
 		crumbs?: { label: string; href?: string; onclick?: () => void; title?: string }[];
 	} = $props();
 	let open = $state(false);
+	let settingsOpen = $state(false);
+	let tab = $state<'profile' | 'appearance'>('profile');
+	const api = createApi(fetch);
+
+	function openSettings(which: 'profile' | 'appearance') {
+		open = false;
+		tab = which;
+		settingsOpen = true;
+	}
+	async function saveProfile(profile: { name: string; title: string }) {
+		await api.updateMe(profile);
+		await invalidateAll();
+	}
 </script>
 
 <header class="bar">
@@ -34,7 +55,7 @@
 			{/each}
 		</nav>
 	{/if}
-	<span class="readonly tag tag-outline" title="Workspaces and diagrams are managed, edited and reviewed here; a few prototype tools (presentation, config editor, image export) are still to come">Preview</span>
+	<span class="readonly tag tag-outline" title="Workspaces and diagrams are managed, edited, reviewed and presented here; a few prototype tools (templates, search, the minimap) are still to come">Preview</span>
 	<div class="user">
 		<button type="button" class="who" aria-expanded={open} aria-haspopup="menu" onclick={() => (open = !open)}>
 			<span class="avatar" aria-hidden="true">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>
@@ -44,12 +65,27 @@
 			<div class="menu" role="menu">
 				<p class="email">{me.email}</p>
 				{#if me.title}<p class="title">{me.title}</p>{/if}
+				<button type="button" role="menuitem" onclick={() => openSettings('profile')}>Profile</button>
+				<button type="button" role="menuitem" onclick={() => openSettings('appearance')}>Appearance</button>
 				<a role="menuitem" href="/">Open the prototype</a>
 				<a role="menuitem" href="/cdn-cgi/access/logout">Sign out</a>
 			</div>
 		{/if}
 	</div>
 </header>
+
+<Sheet open={settingsOpen} title="Profile and appearance" onclose={() => (settingsOpen = false)}>
+	{#if settingsOpen}
+		<ProfileSheet
+			{me}
+			settings={{ theme: appearance.theme, condition: appearance.condition, simulate: appearance.simulate, iconCards: appearance.iconCards }}
+			light={appearance.light}
+			onchange={change => appearance.set(change)}
+			onsave={saveProfile}
+			bind:tab
+		/>
+	{/if}
+</Sheet>
 
 <style>
 	.bar {
@@ -174,13 +210,20 @@
 		padding-top: 0;
 		color: var(--color-neutral-600);
 	}
-	.menu a {
+	.menu a,
+	.menu button {
 		padding: 7px 10px;
+		border: none;
+		background: transparent;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
 		border-radius: 7px;
 		font-size: 13px;
 		color: var(--color-text);
 		text-decoration: none;
 	}
+	.menu button:hover,
 	.menu a:hover {
 		background: color-mix(in srgb, var(--color-text) 8%, transparent);
 	}

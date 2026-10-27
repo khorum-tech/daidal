@@ -1034,4 +1034,83 @@ test.describe("the app at /app", () => {
     const body = JSON.parse(await import("node:fs/promises").then(fs => file.path().then(p => fs.readFile(p, "utf8"))));
     expect(body.nodes.map((n: { id: string }) => n.id)).toContain("audit");
   });
+  test("saves a name and title from the profile in the menu", async ({ page, request }) => {
+    const before = (await (await request.get("/api/me")).json()) as { name: string; title: string };
+    // A diagram page rather than home: the personal workspace collects a copy of the stage data per test.
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await page.locator("header .who").click();
+    await page.getByRole("menuitem", { name: "Profile" }).click();
+    const sheet = page.getByRole("dialog", { name: "Profile and appearance" });
+    await expect(sheet.getByLabel("Email")).toHaveValue("e2e-owner@example.com");
+    await sheet.getByLabel("Name").fill("Ada Tester");
+    await sheet.getByLabel("Title").fill("Platform engineer");
+    await sheet.getByRole("button", { name: "Save profile" }).click();
+    await expect(sheet.getByRole("status")).toHaveText("Saved");
+    await expect(page.getByRole("button", { name: "Ada Tester" })).toBeVisible();
+    expect(await (await request.get("/api/me")).json()).toMatchObject({ name: "Ada Tester", title: "Platform engineer" });
+    await request.put("/api/me", { data: { name: before.name || "e2e-owner", title: before.title } });
+  });
+
+  test("switches to the light theme and simulates a colour-vision condition, which also thins the tag colours", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await page.getByRole("button", { name: "Manage tags" }).click();
+    const manager = page.getByRole("dialog", { name: "Manage tags" });
+    await manager.getByRole("button", { name: /^Colour of/ }).first().click();
+    const all = await manager.getByRole("group", { name: /^Colours for/ }).getByRole("button").count();
+    await manager.getByRole("button", { name: "Close Manage tags" }).click();
+
+    await page.locator("header .who").click();
+    await page.getByRole("menuitem", { name: "Appearance" }).click();
+    const sheet = page.getByRole("dialog", { name: "Profile and appearance" });
+    await sheet.getByRole("radio", { name: "Light" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(242, 243, 249)");
+
+    const simulate = sheet.getByRole("checkbox", { name: /Simulate it/ });
+    await expect(simulate).toBeDisabled();
+    await sheet.getByRole("radio", { name: "Deuteranopia" }).click();
+    await expect(sheet).toContainText("struck from the tag colour pickers");
+    await simulate.check();
+    await expect(page.locator("html")).toHaveAttribute("data-cvd", "deuter");
+    await expect(page.locator(".app")).toHaveCSS("filter", /url\("?#cvd-deuter"?\)/);
+    await sheet.getByRole("button", { name: "Close Profile and appearance" }).click();
+
+    // Kept by this browser.
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator("html")).toHaveAttribute("data-cvd", "deuter");
+
+    await page.getByRole("button", { name: "Manage tags" }).click();
+    await manager.getByRole("button", { name: /^Colour of/ }).first().click();
+    const kept = await manager.getByRole("group", { name: /^Colours for/ }).getByRole("button").count();
+    expect(kept).toBeLessThan(all);
+    await expect(manager).toContainText("hard to tell apart");
+  });
+
+  test("presents with icon-only cards, switched from the presenting bar", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    const journal = page.locator('[data-node="journal"]');
+    await page.getByRole("button", { name: "Present", exact: true }).click();
+    const bar = page.getByRole("region", { name: "Presenting" });
+    const icons = bar.getByRole("button", { name: "Icon-only cards" });
+    await expect(icons).toHaveAttribute("aria-pressed", "false");
+    const full = (await journal.boundingBox())!;
+    await icons.click();
+    await expect(bar).toContainText("Presenting · icon cards");
+    await expect(journal).toHaveClass(/icon-only/);
+    const small = (await journal.boundingBox())!;
+    expect(small.width).toBeLessThan(full.width);
+    expect(Math.abs(small.x + small.width / 2 - (full.x + full.width / 2))).toBeLessThan(2);
+    await journal.hover();
+    await expect(page.getByRole("tooltip", { name: "About Journal DB" })).toBeVisible();
+
+    // Editing keeps full cards; presenting again remembers the choice.
+    await page.keyboard.press("Escape");
+    await expect(journal).not.toHaveClass(/icon-only/);
+    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await expect(journal).toHaveClass(/icon-only/);
+  });
 });
