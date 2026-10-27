@@ -3,15 +3,17 @@ import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import DiagramCard from './DiagramCard.svelte';
 import { SAMPLE } from '../fixtures/docs';
-import type { Diagram } from '../types';
+import { cardSummary } from '../diagram/summary';
+import type { ListedDiagram } from '../types';
 
 const NOW = Date.parse('2026-10-24T12:00:00Z');
-const diagram = (over: Partial<Diagram> = {}): Diagram => ({
+const diagram = (over: Partial<ListedDiagram> = {}): ListedDiagram => ({
 	id: 'd1',
 	workspaceId: 'w',
 	ownerEmail: 'rowan@example.com',
 	name: 'checkout',
-	doc: SAMPLE,
+	summary: cardSummary(SAMPLE),
+	leadName: null,
 	rev: 3,
 	leadId: null,
 	syncedSnapshotId: null,
@@ -31,9 +33,17 @@ describe('a diagram in the list', () => {
 	});
 
 	it('says what it follows, or that the lead is out of reach', async () => {
-		const { rerender } = render(DiagramCard, { diagram: diagram({ leadId: 'l', paused: true }), href: '#', leadName: 'checkout-lead', now: NOW });
+		const { rerender } = render(DiagramCard, { diagram: diagram({ leadId: 'l', leadName: 'checkout-lead', paused: true }), href: '#', now: NOW });
 		await expect.element(page.getByText('Follows checkout-lead · paused')).toBeVisible();
-		await rerender({ leadName: null });
+		await rerender({ diagram: diagram({ leadId: 'l', leadName: null }) });
 		await expect.element(page.getByText(/Follows a diagram you can no longer see/)).toBeVisible();
+	});
+
+	it('draws its thumbnail from the summary, and names the nodes a search found', async () => {
+		const { rerender } = render(DiagramCard, { diagram: diagram(), href: '#', search: 'gate', now: NOW });
+		expect(document.querySelectorAll('svg rect.n')).toHaveLength(5);
+		await expect.element(page.getByText(/^Has /)).toHaveTextContent('Has Gateway');
+		await rerender({ search: 'check' });
+		await expect.element(page.getByText(/^Has /)).not.toBeInTheDocument();
 	});
 });

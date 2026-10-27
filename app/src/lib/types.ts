@@ -29,6 +29,27 @@ export interface DiagramSummary {
 	updatedAt: number;
 }
 
+/**
+ * What a card shows of a diagram without its document (the server works it out on every save; see
+ * worker/src/summary.ts): its kind, counts, the first five tag colours, node names, and its thumbnail's boxes as
+ * [x, y, w, h], nodes then containers.
+ */
+export interface CardSummary {
+	kind: string;
+	nodes: number;
+	edges: number;
+	tags: string[];
+	names: string[];
+	boxes: number[][];
+	frames: number[][];
+}
+
+/** A diagram as the list returns it: with its card summary and, for a follower, its lead's name if it can be seen. */
+export interface ListedDiagram extends DiagramSummary {
+	summary: CardSummary;
+	leadName: string | null;
+}
+
 export interface Diagram extends DiagramSummary {
 	doc: SkopeDoc;
 }

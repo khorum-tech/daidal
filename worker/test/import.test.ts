@@ -46,6 +46,8 @@ describe("POST /api/workspaces/import", () => {
 
     const [lead] = (await call.get("i-all@example.com", `/api/diagrams?workspace=${platform.id}`)).body;
     expect(lead).toMatchObject({ name: "ledger", ownerEmail: "i-all@example.com", updatedAt: Date.parse("2026-10-01T10:00:00.000Z") });
+    const stored = await env.DB.prepare("SELECT summary FROM diagrams WHERE id = ?").bind(lead.id).first<{ summary: string | null }>();
+    expect(JSON.parse(stored!.summary!)).toMatchObject({ nodes: 1, names: ["Gateway"] });
     const history = (await call.get("i-all@example.com", `/api/diagrams/${lead.id}/snapshots`)).body;
     expect(history.map((s: { label: string }) => s.label)).toEqual(["first cut", "second cut"]);
     expect(history[0]).toMatchObject({ authorEmail: "i-all@example.com", doc: doc("ledger-1") });

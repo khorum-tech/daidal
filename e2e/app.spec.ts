@@ -95,6 +95,54 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("navigation", { name: "Workspaces" }).getByRole("link", { name: /Platform team/ }).first()).toBeVisible();
   });
 
+  test("draws the cards from one list request, without loading any diagram", async ({ page, request }) => {
+    const { team } = await importStageData(request);
+    const calls: string[] = [];
+    page.on("request", r => {
+      if (new URL(r.url()).pathname.startsWith("/api/diagrams")) calls.push(new URL(r.url()).pathname);
+    });
+    await page.goto(`/app/?ws=${encodeURIComponent(team)}`);
+    await expect(page.getByRole("link", { name: /ledger-platform \(DR drill\)/ })).toContainText("9 nodes");
+    await expect(page.getByRole("link", { name: /^ledger-platform/ }).first().locator("rect")).not.toHaveCount(0);
+    expect(calls).toEqual(["/api/diagrams"]);
+  });
+
+  test("searches a workspace's diagrams by name and by their nodes' names, and keeps the search in the address", async ({ page, request }) => {
+    const { team } = await importStageData(request);
+    await page.goto(`/app/?ws=${encodeURIComponent(team)}`);
+    const search = page.getByRole("searchbox", { name: "Search diagrams" });
+    await search.fill("drill");
+    await expect(page.getByTestId("diagram-count")).toHaveText("1 diagram with “drill”");
+    await expect(page).toHaveURL(/[?&]q=drill/);
+    await expect(search).toBeFocused();
+
+    await search.fill("journal");
+    await expect(page.getByRole("link", { name: /^ledger-platform/ })).toHaveCount(2);
+    await expect(page.getByRole("link", { name: /ledger-platform \(DR drill\)/ })).toContainText("Has Journal DB");
+
+    await search.fill("no such thing");
+    await expect(page.getByRole("heading", { name: "Nothing matches “no such thing”" })).toBeVisible();
+    await page.reload();
+    await expect(search).toHaveValue("no such thing");
+    await search.press("Escape");
+    await expect(page.getByTestId("diagram-count")).toHaveText("3 diagrams");
+  });
+
+  test("shows the first sixty cards, and more on asking", async ({ page, request }) => {
+    const diagrams = Array.from({ length: 65 }, (_, i) => ({ id: `d${i}`, doc: { version: 1, diagram: { name: `Diagram ${i}` } }, updated: new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString() }));
+    const res = await request.post("/api/workspaces/import", { data: { format: "skope-backup", version: 1, workspaces: [{ name: "Many", diagrams }] } });
+    const many = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    await page.goto(`/app/?ws=${encodeURIComponent(many)}`);
+    await expect(page.getByTestId("diagram-count")).toHaveText("60+ diagrams");
+    await expect(page.getByRole("main").getByRole("link")).toHaveCount(60);
+    await expect(page.getByRole("link", { name: /Diagram 64/ })).toBeVisible();
+    await page.getByRole("button", { name: "Show more" }).click();
+    await expect(page.getByRole("main").getByRole("link")).toHaveCount(65);
+    await expect(page.getByRole("link", { name: /^Diagram 0/ })).toBeVisible();
+    await expect(page.getByTestId("diagram-count")).toHaveText("65 diagrams");
+    await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
+  });
+
   test("draws a diagram, switches views and opens a node", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
