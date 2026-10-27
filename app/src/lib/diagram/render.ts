@@ -32,7 +32,7 @@ const GHOST = 0.22;
 
 /** Text made safe for SVG markup. */
 export function esc(s: string): string {
-	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+	return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 }
 
 /** About how many characters fit in [w] pixels at [size]; longer text is cut with an ellipsis. */
@@ -47,14 +47,20 @@ function labelAt(b: Scene['boundaries'][number]): { x: number; y: number; anchor
 	const top = corner.startsWith('t');
 	const left = corner.endsWith('l');
 	const edge = top ? b.y : b.y + b.h;
-	const out = where === 'outside' ? (top ? -12 : 12) : 0;
+	let out = 0;
+	if (where === 'outside') out = top ? -12 : 12;
 	return { x: left ? b.x + 10 : b.x + b.w - 10, y: edge + out, anchor: left ? 'start' : 'end' };
 }
+
+const BORDER_DASH: Record<string, string> = { solid: '', dashed: ' stroke-dasharray="6 5"', dotted: ' stroke-dasharray="1.5 4" stroke-linecap="round"' };
+
+/** An SVG attribute, or nothing when there is no value. */
+const attr = (name: string, value: string | null | undefined) => (value ? ` ${name}="${value}"` : '');
 
 function boundaryMarkup(scene: Scene): string {
 	return scene.boundaries
 		.map(b => {
-			const dash = b.bs === 'dashed' ? ' stroke-dasharray="6 5"' : b.bs === 'dotted' ? ' stroke-dasharray="1.5 4" stroke-linecap="round"' : '';
+			const dash = BORDER_DASH[b.bs];
 			const rect = `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="12" fill="none" stroke="${C.border}" stroke-width="${b.bw}"${dash}/>`;
 			if (!b.label) return rect;
 			const { x, y, anchor } = labelAt(b);
@@ -75,8 +81,8 @@ function edgeMarkup(scene: Scene, shown: (id: string) => number | null, edgeStyl
 			if (!a || !b || oa === null || ob === null) return [];
 			const op = Math.min(oa, ob) < 1 ? GHOST * 0.7 : 1;
 			const p = edgePath(e, a, b, edgeStyle);
-			const marks = `${p.markerEnd ? ` marker-end="url(#${p.markerEnd})"` : ''}${p.markerStart ? ` marker-start="url(#${p.markerStart})"` : ''}`;
-			const line = `<path d="${p.d}" fill="none" stroke="${C.line}" stroke-width="${e.width}" stroke-linecap="${p.cap}"${p.dash ? ` stroke-dasharray="${p.dash}"` : ''}${marks} opacity="${op}"/>`;
+			const marks = attr('marker-end', p.markerEnd && `url(#${p.markerEnd})`) + attr('marker-start', p.markerStart && `url(#${p.markerStart})`);
+			const line = `<path d="${p.d}" fill="none" stroke="${C.line}" stroke-width="${e.width}" stroke-linecap="${p.cap}"${attr('stroke-dasharray', p.dash)}${marks} opacity="${op}"/>`;
 			const label =
 				e.showLabel && e.label
 					? `<text x="${p.lx}" y="${p.ly}" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="${C.muted}" paint-order="stroke" stroke="${C.bg}" stroke-width="6" opacity="${op}">${esc(e.label)}</text>`
@@ -127,7 +133,8 @@ export function toSvg(scene: Scene, { on, ghosted = true, edgeStyle = 'curved' }
 		return !!n && isHidden(n, on);
 	};
 	// 1 shown, a fraction ghosted, null left out.
-	const shown = (id: string) => (hidden(id) ? (ghosted ? GHOST : null) : 1);
+	const faded = ghosted ? GHOST : null;
+	const shown = (id: string) => (hidden(id) ? faded : 1);
 	const keep = { ...scene, nodes: scene.nodes.filter(n => shown(n.id) !== null) };
 	const box = bounds(keep.nodes.length || keep.boundaries.length ? keep : scene);
 	const x0 = box.x - PAD;
@@ -153,6 +160,7 @@ export function toSvg(scene: Scene, { on, ghosted = true, edgeStyle = 'curved' }
 
 /** A file name for an export: the diagram's name, kept to safe characters. */
 export function exportName(name: string, ext: string): string {
-	const base = name.trim().replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '') || 'diagram';
+	const parts = name.trim().split(/[^\w.-]+/).filter(Boolean);
+	const base = parts.join('-') || 'diagram';
 	return `${base}.${ext}`;
 }
