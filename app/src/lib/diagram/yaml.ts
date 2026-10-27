@@ -19,10 +19,12 @@ export function yamlScalar(v: unknown): string {
 	if (v === null || v === undefined) return 'null';
 	if (typeof v === 'number') return String(v);
 	if (typeof v === 'boolean') return v ? 'true' : 'false';
-	const s = String(v);
+	const s = typeof v === 'string' ? v : JSON.stringify(v);
 	if (s === '') return '""';
 	const plain = /^[A-Za-z][A-Za-z0-9 ._/·+()-]*$/.test(s) && !/\s$/.test(s) && !/^(y|n|yes|no|true|false|on|off|null|none)$/i.test(s);
-	return plain ? s : `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+	if (plain) return s;
+	const escaped = s.replaceAll('\\', String.raw`\\`).replaceAll('"', String.raw`\"`);
+	return `"${escaped}"`;
 }
 
 function fold(s: string, pad: string): string[] {
@@ -61,7 +63,10 @@ export function yamlLines(obj: Record<string, unknown>, ind = 0): string[] {
 		if (Array.isArray(v)) out.push(...arrayLines(k, v, pad, ind));
 		else if (isObject(v)) {
 			const vals = Object.values(v);
-			if (vals.length && vals.every(x => typeof x === 'number')) out.push(`${pad}${k}: { ${Object.entries(v).map(([a, b]) => `${a}: ${b}`).join(', ')} }`);
+			if (vals.length && vals.every(x => typeof x === 'number')) {
+				const pairs = Object.entries(v).map(([a, b]) => `${a}: ${String(b)}`);
+				out.push(`${pad}${k}: { ${pairs.join(', ')} }`);
+			}
 			else out.push(`${pad}${k}:`, ...yamlLines(v, ind + 1));
 		} else if (typeof v === 'string' && v.length > 68) {
 			const f = fold(v, pad);
@@ -78,39 +83,53 @@ interface Line {
 }
 const KEY = /^([A-Za-z0-9_.$-]+)\s*:(.*)$/;
 
-function scalar(raw: string, n: number): Value {
-	const s = raw.trim();
-	if (s === '') return '';
-	if (/^"[\s\S]*"$/.test(s)) return s.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-	if (/^'[\s\S]*'$/.test(s)) return s.slice(1, -1);
-	if (/^\[[\s\S]*\]$/.test(s)) {
+const wrapped = (s: string, open: string, close: string) => s.length >= 2 && s.startsWith(open) && s.endsWith(close);
+
+/** A flow list ("[a, b]") or map ("{ x: 1 }"), or undefined if [s] is neither. */
+function flow(s: string, n: number): Value | undefined {
+	if (wrapped(s, '[', ']')) {
 		const b = s.slice(1, -1).trim();
 		return b === '' ? [] : b.split(',').map(x => scalar(x, n));
 	}
-	if (/^\{[\s\S]*\}$/.test(s)) {
-		const o: Record<string, Value> = {};
-		const b = s.slice(1, -1).trim();
-		for (const pair of b ? b.split(',') : []) {
-			const i = pair.indexOf(':');
-			if (i < 0) throw new YamlError('Expected “key: value” inside { }', n);
-			o[pair.slice(0, i).trim()] = scalar(pair.slice(i + 1), n);
-		}
-		return o;
+	if (!wrapped(s, '{', '}')) return undefined;
+	const o: Record<string, Value> = {};
+	const b = s.slice(1, -1).trim();
+	for (const pair of b ? b.split(',') : []) {
+		const i = pair.indexOf(':');
+		if (i < 0) throw new YamlError('Expected “key: value” inside { }', n);
+		o[pair.slice(0, i).trim()] = scalar(pair.slice(i + 1), n);
 	}
+	return o;
+}
+
+/** A number, true, false or null, or undefined if [s] is none of those. */
+function literal(s: string): Value | undefined {
 	if (/^-?\d+$/.test(s)) return Number.parseInt(s, 10);
 	if (/^-?\d*\.\d+$/.test(s)) return Number.parseFloat(s);
 	if (/^(true|yes)$/i.test(s)) return true;
 	if (/^(false|no)$/i.test(s)) return false;
 	if (/^(null|~)$/i.test(s)) return null;
-	return s.replace(/\s+#.*$/, '');
+	return undefined;
+}
+
+function scalar(raw: string, n: number): Value {
+	const s = raw.trim();
+	if (s === '') return '';
+	if (wrapped(s, '"', '"')) return s.slice(1, -1).replaceAll(String.raw`\"`, '"').replaceAll(String.raw`\\`, '\\');
+	if (wrapped(s, "'", "'")) return s.slice(1, -1);
+	const value = flow(s, n) ?? literal(s);
+	if (value !== undefined) return value;
+	// A comment after the value ends it.
+	const hash = s.search(/\s#/);
+	return hash < 0 ? s : s.slice(0, hash).trimEnd();
 }
 
 /** Reads the YAML subset; throws a YamlError with the line number on anything it can't read. */
 export function parseYaml(text: string): Value {
 	const L: Line[] = [];
 	text
-		.replace(/\r/g, '')
-		.replace(/\t/g, '  ')
+		.replaceAll('\r', '')
+		.replaceAll('\t', '  ')
 		.split('\n')
 		.forEach((t, i) => {
 			if (t.trim() !== '' && !/^\s*#/.test(t)) L.push({ n: i + 1, ind: /^ */.exec(t)![0].length, t: t.trim() });
@@ -120,7 +139,7 @@ export function parseYaml(text: string): Value {
 
 	const nested = (ind: number): Value | null => {
 		if (p >= L.length || L[p].ind <= ind) return null;
-		return L[p].t[0] === '-' ? list(L[p].ind) : map(L[p].ind);
+		return L[p].t.startsWith('-') ? list(L[p].ind) : map(L[p].ind);
 	};
 	const assign = (obj: Record<string, Value>, key: string, rest: string, n: number, ind: number) => {
 		const r = rest.trim();
@@ -145,7 +164,7 @@ export function parseYaml(text: string): Value {
 		if (!kv) return scalar(body, n);
 		const obj: Record<string, Value> = {};
 		assign(obj, kv[1], kv[2], n, cur + 2);
-		while (p < L.length && L[p].ind > cur && L[p].t[0] !== '-') {
+		while (p < L.length && L[p].ind > cur && !L[p].t.startsWith('-')) {
 			const m = KEY.exec(L[p].t);
 			if (!m) throw new YamlError('Expected “key: value”', L[p].n);
 			const { n: nn, ind: ii } = L[p++];
@@ -155,13 +174,13 @@ export function parseYaml(text: string): Value {
 	};
 	const list = (cur: number): Value[] => {
 		const out: Value[] = [];
-		while (p < L.length && L[p].ind === cur && L[p].t[0] === '-') out.push(item(cur));
+		while (p < L.length && L[p].ind === cur && L[p].t.startsWith('-')) out.push(item(cur));
 		return out;
 	};
 	const map = (cur: number): Record<string, Value> => {
 		const out: Record<string, Value> = {};
 		while (p < L.length && L[p].ind === cur) {
-			if (L[p].t[0] === '-') throw new YamlError(`Unexpected list item: “${L[p].t.slice(0, 24)}”`, L[p].n);
+			if (L[p].t.startsWith('-')) throw new YamlError(`Unexpected list item: “${L[p].t.slice(0, 24)}”`, L[p].n);
 			const m = KEY.exec(L[p].t);
 			if (!m) throw new YamlError(`Expected “key: value”: “${L[p].t.slice(0, 24)}”`, L[p].n);
 			const { n, ind } = L[p++];
@@ -169,7 +188,7 @@ export function parseYaml(text: string): Value {
 		}
 		return out;
 	};
-	const doc = L[0].t[0] === '-' ? list(L[0].ind) : map(L[0].ind);
+	const doc = L[0].t.startsWith('-') ? list(L[0].ind) : map(L[0].ind);
 	if (p < L.length) throw new YamlError('The indentation does not line up with the block above', L[p].n);
 	return doc;
 }

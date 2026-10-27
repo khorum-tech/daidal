@@ -23,7 +23,8 @@ export class ConfigError extends Error {
 export function configText(doc: SkopeDoc, lang: ConfigLang): string {
 	if (lang === 'json') return `${JSON.stringify(doc, null, 2)}\n`;
 	const name = doc.diagram?.name;
-	return `${name ? `# ${name}: a Skope diagram config\n` : ''}${yamlLines(doc as unknown as Record<string, unknown>).join('\n')}\n`;
+	const head = name ? `# ${name}: a Skope diagram config\n` : '';
+	return `${head}${yamlLines(doc as unknown as Record<string, unknown>).join('\n')}\n`;
 }
 
 /** JSON when it opens with a brace or bracket, else YAML. */
@@ -42,15 +43,25 @@ function parse(text: string): Record<string, unknown> {
 }
 
 const list = <T>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
-const strings = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : v == null || v === '' ? [] : [String(v)]);
+/** A value read from a file, as text: a string as it is, anything else as JSON writes it. */
+function asText(v: unknown): string {
+	if (typeof v === 'string') return v;
+	if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+	return JSON.stringify(v) ?? '';
+}
+function strings(v: unknown): string[] {
+	if (Array.isArray(v)) return v.map(asText);
+	if (v == null || v === '') return [];
+	return [asText(v)];
+}
 
 /** A node as the document keeps it: an id and a name, a slugged type, tags as a list. */
 function node(raw: unknown, i: number): DocNode {
 	if (!raw || typeof raw !== 'object') throw new ConfigError(`nodes[${i}] isn't a node`);
 	const n = raw as Record<string, unknown>;
 	if (n.id == null || n.id === '') throw new ConfigError(`nodes[${i}]: every node needs an id`);
-	const id = String(n.id);
-	const out: DocNode = { ...(n as unknown as DocNode), id, name: String(n.name ?? id), type: slug(n.type ?? 'service') };
+	const id = asText(n.id);
+	const out: DocNode = { ...(n as unknown as DocNode), id, name: asText(n.name ?? id), type: slug(n.type ?? 'service') };
 	const tags = strings(n.tags);
 	if (tags.length) out.tags = tags;
 	else delete out.tags;
@@ -80,8 +91,8 @@ export interface ReadConfig {
  */
 export function readConfig(text: string, current: SkopeDoc, mode: 'replace' | 'merge'): ReadConfig {
 	const o = parse(text);
-	if (o.version !== undefined && o.version !== 1) throw new ConfigError(`This is version ${String(o.version)} of the format; Skope reads version 1`);
-	const nodes = list<unknown>(o.nodes).map(node);
+	if (o.version !== undefined && o.version !== 1) throw new ConfigError(`This is version ${asText(o.version)} of the format; Skope reads version 1`);
+	const nodes = list<unknown>(o.nodes).map((n, i) => node(n, i));
 	if (!nodes.length) throw new ConfigError('No nodes found: add a “nodes:” list');
 	const ids = new Set<string>();
 	for (const n of nodes) {
@@ -89,17 +100,17 @@ export function readConfig(text: string, current: SkopeDoc, mode: 'replace' | 'm
 		ids.add(n.id);
 	}
 	const boxes = list<DocBoundary>(o.boundaries).map((b, i) => {
-		if (!b || b.id == null) throw new ConfigError(`boundaries[${i}]: every container needs an id`);
-		return { ...b, id: String(b.id) };
+		if (b?.id == null) throw new ConfigError(`boundaries[${i}]: every container needs an id`);
+		return { ...b, id: asText(b.id) };
 	});
 	const known = new Set([...ids, ...boxes.map(b => b.id), ...(mode === 'merge' ? [...(current.nodes ?? []).map(n => n.id), ...(current.boundaries ?? []).map(b => b.id)] : [])]);
 	const edges = list<DocEdge>(o.edges).map((e, i) => {
-		if (!e || e.from == null || e.to == null) throw new ConfigError(`edges[${i}]: needs both from and to`);
-		for (const end of [e.from, e.to]) if (!known.has(String(end))) throw new ConfigError(`edges[${i}]: no node or container with the id “${String(end)}”`);
-		return { ...e, from: String(e.from), to: String(e.to) };
+		if (e?.from == null || e?.to == null) throw new ConfigError(`edges[${i}]: needs both from and to`);
+		for (const end of [asText(e.from), asText(e.to)]) if (!known.has(end)) throw new ConfigError(`edges[${i}]: no node or container with the id “${end}”`);
+		return { ...e, from: asText(e.from), to: asText(e.to) };
 	});
 	const tags = (o.tags && typeof o.tags === 'object' && !Array.isArray(o.tags) ? o.tags : {}) as Record<string, DocTag>;
-	const views = list<{ name: string; tags: string[] }>(o.views).filter(v => v && v.name).map(v => ({ ...v, name: String(v.name), tags: strings(v.tags) }));
+	const views = list<{ name: string; tags: string[] }>(o.views).filter(v => v?.name).map(v => ({ ...v, name: asText(v.name), tags: strings(v.tags) }));
 	const diagram = { ...current.diagram, ...(o.diagram && typeof o.diagram === 'object' ? (o.diagram as SkopeDoc['diagram']) : {}), name: current.diagram?.name };
 	if (!diagram.name) delete diagram.name;
 	if (mode === 'replace') {
