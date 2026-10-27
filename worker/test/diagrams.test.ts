@@ -63,6 +63,7 @@ describe("diagrams", () => {
     await make("Checkout flow", "Cart");
     await make("Payments", "Card vault");
     await make("100%_done", "Plain");
+    await make("wow!", "Bang");
     const names = async (query: string) =>
       ((await call.get("d-search@example.com", `/api/diagrams?workspace=${ws}${query}`)).body as { name: string }[]).map(d => d.name).sort();
     expect(await names("&q=checkout")).toEqual(["Checkout flow"]);
@@ -70,10 +71,12 @@ describe("diagrams", () => {
     expect(await names("&q=%25_")).toEqual(["100%_done"]);
     expect(await names("&q=_")).toEqual(["100%_done"]);
     expect(await names("&q=nothing")).toEqual([]);
-    expect(await names("&q=%20%20")).toHaveLength(3);
+    expect(await names("&q=!")).toEqual(["wow!"]);
+    expect(await names("&q=%20%20")).toHaveLength(4);
     expect(await names("&limit=2")).toHaveLength(2);
-    expect(await names("&limit=2&offset=2")).toHaveLength(1);
-    expect(await names("&limit=junk")).toHaveLength(3);
+    expect(await names("&limit=2&offset=2")).toHaveLength(2);
+    expect(await names("&limit=2&offset=3")).toHaveLength(1);
+    expect(await names("&limit=junk")).toHaveLength(4);
   });
 
   it("names a follower's lead only for someone who can see it", async () => {

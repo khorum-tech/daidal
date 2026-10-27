@@ -98,7 +98,8 @@ export async function listDiagrams(db: D1Database, email: string, url: URL): Pro
   const limit = boundedInt(url.searchParams.get("limit"), 1, MAX_LIST, MAX_LIST);
   const offset = boundedInt(url.searchParams.get("offset"), 0, Number.MAX_SAFE_INTEGER, 0);
   const q = (url.searchParams.get("q") ?? "").trim().slice(0, 100);
-  const like = `%${q.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%`;
+  // `!` escapes LIKE's wildcards, so a search for "100%" or "a_b" means just that.
+  const like = `%${q.replaceAll(/[!%_]/g, "!$&")}%`;
   const columns = COLUMNS.split(", ")
     .map(c => (c === "doc" ? "'{}' AS doc" : `d.${c}`))
     .join(", ");
@@ -107,7 +108,7 @@ export async function listDiagrams(db: D1Database, email: string, url: URL): Pro
       `SELECT ${columns}, d.summary, l.name AS lead_name FROM diagrams d ` +
         // A lead's name only when the caller is in the lead's workspace.
         `LEFT JOIN diagrams l ON l.id = d.lead_id AND EXISTS (SELECT 1 FROM workspace_members m WHERE m.workspace_id = l.workspace_id AND m.email = ?2) ` +
-        `WHERE d.workspace_id = ?1 AND (?3 = '' OR d.name LIKE ?4 ESCAPE '\\' OR EXISTS (SELECT 1 FROM json_each(d.summary, '$.names') WHERE value LIKE ?4 ESCAPE '\\')) ` +
+        `WHERE d.workspace_id = ?1 AND (?3 = '' OR d.name LIKE ?4 ESCAPE '!' OR EXISTS (SELECT 1 FROM json_each(d.summary, '$.names') WHERE value LIKE ?4 ESCAPE '!')) ` +
         `ORDER BY d.updated_at DESC, d.id LIMIT ?5 OFFSET ?6`,
     )
     .bind(workspace, email, q, like, limit, offset)
@@ -120,16 +121,19 @@ const boundedInt = (raw: string | null, min: number, max: number, fallback: numb
   return Number.isInteger(n) ? Math.min(max, Math.max(min, n)) : fallback;
 };
 
-/** Works out the summaries a workspace's diagrams are missing: ones written before summaries were kept. */
+/** How many missing summaries one list works out; a workspace with more fills in over the next few lists. */
+const FILL_AT_ONCE = 200;
+
+/**
+ * Works out summaries a workspace's diagrams are missing: only ones written before summaries were kept, so this
+ * finds nothing once a workspace has been listed.
+ */
 async function fillSummaries(db: D1Database, workspace: string): Promise<void> {
-  for (;;) {
-    const { results } = await db
-      .prepare("SELECT id, doc FROM diagrams WHERE workspace_id = ? AND summary IS NULL LIMIT 50")
-      .bind(workspace)
-      .all<{ id: string; doc: string }>();
-    if (!results.length) return;
-    await db.batch(results.map(r => db.prepare("UPDATE diagrams SET summary = ? WHERE id = ?").bind(summaryText(r.doc), r.id)));
-  }
+  const { results } = await db
+    .prepare("SELECT id, doc FROM diagrams WHERE workspace_id = ? AND summary IS NULL LIMIT ?")
+    .bind(workspace, FILL_AT_ONCE)
+    .all<{ id: string; doc: string }>();
+  if (results.length) await db.batch(results.map(r => db.prepare("UPDATE diagrams SET summary = ? WHERE id = ?").bind(summaryText(r.doc), r.id)));
 }
 
 /**
