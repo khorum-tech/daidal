@@ -51,6 +51,10 @@
 		updateBoundary,
 		updateEdge,
 		setEnd,
+		paletteById,
+		paletteOf,
+		recolourTags,
+		type PaletteId,
 		updateEdges,
 		updateNode,
 		updateNodes,
@@ -67,6 +71,7 @@
 	import { History } from '#lib/history.svelte.ts';
 	import { iconScene, tagsOn, toScene, type Anchor } from '#lib/diagram/model.ts';
 	import { appearance } from '#lib/appearance.svelte.ts';
+	import { distinguishable } from '#lib/diagram/colour.ts';
 	import { followState } from '#lib/follow.ts';
 	import { applyChange, pending, withNeeded, type Change } from '#lib/diagram/review.ts';
 	import FollowPanel from '#lib/components/FollowPanel.svelte';
@@ -594,6 +599,11 @@
 		if (selectedEdge === null) return;
 		const before = current();
 		apply(updateEdge(before, selectedEdge, change), before, label, group);
+	}
+	function switchPalette(id: PaletteId) {
+		const p = paletteById(id);
+		const before = current();
+		apply(recolourTags(before, id, distinguishable([...p.colors], appearance.condition)), before, `Switch to the ${p.label} palette`);
 	}
 	async function moveTo(workspace: string) {
 		await working.saver.flush();
@@ -1408,7 +1418,7 @@
 </Sheet>
 <!-- The tag manager opens from the tags panel on any screen: a dialog on a wide one, a sheet on a phone. -->
 <Sheet open={sheet === 'tags' && editable} title="Manage tags" onclose={() => (sheet = null)}>
-	<TagManager tags={scene.tags} counts={tagCounts} onchange={changeTag} onfieldend={() => working.history.endGroup()} ondelete={deleteTag} onadd={newTag} condition={appearance.condition} />
+	<TagManager tags={scene.tags} counts={tagCounts} onchange={changeTag} onfieldend={() => working.history.endGroup()} ondelete={deleteTag} onadd={newTag} condition={appearance.condition} palette={paletteOf(working.doc)} onpalette={switchPalette} />
 </Sheet>
 
 <style>

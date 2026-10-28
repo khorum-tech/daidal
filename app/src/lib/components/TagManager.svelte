@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { SceneTag } from '../diagram/model';
 	import { distinguishable, type Condition } from '../diagram/colour';
-	import { MORE_TAG_COLORS, NEW_TAG_GROUP, TAG_COLORS } from '../diagram/edit';
+	import { NEW_TAG_GROUP, PALETTES, paletteById, type PaletteId } from '../diagram/edit';
 
 	/**
 	 * The prototype's "Manage tags": every tag on a row (colour, name, group, how many nodes carry it, delete), and a
@@ -14,7 +14,9 @@
 		onfieldend,
 		ondelete,
 		onadd,
-		condition = 'none'
+		condition = 'none',
+		palette = 'nocturne',
+		onpalette
 	}: {
 		tags: SceneTag[];
 		counts: Record<string, number>;
@@ -24,8 +26,24 @@
 		onadd: (label: string, group: string) => void;
 		/** A colour-vision condition (an appearance setting): colours that collide under it are left out. */
 		condition?: Condition;
+		/** The palette the tags are drawn from; switching recolours them all (one undo step). */
+		palette?: PaletteId;
+		onpalette?: (id: PaletteId) => void;
 	} = $props();
-	const colours = $derived([...distinguishable(TAG_COLORS, condition), ...distinguishable(MORE_TAG_COLORS, condition)]);
+	// The palette's colours first; the other palettes' under More colours. A condition leaves out what collides.
+	const colours = $derived(distinguishable([...paletteById(palette).colors], condition));
+	const others = $derived(
+		distinguishable(
+			[...new Set(PALETTES.filter(p => p.id !== palette).flatMap(p => p.colors))].filter(c => !colours.includes(c)),
+			condition
+		)
+	);
+	let more = $state(false);
+	/** What a tag's picker offers: its own colour always, even when it isn't one offered. */
+	function offered(own: string): string[] {
+		const list = more ? [...colours, ...others] : colours;
+		return list.includes(own) ? list : [own, ...list];
+	}
 
 	const groups = $derived([...new Set(tags.map(t => t.group))]);
 	let picking = $state<string | null>(null);
@@ -41,6 +59,20 @@
 </script>
 
 <div class="manager">
+	{#if onpalette}
+		<section class="palettes" aria-label="Palette">
+			<h3>Palette</h3>
+			<div class="palette-choices" role="radiogroup" aria-label="Palette">
+				{#each PALETTES as p (p.id)}
+					<button type="button" role="radio" aria-checked={palette === p.id} title={p.note} onclick={() => palette !== p.id && onpalette(p.id)}>
+						<span class="p-name">{p.label}</span>
+						<span class="p-swatches" aria-hidden="true">{#each p.colors as c (c)}<span style:background={c}></span>{/each}</span>
+					</button>
+				{/each}
+			</div>
+			<p class="note">Switching recolours every tag, each keeping its place in the palette. It's one undo step.</p>
+		</section>
+	{/if}
 	<datalist id="tag-groups">
 		{#each groups as g (g)}<option value={g}></option>{/each}
 	</datalist>
@@ -71,7 +103,7 @@
 					</div>
 					{#if picking === t.key}
 						<div class="swatches" role="group" aria-label="Colours for {t.label}">
-							{#each colours.includes(t.color) ? colours : [t.color, ...colours] as c (c)}
+							{#each offered(t.color) as c (c)}
 								<button
 									type="button"
 									class="pick"
@@ -85,6 +117,7 @@
 									}}
 								></button>
 							{/each}
+							<button type="button" class="more" aria-expanded={more} onclick={() => (more = !more)}>{more ? 'Fewer colours' : 'More colours'}</button>
 						</div>
 					{/if}
 				</li>
@@ -108,6 +141,64 @@
 <style>
 	.manager {
 		padding: 12px 16px 16px;
+	}
+	.palettes {
+		margin-bottom: 14px;
+		display: flex;
+		flex-direction: column;
+		gap: 7px;
+	}
+	.palettes h3 {
+		margin: 0;
+		font-size: 10.5px;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--color-neutral-600);
+		font-weight: 500;
+	}
+	.palette-choices {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+		gap: 6px;
+	}
+	.palette-choices button {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+		padding: 7px 9px;
+		border-radius: 8px;
+		border: 1px solid var(--color-divider);
+		background: transparent;
+		color: var(--color-text);
+		font: inherit;
+		font-size: 12px;
+		text-align: left;
+		cursor: pointer;
+	}
+	.palette-choices button[aria-checked='true'] {
+		border-color: var(--color-accent);
+		background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+	}
+	.p-swatches {
+		display: flex;
+		gap: 2px;
+	}
+	.p-swatches span {
+		flex: 1;
+		height: 8px;
+		border-radius: 2px;
+	}
+	.more {
+		flex-basis: 100%;
+		margin-top: 2px;
+		padding: 2px 0;
+		border: none;
+		background: transparent;
+		color: var(--color-accent-300);
+		font: inherit;
+		font-size: 11.5px;
+		text-align: left;
+		cursor: pointer;
 	}
 	ul {
 		list-style: none;

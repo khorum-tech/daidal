@@ -154,6 +154,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | TAG-2 | Switch some tags, **+ Save the tags on now as a view**, name it | A new view with those tags | D P | |
 | TAG-3 | Edit a view: rename it, re-save it with other tags, make it the default, delete it | Each works; the default opens first after a reload | D | |
 | TAG-4 | Lock a view in its editor | It can still be shown, but not renamed, re-saved or deleted; unlocking brings that back | D | |
+| TAG-5 | **Manage tags**, **Palette**: pick **Accessible**, then undo | Every tag is recoloured from Okabe–Ito, each keeping its place; the colour pickers now lead with it (**More colours** shows the rest); one ⌘Z puts the old colours back | D P | |
 
 ## 9. Many at once and the clipboard
 
