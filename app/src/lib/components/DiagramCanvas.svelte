@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { bounds, isHidden, type Scene, type SceneBoundary, type SceneNode } from '../diagram/model';
+	import { bounds, isHidden, type Anchor, type Scene, type SceneBoundary, type SceneNode } from '../diagram/model';
 	import { contentsOf, MIN_BOX, MIN_NODE, type Picked } from '../diagram/edit';
-	import { edgePath, type Box } from '../diagram/geometry';
-	import { clampView, fitView, panBy, toContent, zoomAt, type Point, type View } from '../diagram/zoom';
+	import { edgePath, endPoints, snapAnchor, type Box } from '../diagram/geometry';
+	import { centreOn, clampView, fitView, panBy, toContent, zoomAt, type Point, type View } from '../diagram/zoom';
 	import { SNAP_PX, snapBox, type Guide } from '../diagram/snap';
 	import Icon from './Icon.svelte';
 	import NodeCard from './NodeCard.svelte';
@@ -57,6 +57,7 @@
 		boxMode = null,
 		picking = false,
 		onresize,
+		onsetend,
 		onaddat,
 		renaming = null,
 		onrenamestart,
@@ -72,7 +73,8 @@
 		ghostOpacity = 0.22,
 		edgeStyle = 'curved',
 		iconCards = false,
-		frame
+		frame,
+		showMinimap = false
 	}: {
 		scene: Scene;
 		on: Record<string, boolean>;
@@ -100,6 +102,8 @@
 		/** The toolbar's Connect: the next node tapped is where a connection starts. */
 		picking?: boolean;
 		onresize?: (id: string, w: number, h: number) => void;
+		/** One end of the selected connection dragged to a spot on its box's side, or (null, double-clicked) back to auto. */
+		onsetend?: (index: number, end: 'from' | 'to', at: Anchor | null) => void;
 		/** A double-click on empty canvas: a node wanted at [at]. */
 		onaddat?: (at: Point) => void;
 		/** The node whose name is being typed in place. */
@@ -126,6 +130,8 @@
 		iconCards?: boolean;
 		/** What the view fits to, if not [scene]: icon cards keep the frame of the full ones, so nothing moves. */
 		frame?: Scene;
+		/** The minimap in the corner (the page leaves it off on phones). */
+		showMinimap?: boolean;
 	} = $props();
 
 	// Label placement around a container (web/index.html LP).
@@ -179,8 +185,11 @@
 		for (const n of nodes) out.set(n.id, n);
 		return out;
 	});
+	// An end of the selected connection being dragged, and where it would land.
+	let endDrag = $state<{ index: number; end: 'from' | 'to'; at: Anchor } | null>(null);
 	const edges = $derived(
-		scene.edges.flatMap(e => {
+		scene.edges.flatMap(edge => {
+			const e = endDrag?.index === edge.index ? { ...edge, [endDrag.end === 'from' ? 'fromA' : 'toA']: endDrag.at } : edge;
 			const a = boxes.get(e.from);
 			const b = boxes.get(e.to);
 			if (!a || !b) return [];
@@ -188,6 +197,16 @@
 			return [{ e, p: edgePath(e, a, b, edgeStyle), op: off ? ghostOpacity * 0.7 : 1 }];
 		})
 	);
+
+	// Where the selected connection's ends meet their boxes, for their handles.
+	const ends = $derived.by(() => {
+		if (!editable || selectedEdge === null || multi) return null;
+		const hit = edges.find(x => x.e.index === selectedEdge);
+		const a = hit && boxes.get(hit.e.from);
+		const b = hit && boxes.get(hit.e.to);
+		if (!hit || !a || !b) return null;
+		return { at: endPoints(hit.e, a, b), pins: { from: !!hit.e.fromA, to: !!hit.e.toA } };
+	});
 
 	// The diagram itself with a margin: what "fit" fills the view with.
 	const area = $derived.by(() => {
@@ -211,6 +230,36 @@
 
 	let viewW = $state(0);
 	let viewH = $state(0);
+	// The minimap's size (the diagram's shape in at most 180 × 120) and the part of it on screen.
+	const minimap = $derived.by(() => {
+		if (!showMinimap || !viewW || !viewH) return null;
+		const k = Math.min(180 / area.w, 120 / area.h);
+		const a = toContent(view, { x: 0, y: 0 });
+		const b = toContent(view, { x: viewW, y: viewH });
+		return { w: Math.round(area.w * k), h: Math.round(area.h * k), k, view: { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y } };
+	});
+	let miniPointer: number | null = null;
+	function miniLook(e: PointerEvent) {
+		if (!minimap) return;
+		const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+		const c = { x: area.x0 + (e.clientX - r.left) / minimap.k, y: area.y0 + (e.clientY - r.top) / minimap.k };
+		setView(centreOn(view, c, viewW, viewH));
+	}
+	function miniDown(e: PointerEvent) {
+		if (e.pointerType === 'mouse' && e.button !== 0) return;
+		e.stopPropagation();
+		miniPointer = e.pointerId;
+		try {
+			(e.currentTarget as Element).setPointerCapture(e.pointerId);
+		} catch {
+			// The drag then ends at the minimap's edge.
+		}
+		miniLook(e);
+	}
+	const miniMove = (e: PointerEvent) => e.pointerId === miniPointer && miniLook(e);
+	const miniUp = (e: PointerEvent) => {
+		if (e.pointerId === miniPointer) miniPointer = null;
+	};
 	let chosen = $state<View | null>(null); // null = fit, and keep fitting as the view resizes
 	const view = $derived(chosen ?? fitView(area, viewW, viewH));
 	const setView = (v: View) => (chosen = clampView(v, area, viewW, viewH));
@@ -254,6 +303,7 @@
 		| { kind: 'pan'; pointer: number; start: Point; last: Point; moved: boolean }
 		| { kind: 'node'; pointer: number; start: Point; node: SceneNode; moved: boolean; touch: boolean }
 		| { kind: 'size'; pointer: number; start: Point; node: SceneNode; moved: boolean }
+		| { kind: 'end'; pointer: number; start: Point; index: number; end: 'from' | 'to'; moved: boolean }
 		| { kind: 'many'; pointer: number; start: Point; ids: string[]; moved: boolean }
 		| { kind: 'marquee'; pointer: number; start: Point; add: boolean; moved: boolean }
 		| { kind: 'connect'; pointer: number; start: Point; from: string; moved: boolean }
@@ -273,9 +323,10 @@
 	function down(e: PointerEvent) {
 		if (e.pointerType === 'mouse' && e.button !== 0) return;
 		const target = e.target as Element;
-		if (target.closest('.zoom, .rename')) return; // the zoom buttons and the name being typed are plain controls
+		if (target.closest('.zoom, .rename, .minimap')) return; // the zoom buttons, the minimap and the name being typed are their own controls
 		lastPointer = e.pointerType;
 		dragJustEnded = false;
+		leave();
 		const p = local(e);
 		pointers.set(e.pointerId, p);
 		if (pointers.size === 2) {
@@ -289,6 +340,11 @@
 		}
 		if (pointers.size > 2) return;
 		const touch = e.pointerType !== 'mouse';
+		const endHandle = editable ? target.closest<HTMLElement>('.end-handle') : null;
+		if (endHandle && selectedEdge !== null) {
+			gesture = { kind: 'end', pointer: e.pointerId, start: p, index: selectedEdge, end: endHandle.dataset.end === 'from' ? 'from' : 'to', moved: false };
+			return;
+		}
 		if (editable && port && target.closest('.n-resize')) {
 			gesture = { kind: 'size', pointer: e.pointerId, start: p, node: port, moved: false };
 			return;
@@ -323,7 +379,7 @@
 		const under = target.closest<HTMLElement>('[data-node]')?.dataset.node;
 		const group = multi?.nodes.length ? multi.nodes : null;
 		if (editable && group && (moving || (!touch && under && pickedNodes.has(under)))) return { kind: 'many' as const, ids: group };
-		const empty = !target.closest('[data-node], [data-hit], [data-box], .port, .resize, .n-resize');
+		const empty = !target.closest('[data-node], [data-hit], [data-box], .port, .resize, .n-resize, .end-handle');
 		if (onpick && empty && (manyMode || (shift && !touch))) return { kind: 'marquee' as const, add: shift };
 		return null;
 	}
@@ -381,6 +437,10 @@
 			const a = toContent(view, g.start);
 			const b = toContent(view, p);
 			marquee = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) };
+		} else if (g.kind === 'end') {
+			const e = scene.edges.find(x => x.index === g.index);
+			const box = e && boxes.get(g.end === 'from' ? e.from : e.to);
+			if (box) endDrag = { index: g.index, end: g.end, at: snapAnchor(box, toContent(view, p)) };
 		} else if (g.kind === 'size') {
 			const n = g.node;
 			const w = Math.max(MIN_NODE.w, n.w + (p.x - g.start.x) / view.s);
@@ -429,6 +489,11 @@
 		if (g.kind === 'node' && g.moved && d && !cancelled) onmove?.(d.id, Math.round(d.x), Math.round(d.y));
 		if (g.kind === 'size' && g.moved && d?.w && d.h && !cancelled) onresize?.(d.id, Math.round(d.w), Math.round(d.h));
 		if (g.kind === 'many' || g.kind === 'marquee') endMany(g, cancelled);
+		if (g.kind === 'end') {
+			const d = endDrag;
+			endDrag = null;
+			if (g.moved && d && !cancelled) onsetend?.(d.index, d.end, d.at);
+		}
 		if (g.kind === 'box') {
 			const d = draggedBox;
 			draggedBox = null;
@@ -474,7 +539,7 @@
 	 * there for it (as dropping one does). Nodes handle their own taps (NodeCard).
 	 */
 	function tapEmpty(e: MouseEvent) {
-		if (dragJustEnded || (e.target as Element).closest('[data-node], [data-hit], [data-box], .zoom, .port, .resize, .n-resize, .rename')) return;
+		if (dragJustEnded || (e.target as Element).closest('[data-node], [data-hit], [data-box], .zoom, .port, .resize, .n-resize, .end-handle, .rename')) return;
 		loose = null;
 		if (connectFrom && editable) {
 			connectedAt = e.timeStamp;
@@ -501,7 +566,7 @@
 		const target = e.target as Element;
 		const id = target.closest<HTMLElement>('[data-node]')?.dataset.node;
 		if (id) onrenamestart?.(id);
-		else if (!target.closest('[data-hit], [data-box], .zoom, .port, .resize, .n-resize, .rename')) onaddat?.(toContent(view, local(e)));
+		else if (!target.closest('[data-hit], [data-box], .zoom, .port, .resize, .n-resize, .end-handle, .rename')) onaddat?.(toContent(view, local(e)));
 	}
 
 	// The name being typed: Enter or leaving the field keeps it, Escape leaves the name as it was.
@@ -729,7 +794,41 @@
 			>
 			<span class="n-resize" style:left="{port.x + port.w}px" style:top="{port.y + port.h}px" title="Drag to resize" aria-hidden="true"></span>
 		{/if}
+		{#if ends}
+			{#each [['from', ends.at.from, ends.pins.from], ['to', ends.at.to, ends.pins.to]] as const as [end, at, pinned] (end)}
+				<span
+					class="end-handle"
+					class:pinned
+					data-end={end}
+					style:left="{at.x}px"
+					style:top="{at.y}px"
+					title={pinned ? 'Pinned: drag along the box to move it, double-click to go back to auto' : 'Auto: drag to pin this end to a spot on the box'}
+					aria-hidden="true"
+					ondblclick={() => selectedEdge !== null && onsetend?.(selectedEdge, end, null)}
+				></span>
+			{/each}
+		{/if}
 	</div>
+
+	{#if minimap}
+		<!-- The whole diagram, small, with the part on screen outlined: a press or drag there looks there. -->
+		<svg
+			class="minimap"
+			role="img"
+			aria-label="Minimap: press or drag to look there"
+			width={minimap.w}
+			height={minimap.h}
+			viewBox="{area.x0} {area.y0} {area.w} {area.h}"
+			onpointerdown={miniDown}
+			onpointermove={miniMove}
+			onpointerup={miniUp}
+			onpointercancel={miniUp}
+		>
+			{#each boundaries as b (b.id)}<rect class="m-box" x={b.x} y={b.y} width={b.w} height={b.h} rx="12" />{/each}
+			{#each nodes as n (n.id)}<rect class="m-node" x={n.x} y={n.y} width={n.w} height={n.h} rx="10" />{/each}
+			<rect class="m-view" vector-effect="non-scaling-stroke" x={minimap.view.x} y={minimap.view.y} width={minimap.view.w} height={minimap.view.h} rx="8" />
+		</svg>
+	{/if}
 
 	<div class="zoom" role="group" aria-label="Zoom">
 		<button type="button" onclick={() => zoomBy(1 / 1.2)} aria-label="Zoom out">−</button>
@@ -940,6 +1039,27 @@
 			border-radius: 50%;
 		}
 	}
+	/* The ends of the selected connection. A finger pins ends in the connection's sheet instead. */
+	.end-handle {
+		position: absolute;
+		width: 12px;
+		height: 12px;
+		margin: -6px 0 0 -6px;
+		box-sizing: border-box;
+		border-radius: 50%;
+		border: 1.5px solid var(--color-accent);
+		background: var(--color-bg);
+		cursor: grab;
+		z-index: 2;
+	}
+	.end-handle.pinned {
+		background: var(--color-accent);
+	}
+	@media (pointer: coarse) {
+		.end-handle {
+			display: none;
+		}
+	}
 	.marquee {
 		position: absolute;
 		z-index: 3;
@@ -989,6 +1109,36 @@
 		border-radius: 4px;
 		background: var(--color-bg);
 		color: var(--color-neutral-500);
+	}
+	.minimap {
+		position: absolute;
+		left: 14px;
+		bottom: 14px;
+		z-index: 4;
+		border-radius: 9px;
+		background: var(--color-surface);
+		box-shadow: var(--shadow-md);
+		cursor: pointer;
+		touch-action: none;
+	}
+	.m-box {
+		fill: none;
+		stroke: var(--color-neutral-700);
+		stroke-width: 6;
+		stroke-dasharray: 18 18;
+	}
+	.m-node {
+		fill: var(--color-neutral-700);
+	}
+	.m-view {
+		fill: color-mix(in srgb, var(--color-accent) 12%, transparent);
+		stroke: var(--color-accent);
+		stroke-width: 1.5;
+	}
+	@media (pointer: coarse) {
+		.minimap {
+			display: none;
+		}
 	}
 	.zoom {
 		position: absolute;

@@ -22,7 +22,8 @@
 		onduplicate,
 		connections = [],
 		onpickedge,
-		onnewtag
+		onnewtag,
+		onisolate
 	}: {
 		node: SceneNode;
 		tags: Record<string, SceneTag>;
@@ -36,6 +37,8 @@
 		onpickedge?: (index: number) => void;
 		/** A tag made here, by name: it lands in "Unlabelled" and goes on this node. */
 		onnewtag?: (label: string) => void;
+		/** Shows only this node's tags, as the prototype's Isolate does; nothing is saved. */
+		onisolate?: () => void;
 	} = $props();
 	let naming = $state(false);
 	let tagName = $state('');
@@ -200,6 +203,7 @@
 		{@render edges()}
 
 		<div class="actions">
+			{#if onisolate && node.tags.length}<button type="button" class="btn btn-secondary" onclick={onisolate}>Isolate its tags</button>{/if}
 			<button type="button" class="btn btn-secondary" onclick={() => onduplicate?.()}>Duplicate</button>
 			<button type="button" class="btn btn-secondary danger" onclick={() => ondelete?.()}><Icon name="trash" size={14} />Delete node</button>
 		</div>
@@ -220,6 +224,9 @@
 		{#if node.desc}<p class="desc">{node.desc}</p>{/if}
 		{@render links()}
 		{@render edges()}
+		{#if onisolate && node.tags.length}
+			<div class="actions"><button type="button" class="btn btn-secondary" onclick={onisolate}>Isolate its tags</button></div>
+		{/if}
 	{/if}
 </section>
 

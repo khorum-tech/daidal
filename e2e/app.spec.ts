@@ -1210,4 +1210,70 @@ test.describe("the app at /app", () => {
     await page.getByRole("button", { name: "Present", exact: true }).click();
     await expect(journal).toHaveClass(/icon-only/);
   });
+
+  test("drags a connection's end along its box to pin it, and double-clicks it back to auto", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "Web App: Ledger Console" }).click();
+    await page.getByRole("region", { name: "Selected node" }).getByRole("button", { name: /Edge Router/ }).click();
+    const inspector = page.getByRole("region", { name: "Selected connection" });
+    await expect(inspector.getByRole("heading", { level: 2 })).toHaveText("Ledger Console → Edge Router");
+    const end = page.locator('.end-handle[data-end="to"]');
+    await expect(end).not.toHaveClass(/pinned/);
+    const at = (await end.boundingBox())!;
+    await page.mouse.move(at.x + 6, at.y + 6);
+    await page.mouse.down();
+    await page.mouse.move(at.x + 6, at.y + 40, { steps: 6 });
+    await page.mouse.up();
+    await expect(end).toHaveClass(/pinned/);
+    let { doc } = await saved(page, request, id);
+    expect(doc.edges[0].anchors?.to).toMatch(/^(left|bottom):/);
+
+    await end.dblclick();
+    await expect(end).not.toHaveClass(/pinned/);
+    ({ doc } = await saved(page, request, id));
+    expect(doc.edges[0].anchors?.to).toBeUndefined();
+    await expect(page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Undo Connection end back to auto" })).toBeVisible();
+  });
+
+  test("shows a node's card on a mouse resting over it while editing, and isolates its tags", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await page.locator('[data-node="journal"]').hover();
+    await expect(page.getByRole("tooltip", { name: "About Journal DB" })).toBeVisible();
+    await page.mouse.move(5, 300);
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Database: Journal DB" }).click();
+    await page.getByRole("region", { name: "Selected node" }).getByRole("button", { name: "Isolate its tags" }).click();
+    await expect(page.locator('[data-node="collector"]')).toHaveCSS("opacity", "0.22");
+    await expect(page.locator('[data-node="journal"]')).toHaveCSS("opacity", "1");
+  });
+
+  test("looks around from the minimap, and folds the side panels away until shown again", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    const zoom = page.getByRole("group", { name: "Zoom" });
+    for (let i = 0; i < 4; i++) await zoom.getByRole("button", { name: "Zoom in" }).click();
+    const console_ = page.locator('[data-node="console"]');
+    const before = (await console_.boundingBox())!;
+    const mini = page.getByRole("img", { name: /^Minimap/ });
+    const m = (await mini.boundingBox())!;
+    await page.mouse.click(m.x + m.width - 4, m.y + m.height - 4);
+    const after = (await console_.boundingBox())!;
+    expect(after.x).toBeLessThan(before.x - 100);
+
+    await page.getByRole("button", { name: "Hide views and tags" }).click();
+    await page.getByRole("button", { name: "Hide the side panel" }).click();
+    await expect(page.getByRole("complementary", { name: "Views and tags" })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "History" })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Show views and tags" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "History" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Show views and tags" }).click();
+    await page.getByRole("button", { name: "Show the side panel" }).click();
+    await expect(page.getByRole("complementary", { name: "Views and tags" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "History" })).toBeVisible();
+  });
 });

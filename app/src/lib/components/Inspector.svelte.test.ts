@@ -78,4 +78,11 @@ describe('the inspector', () => {
 		await page.getByRole('button', { name: 'Delete node' }).click();
 		expect(calls).toEqual(['duplicate', 'delete']);
 	});
+
+	it('offers Isolate for a node with tags, read-only or not', async () => {
+		let isolated = 0;
+		render(Inspector, { node: node('gw'), tags, onisolate: () => isolated++ });
+		await page.getByRole('button', { name: 'Isolate its tags' }).click();
+		expect(isolated).toBe(1);
+	});
 });

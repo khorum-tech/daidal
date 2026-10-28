@@ -145,3 +145,35 @@ export function edgePath(e: SceneEdge, a: Box, b: Box, defaultRoute: 'curved' | 
 		markerStart: hasStart ? marker('arrRev', w) : null
 	};
 }
+
+/**
+ * Where an end lands when dragged to [p] near box [n], as in the prototype (`snapTo`): the nearest side, and how far
+ * along it (0 to 1), pulled onto a quarter when close to one.
+ */
+export function snapAnchor(n: Box, p: { x: number; y: number }): Anchor {
+	const cand: { side: Side; t: number; d: number }[] = [
+		{ side: 'l', t: (p.y - n.y) / n.h, d: Math.abs(p.x - n.x) },
+		{ side: 'r', t: (p.y - n.y) / n.h, d: Math.abs(p.x - (n.x + n.w)) },
+		{ side: 't', t: (p.x - n.x) / n.w, d: Math.abs(p.y - n.y) },
+		{ side: 'b', t: (p.x - n.x) / n.w, d: Math.abs(p.y - (n.y + n.h)) }
+	];
+	// Past either end of a side counts as further from it.
+	for (const c of cand) {
+		const over = Math.max(0, -c.t, c.t - 1);
+		c.d += (c.side === 'l' || c.side === 'r' ? n.h : n.w) * over;
+	}
+	const best = cand.reduce((m, c) => (c.d < m.d ? c : m), cand[0]);
+	let t = Math.max(0, Math.min(1, best.t));
+	const near = [0, 0.25, 0.5, 0.75, 1].find(s => Math.abs(t - s) < 0.075);
+	t = near ?? Math.round(t * 100) / 100;
+	return { side: best.side, t };
+}
+
+/** Where each end of a connection meets its box: its pinned spot, or the middle of the side facing the other box. */
+export function endPoints(e: SceneEdge, a: Box, b: Box): { from: { x: number; y: number }; to: { x: number; y: number } } {
+	const at = (n: Box, pin: Anchor | null, other: Box) => {
+		const s = pin ?? { side: autoSide(n, other), t: 0.5 };
+		return sidePoint(n, s.side, s.t);
+	};
+	return { from: at(a, e.fromA, b), to: at(b, e.toA, a) };
+}

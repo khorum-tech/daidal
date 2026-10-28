@@ -53,3 +53,6 @@ export function clampView(v: View, area: Area, viewW: number, viewH: number, kee
 		ty: Math.min(hi(ky, area.y0, viewH), Math.max(lo(ky, area.y0, area.h), v.ty))
 	};
 }
+
+/** The view at the same zoom with content point [c] in the middle of a viewW × viewH view: where a minimap click goes. */
+export const centreOn = (v: View, c: Point, viewW: number, viewH: number): View => ({ s: v.s, tx: viewW / 2 - c.x * v.s, ty: viewH / 2 - c.y * v.s });

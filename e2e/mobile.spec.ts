@@ -496,4 +496,13 @@ test.describe("the app on a phone", () => {
     await expect(page.locator("[data-node]")).toHaveCount(4);
     await expect(history.getByRole("button", { name: /Add queue/i })).toContainText("Undone");
   });
+  test("isolates a node's tags from its sheet, with no minimap or end handles on a phone", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await expect(page.getByRole("img", { name: /^Minimap/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "Database: Journal DB" }).tap();
+    await page.getByTestId("node-menu").getByRole("button", { name: /^Edit/ }).tap();
+    await page.getByRole("dialog", { name: "Node details" }).getByRole("button", { name: "Isolate its tags" }).tap();
+    await expect(page.locator('[data-node="collector"]')).toHaveCSS("opacity", "0.22");
+  });
 });

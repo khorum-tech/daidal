@@ -1,5 +1,5 @@
 import type { DocBoundary, DocEdge, DocNode, DocTag, SkopeDoc } from '../types';
-import { NODE_H, NODE_W, slug, toScene, type Scene } from './model';
+import { NODE_H, NODE_W, slug, toScene, type Anchor, type Scene, type Side } from './model';
 
 /**
  * Changes to a document, each returning a new one so the old stays as it was (for undo). They follow the
@@ -162,6 +162,23 @@ export function endSide(edge: DocEdge, end: 'from' | 'to'): EndSide | null {
 	const side = edge.anchors?.[end]?.split(':')[0]?.trim().toLowerCase();
 	const long: Record<string, EndSide> = { l: 'left', r: 'right', t: 'top', b: 'bottom', left: 'left', right: 'right', top: 'top', bottom: 'bottom' };
 	return side ? (long[side] ?? null) : null;
+}
+
+const SIDE_NAME: Record<Side, EndSide> = { l: 'left', r: 'right', t: 'top', b: 'bottom' };
+
+/** Pins one end of a connection to a spot on a side (dragged there), or with null puts it back on auto. */
+export function setEnd(doc: SkopeDoc, index: number, end: 'from' | 'to', at: Anchor | null): SkopeDoc {
+	return {
+		...doc,
+		edges: (doc.edges ?? []).map((e, i) => {
+			if (i !== index) return e;
+			const anchors = { ...e.anchors };
+			if (at) anchors[end] = `${SIDE_NAME[at.side]}:${at.t}`;
+			else delete anchors[end];
+			const { anchors: _old, ...rest } = e;
+			return Object.keys(anchors).length ? { ...rest, anchors } : rest;
+		})
+	};
 }
 
 export function updateEdge(doc: SkopeDoc, index: number, change: EdgeChange): SkopeDoc {

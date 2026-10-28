@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { autoSide, edgePath, sidePoint } from './geometry';
+import { autoSide, edgePath, endPoints, sidePoint, snapAnchor } from './geometry';
 import type { SceneEdge } from './model';
 
 const box = (x: number, y: number, w = 100, h = 50) => ({ x, y, w, h });
@@ -68,5 +68,26 @@ describe('edgePath', () => {
 		expect(edgePath(edge({ width: 2.5 }), a, b).markerEnd).toBe('arrBold');
 		expect(edgePath(edge({ dir: 'both' }), a, b)).toMatchObject({ markerEnd: 'arr', markerStart: 'arrRev' });
 		expect(edgePath(edge({ dir: 'none' }), a, b)).toMatchObject({ markerEnd: null, markerStart: null });
+	});
+});
+
+describe('snapAnchor', () => {
+	const box = { x: 100, y: 100, w: 200, h: 100 };
+	it('picks the nearest side and how far along it', () => {
+		expect(snapAnchor(box, { x: 98, y: 133 })).toEqual({ side: 'l', t: 0.33 });
+		expect(snapAnchor(box, { x: 270, y: 205 })).toEqual({ side: 'b', t: 0.85 });
+	});
+	it('pulls onto a quarter when close, and keeps within the side', () => {
+		expect(snapAnchor(box, { x: 152, y: 97 })).toEqual({ side: 't', t: 0.25 });
+		expect(snapAnchor(box, { x: 320, y: 500 })).toEqual({ side: 'r', t: 1 });
+	});
+});
+
+describe('endPoints', () => {
+	it('puts an auto end mid-side facing the other box, and a pinned one where it is pinned', () => {
+		const a = { x: 0, y: 0, w: 100, h: 50 };
+		const b = { x: 300, y: 0, w: 100, h: 50 };
+		const e = { fromA: null, toA: { side: 't', t: 0.25 } } as unknown as SceneEdge;
+		expect(endPoints(e, a, b)).toEqual({ from: { x: 100, y: 25 }, to: { x: 325, y: 0 } });
 	});
 });
