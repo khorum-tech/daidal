@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Settings } from '../appearance.svelte';
 	import { CONDITIONS, distinguishable, simColor } from '../diagram/colour';
-	import { MORE_TAG_COLORS, TAG_COLORS } from '../diagram/edit';
+	import { PALETTES } from '../diagram/edit';
 	import type { Me } from '../types';
 
 	/**
@@ -56,15 +56,12 @@
 		{ id: 'light', label: 'Light' },
 		{ id: 'system', label: 'Match system' }
 	] as const;
-	const palettes = [
-		{ label: 'Nocturne', colors: TAG_COLORS },
-		{ label: 'Spectrum', colors: MORE_TAG_COLORS }
-	];
+	const palettes = PALETTES.map(p => ({ label: p.label, colors: [...p.colors] }));
 	const condition = $derived(settings.condition);
 	const conditionLabel = $derived(CONDITIONS.find(c => c.id === condition)?.label ?? '');
 	const kept = $derived(palettes.map(p => distinguishable(p.colors, condition)));
 	const keptCount = $derived(kept.reduce((n, k) => n + k.length, 0));
-	const total = TAG_COLORS.length + MORE_TAG_COLORS.length;
+	const total = palettes.reduce((n, p) => n + p.colors.length, 0);
 </script>
 
 <div class="profile-sheet">

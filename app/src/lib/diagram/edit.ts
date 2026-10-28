@@ -376,6 +376,44 @@ export const MORE_TAG_COLORS = ['#e0707c', '#e3925c', '#dfc264', '#a9cc6a', '#5f
 /** Where a tag made from a node lands, as in the prototype. */
 export const NEW_TAG_GROUP = 'Unlabelled';
 
+/** The prototype's tag palettes (web/index.html `PALETTES`). */
+export const PALETTES = [
+	{ id: 'nocturne', label: 'Nocturne', note: 'The house blurples: one hue, told apart by lightness', colors: TAG_COLORS },
+	{ id: 'spectrum', label: 'Spectrum', note: 'Fourteen hues, for diagrams with many tags', colors: MORE_TAG_COLORS },
+	{ id: 'okabe', label: 'Accessible', note: 'Okabe–Ito: made to survive red–green colour blindness', colors: ['#e69f00', '#56b4e9', '#009e73', '#f0e442', '#3d8fd1', '#e06c2f', '#cc79a7', '#adb3c2'] },
+	{ id: 'steps', label: 'Lightness steps', note: 'One hue in nine steps: legible in every condition, and in print', colors: ['#f1efff', '#dcd6fb', '#c3bbf5', '#a89ded', '#9184d9', '#7568bb', '#5b5099', '#443c76', '#2f2a55'] }
+] as const satisfies { id: string; label: string; note: string; colors: readonly string[] }[];
+export type PaletteId = (typeof PALETTES)[number]['id'];
+export const paletteById = (id: PaletteId) => PALETTES.find(p => p.id === id) ?? PALETTES[0];
+
+/** The palette a document's tags are drawn from: the one holding most of their colours (Nocturne when none do). */
+export function paletteOf(doc: SkopeDoc): PaletteId {
+	const colors = Object.values(doc.tags ?? {}).map(t => t.color);
+	let best: { id: PaletteId; n: number } = { id: 'nocturne', n: 0 };
+	for (const p of PALETTES) {
+		const n = colors.filter(c => (p.colors as readonly string[]).includes(c ?? '')).length;
+		if (n > best.n) best = { id: p.id, n };
+	}
+	return best.id;
+}
+
+/**
+ * Every tag recoloured from its palette into [to], as the prototype switches palettes: a tag keeps its slot (the
+ * same place in the new palette as it held in the old), or else takes the next by tag order. [colors] narrows the
+ * new palette (to those told apart under a colour-vision condition, say).
+ */
+export function recolourTags(doc: SkopeDoc, to: PaletteId, colors: readonly string[] = paletteById(to).colors): SkopeDoc {
+	const from = paletteById(paletteOf(doc)).colors as readonly string[];
+	const next = colors.length ? colors : paletteById(to).colors;
+	const tags = Object.fromEntries(
+		Object.entries(doc.tags ?? {}).map(([key, t], i) => {
+			const slot = from.indexOf(t.color ?? '');
+			return [key, { ...t, color: next[(slot < 0 ? i : slot) % next.length] }];
+		})
+	);
+	return { ...doc, tags };
+}
+
 /**
  * A new tag, keyed by its slugged label (made unique), coloured from the palette in turn. Returns the document and
  * the new key.
@@ -386,7 +424,8 @@ export function addTag(doc: SkopeDoc, label: string, group = NEW_TAG_GROUP): { d
 	let key = stem;
 	let n = 1;
 	while (tags[key]) key = `${stem}-${++n}`;
-	const color = TAG_COLORS[Object.keys(tags).length % TAG_COLORS.length];
+	const palette = paletteById(paletteOf(doc)).colors;
+	const color = palette[Object.keys(tags).length % palette.length];
 	return { doc: { ...doc, tags: { ...tags, [key]: { label: label.trim(), color, group: group.trim() || NEW_TAG_GROUP } } }, key };
 }
 

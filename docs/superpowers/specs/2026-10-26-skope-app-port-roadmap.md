@@ -40,6 +40,7 @@ Each slice keeps the habits of the ones before it:
 | Templates and the edit list (D) | New diagram from the prototype's four templates, with or without their example nodes; this visit's edits under History, to roll back or forward to any of them |
 | Canvas tools (the rest of A) | Drag a connection's end along its box to pin it (double-click for auto); a node's card on hover while editing; isolate a node's tags; a minimap to look around; fold the side panels away |
 | Leave and move (E) | A member leaves a workspace (what they made there passes to its owner); a diagram's owner moves it, with its history, to another of their workspaces |
+| Palettes (C) | Switch a diagram's tag palette (the prototype's four) in Manage tags, recolouring every tag as one undo step; colour pickers lead with that palette |
 | Follow review (part of D) | Accept or skip each change of a lead's newer snapshots, or a whole snapshot; take a verdict back; mark everything reviewed; pause; unlink (server: `leadId: null` on save) |
 | Presenting, locks and links (part of C) | Presentation mode with a hover (or tap) card and a view switcher; lock editing on a device; lock a view in the document; copy a link, optionally to a view (`?view=`) |
 | Image export (part of C) | PNG and SVG of the diagram as it shows now, drawn client side from the document; ghosted nodes kept or left out |
@@ -79,7 +80,6 @@ works well, on a phone especially) and bring back the rest around it.
 | **Lock**: a diagram or a view that can't be edited by mistake | `toggleLock`, `veToggleLock` | A lock in the document, so it applies to everyone |
 | **Config editor**: the document as JSON or YAML, edit and apply; upload, drop or download a `.skope.json` / `.skope.yaml` | `toggleCfg`, `cfgApply`, `cfgUpload`, `cfgDrop`, `copyCfg` | Validate before applying; one undo step. Lines up with the format work in `2026-10-24-skope-ecosystem-roadmap.md` |
 | **Image export** (PNG and SVG) | `doExport` | Client side first; the ecosystem roadmap's render endpoints can take over later |
-| **Palettes**: switch the tag palette and recolour existing tags | the palette picker | Done: the condition and its simulation. Switching palettes recolours tags, so it would be a document edit |
 | **Share link**: copy a link to the diagram (or a view of it) | `openShare`, `copyLink`, `setAccess` | Copying a link for people already in the workspace needs nothing new. Public or embedded access needs server work (see the ecosystem roadmap's embedding step) |
 
 ### D. Diagrams and workspaces

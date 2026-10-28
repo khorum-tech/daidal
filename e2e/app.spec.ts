@@ -522,6 +522,7 @@ test.describe("the app at /app", () => {
 
     await manager.getByLabel("Name of Async").fill("Event bus");
     await manager.getByLabel("Colour of Event bus").click();
+    await manager.getByRole("button", { name: "More colours" }).click();
     await manager.getByRole("button", { name: "Colour #e0707c" }).click();
     await manager.getByLabel("Group of Auth").fill("Security");
     await manager.getByLabel("Group of Auth").press("Enter");
@@ -1292,5 +1293,24 @@ test.describe("the app at /app", () => {
     expect(moved.leadId).toBeTruthy();
     const left = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(team)}`)).json()) as { id: string }[];
     expect(left.map(d => d.id)).not.toContain(id);
+  });
+
+  test("switches the tag palette from Manage tags, recolouring every tag as one undo step", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    const before = (await saved(page, request, id)).doc.tags;
+    await page.getByRole("button", { name: "Manage tags" }).click();
+    const manager = page.getByRole("dialog", { name: "Manage tags" });
+    await expect(manager.getByRole("radio", { name: /Nocturne/ })).toHaveAttribute("aria-checked", "true");
+    await manager.getByRole("radio", { name: /Accessible/ }).click();
+    await expect(manager.getByRole("radio", { name: /Accessible/ })).toHaveAttribute("aria-checked", "true");
+    const after = (await saved(page, request, id)).doc.tags;
+    const okabe = ["#e69f00", "#56b4e9", "#009e73", "#f0e442", "#3d8fd1", "#e06c2f", "#cc79a7", "#adb3c2"];
+    expect(Object.values(after).every(t => okabe.includes(t.color))).toBe(true);
+    expect(Object.keys(after)).toEqual(Object.keys(before));
+    await manager.getByRole("button", { name: "Close Manage tags" }).click();
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Undo Switch to the Accessible palette" }).click();
+    expect((await saved(page, request, id)).doc.tags).toEqual(before);
   });
 });

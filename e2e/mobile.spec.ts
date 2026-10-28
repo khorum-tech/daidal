@@ -516,4 +516,15 @@ test.describe("the app on a phone", () => {
     await expect(sheet).toHaveCount(0);
     expect((await (await request.get(`/api/diagrams/${id}`)).json()).workspaceId).toBe("personal:e2e-owner@example.com");
   });
+  test("switches the tag palette from the views sheet", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("navigation", { name: "Diagram panels" }).getByRole("button", { name: /^View/ }).tap();
+    await page.getByRole("dialog", { name: "Views and tags" }).getByRole("button", { name: "Manage tags" }).tap();
+    const manager = page.getByRole("dialog", { name: "Manage tags" });
+    await manager.getByRole("radio", { name: /Lightness steps/ }).tap();
+    await expect(manager.getByRole("radio", { name: /Lightness steps/ })).toHaveAttribute("aria-checked", "true");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
 });

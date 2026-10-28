@@ -70,6 +70,10 @@ minimap, and ends are pinned to a side in the connection's sheet.
 Before a release, or after a change to the editor, run the hand checklist in [`docs/uat.md`](../docs/uat.md) on stage,
 on a desktop and an iPhone.
 
+**Manage tags** also switches the diagram's tag **palette** (the prototype's four: Nocturne, Spectrum, Accessible
+and Lightness steps): every tag is recoloured, keeping its place in the palette, as one undo step. Colour pickers
+lead with the diagram's palette, with the others under More colours.
+
 What's left to port, and the order it's planned in: [`docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md`](../docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md).
 
 | Route | What it shows |

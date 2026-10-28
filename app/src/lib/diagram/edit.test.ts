@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkopeDoc } from '../types';
-import { lockView, setEnd, addBoundary, clipCentre, copyNodes, moveNodes, pasteNodes, removeMany, toggleTagOn, updateEdges, updateNodes, addEdge, addNode, addTag, addView, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, removeTag, removeView, resizeBoundary, resizeNode, reverseEdge, setDefaultView, TAG_COLORS, updateBoundary, updateEdge, updateNode, updateTag, updateView, viewNameFree } from './edit';
+import { lockView, setEnd, PALETTES, paletteOf, recolourTags, addBoundary, clipCentre, copyNodes, moveNodes, pasteNodes, removeMany, toggleTagOn, updateEdges, updateNodes, addEdge, addNode, addTag, addView, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, removeTag, removeView, resizeBoundary, resizeNode, reverseEdge, setDefaultView, TAG_COLORS, updateBoundary, updateEdge, updateNode, updateTag, updateView, viewNameFree } from './edit';
 import { toScene } from './model';
 
 const base = (): SkopeDoc => ({
@@ -392,5 +392,28 @@ describe('many at once', () => {
 	it('finds the middle of a clip', () => {
 		// API at (100, 100) and Orders DB at (400, 100), both 190 × 88.
 		expect(clipCentre(copyNodes(base(), ['api', 'db']))).toEqual({ x: 345, y: 144 });
+	});
+});
+
+describe('palettes', () => {
+	const doc: SkopeDoc = {
+		version: 1,
+		tags: { a: { label: 'A', color: '#b5abfc' }, b: { label: 'B', color: '#796cbf' }, c: { label: 'C', color: '#123456' } }
+	};
+	it('finds the palette most tags come from', () => {
+		expect(paletteOf(doc)).toBe('nocturne');
+		expect(paletteOf({ version: 1, tags: { a: { label: 'A', color: '#e69f00' } } })).toBe('okabe');
+		expect(paletteOf({ version: 1 })).toBe('nocturne');
+	});
+	it('recolours each tag into the same slot of the new palette, or by tag order', () => {
+		const okabe = PALETTES.find(p => p.id === 'okabe')!.colors;
+		const out = recolourTags(doc, 'okabe');
+		expect(out.tags).toEqual({ a: { label: 'A', color: okabe[1] }, b: { label: 'B', color: okabe[3] }, c: { label: 'C', color: okabe[2] } });
+		expect(paletteOf(out)).toBe('okabe');
+		expect(recolourTags(doc, 'okabe', ['#000001', '#000002']).tags?.b.color).toBe('#000002');
+	});
+	it('gives a new tag the next colour of the document\'s palette', () => {
+		const { doc: out, key } = addTag(recolourTags(doc, 'steps'), 'D');
+		expect(out.tags?.[key].color).toBe(PALETTES.find(p => p.id === 'steps')!.colors[3]);
 	});
 });
