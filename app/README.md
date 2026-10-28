@@ -67,6 +67,9 @@ in the corner shows the whole diagram with the part on screen outlined; press or
 the canvas's edges fold the side panels away, and this browser remembers. A phone keeps to its sheets and menus: no
 minimap, and ends are pinned to a side in the connection's sheet.
 
+Before a release, or after a change to the editor, run the hand checklist in [`docs/uat.md`](../docs/uat.md) on stage,
+on a desktop and an iPhone.
+
 What's left to port, and the order it's planned in: [`docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md`](../docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md).
 
 | Route | What it shows |
