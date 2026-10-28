@@ -79,3 +79,8 @@ table above.
 
 **When a feature adds a table or something to a diagram, extend `stage/diagrams.ts` (and `APP_TABLES` in
 `stage/seed.ts`, children first) so stage shows it.** Keep names original and addresses on `example.com`.
+
+## Testing on stage
+
+[`uat.md`](uat.md) is the hand-run checklist for stage: every feature on a desktop and an iPhone, written against
+the stage data above, with a section of regressions to keep fixed.
