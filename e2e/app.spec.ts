@@ -1276,4 +1276,21 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("complementary", { name: "Views and tags" })).toBeVisible();
     await expect(page.getByRole("region", { name: "History" })).toBeVisible();
   });
+
+  test("moves a diagram with its history to another workspace from its sheet", async ({ page, request }) => {
+    const { diagrams, team } = await importStageData(request);
+    const id = diagrams["edge-ingress (platform copy)"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "edge-ingress (platform copy)" }).click();
+    const sheet = page.getByRole("dialog", { name: "Diagram" });
+    await sheet.getByLabel("Move to").selectOption("Personal");
+    await sheet.getByRole("button", { name: "Move the diagram" }).click();
+    await expect(sheet).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Personal" })).toBeVisible();
+    const moved = await (await request.get(`/api/diagrams/${id}`)).json();
+    expect(moved.workspaceId).toBe("personal:e2e-owner@example.com");
+    expect(moved.leadId).toBeTruthy();
+    const left = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(team)}`)).json()) as { id: string }[];
+    expect(left.map(d => d.id)).not.toContain(id);
+  });
 });

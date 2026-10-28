@@ -51,8 +51,20 @@ describe("workspaces", () => {
 
   it("never removes the owner, and never deletes the personal workspace", async () => {
     const { body: ws } = await call.post("ws-keep@example.com", "/api/workspaces", { name: "Keep" });
-    expect((await call.del("ws-keep@example.com", `/api/workspaces/${ws.id}/members/WS-KEEP@example.com`)).body).toEqual({ error: "the owner cannot be removed" });
+    expect((await call.del("ws-keep@example.com", `/api/workspaces/${ws.id}/members/WS-KEEP@example.com`)).body).toEqual({ error: "the owner can't leave; delete the workspace instead" });
     expect((await call.del("ws-keep@example.com", "/api/workspaces/personal:ws-keep@example.com")).body).toEqual({ error: "the personal workspace cannot be deleted" });
+  });
+
+  it("lets a member leave, but not remove anyone else; what they made there passes to the owner", async () => {
+    const { body: ws } = await call.post("ws-host@example.com", "/api/workspaces", { name: "Shared" });
+    for (const m of ["ws-leaver@example.com", "ws-stays@example.com"]) await call.post("ws-host@example.com", `/api/workspaces/${ws.id}/members`, { email: m });
+    const { body: d } = await call.post("ws-leaver@example.com", "/api/diagrams", { workspace: ws.id, doc: { version: 1, diagram: { name: "mine" } } });
+    expect((await call.del("ws-leaver@example.com", `/api/workspaces/${ws.id}/members/ws-stays@example.com`)).status).toBe(403);
+    expect((await call.del("ws-leaver@example.com", `/api/workspaces/${ws.id}/members/WS-Leaver@example.com`)).status).toBe(204);
+    expect((await call.get("ws-leaver@example.com", "/api/workspaces")).body.map((w: { id: string }) => w.id)).not.toContain(ws.id);
+    expect((await call.get("ws-leaver@example.com", `/api/diagrams/${d.id}`)).status).toBe(404);
+    expect((await call.get("ws-host@example.com", `/api/diagrams/${d.id}`)).body).toMatchObject({ ownerEmail: "ws-host@example.com", workspaceId: ws.id });
+    expect((await call.del("ws-leaver@example.com", `/api/workspaces/${ws.id}/members/ws-leaver@example.com`)).status).toBe(404);
   });
 
   it("removes a member, who then can't see the workspace", async () => {

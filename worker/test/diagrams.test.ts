@@ -79,6 +79,26 @@ describe("diagrams", () => {
     expect(await names("&limit=junk")).toHaveLength(4);
   });
 
+  it("moves a diagram, with its history and follows, to another workspace its owner is in", async () => {
+    const from = await team("d-mover@example.com", "d-left-behind@example.com");
+    const to = await team("d-mover@example.com");
+    const elsewhere = await team("d-stranger@example.com");
+    const { body: d } = await call.post("d-mover@example.com", "/api/diagrams", { workspace: from, doc: doc("moving") });
+    await call.post("d-mover@example.com", `/api/diagrams/${d.id}/snapshots`, { label: "v1", doc: doc("moving") });
+    const { body: follower } = await call.post("d-left-behind@example.com", "/api/diagrams", { workspace: from, from: d.id, follow: true });
+
+    expect((await call.patch("d-left-behind@example.com", `/api/diagrams/${d.id}`, { workspace: to })).status).toBe(403);
+    expect((await call.patch("d-mover@example.com", `/api/diagrams/${d.id}`, { workspace: elsewhere })).status).toBe(404);
+    expect((await call.patch("d-mover@example.com", `/api/diagrams/${d.id}`, {})).status).toBe(400);
+
+    const moved = await call.patch("d-mover@example.com", `/api/diagrams/${d.id}`, { workspace: to });
+    expect(moved.body).toMatchObject({ id: d.id, workspaceId: to, rev: 1 });
+    expect((await call.get("d-mover@example.com", `/api/diagrams/${d.id}/snapshots`)).body).toHaveLength(1);
+    expect((await call.get("d-mover@example.com", `/api/diagrams?workspace=${from}`)).body.map((x: { id: string }) => x.id)).not.toContain(d.id);
+    expect((await call.get("d-left-behind@example.com", `/api/diagrams/${d.id}`)).status).toBe(404);
+    expect((await call.get("d-left-behind@example.com", `/api/diagrams/${follower.id}`)).body.leadId).toBe(d.id);
+  });
+
   it("names a follower's lead only for someone who can see it", async () => {
     const lead = await team("d-leadname@example.com");
     const { body: d } = await call.post("d-leadname@example.com", "/api/diagrams", { workspace: lead, name: "Upstream", doc: doc() });

@@ -189,11 +189,12 @@ All bodies are JSON. Errors are `{ "error": "<message>" }`.
 | `PATCH /api/workspaces/:id` | owner | Rename |
 | `DELETE /api/workspaces/:id` | owner | Delete with its diagrams; the personal workspace cannot be deleted |
 | `POST /api/workspaces/:id/members` | owner | Add by email |
-| `DELETE /api/workspaces/:id/members/:email` | owner | Remove; the owner cannot be removed |
+| `DELETE /api/workspaces/:id/members/:email` | owner, or the member themselves | Remove, or leave; the owner cannot be removed or leave. The diagrams the member made there pass to the workspace's owner |
 | `GET /api/diagrams?workspace=:id[&q=&limit=&offset=]` | member | List without documents, newest first: each with its card summary (`diagrams.summary`, kept on every write) and its lead's name if the caller can see the lead. `q` searches names and node names; `limit` is at most 200 |
 | `POST /api/diagrams` | member of target | Create from a document, or clone with `{from, follow}` |
 | `GET /api/diagrams/:id` | member | Full row including `doc` |
 | `PUT /api/diagrams/:id` | diagram owner | Save `{doc, name, rev, synced_snapshot_id, decided, paused}` |
+| `PATCH /api/diagrams/:id` | diagram owner, a member of the target | Move `{workspace}`: with its snapshots, keeping what follows it and what it follows |
 | `DELETE /api/diagrams/:id` | diagram owner | Delete with its snapshots |
 | `GET /api/diagrams/:id/snapshots` | member | History, newest last; documents included |
 | `POST /api/diagrams/:id/snapshots` | diagram owner | Append `{label, doc}` |

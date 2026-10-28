@@ -15,7 +15,8 @@
 		onadd,
 		onremove,
 		onexport,
-		ondelete
+		ondelete,
+		onleave
 	}: {
 		workspace: Workspace;
 		/** The signed-in person's email. */
@@ -25,6 +26,8 @@
 		onremove: (email: string) => Promise<void>;
 		onexport: () => Promise<void>;
 		ondelete: () => Promise<void>;
+		/** A member (not the owner) takes themselves out; what they made here stays, now the owner's. */
+		onleave?: () => Promise<void>;
 	} = $props();
 
 	const owner = $derived(workspace.ownerEmail === me);
@@ -32,6 +35,7 @@
 	let busy = $state(false);
 	let failed = $state('');
 	let confirming = $state(false);
+	let leaving = $state(false);
 	let shownFor = '';
 	$effect.pre(() => {
 		if (shownFor === workspace.id) return;
@@ -39,6 +43,7 @@
 		email = '';
 		failed = '';
 		confirming = false;
+		leaving = false;
 	});
 
 	async function run(action: () => Promise<void>) {
@@ -122,6 +127,20 @@
 				</div>
 			{:else}
 				<button type="button" class="btn btn-secondary" onclick={() => (confirming = true)}><Icon name="trash" size={14} />Delete workspace…</button>
+			{/if}
+		</div>
+	{/if}
+
+	{#if onleave && !owner && !workspace.personal}
+		<div class="danger-zone">
+			{#if leaving}
+				<p>Leave “{workspace.name}”? You won't see its diagrams any more, and the ones you made here stay, now {workspace.ownerEmail}'s. Its owner can add you back.</p>
+				<div class="row">
+					<button type="button" class="btn btn-secondary danger" disabled={busy} onclick={() => run(onleave)}>Leave the workspace</button>
+					<button type="button" class="btn btn-ghost" onclick={() => (leaving = false)}>Stay</button>
+				</div>
+			{:else}
+				<button type="button" class="btn btn-secondary" onclick={() => (leaving = true)}>Leave this workspace…</button>
 			{/if}
 		</div>
 	{/if}

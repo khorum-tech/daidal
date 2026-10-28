@@ -183,6 +183,20 @@ export async function createDiagram(db: D1Database, email: string, request: Requ
   return json(diagramOut(await visibleDiagram(db, id, email)), 201);
 }
 
+/**
+ * `PATCH /api/diagrams/:id` with `{workspace}`: its owner moves it, with its history, into another workspace they
+ * belong to. Who follows it, and what it follows, stay as they are; who can see it is now that workspace's members.
+ */
+export async function moveDiagram(db: D1Database, id: string, email: string, request: Request, now: number): Promise<Response> {
+  const row = await ownDiagram(db, id, email);
+  const body = await readJson(request, 4 * 1024);
+  if (!isPlainObject(body) || typeof body.workspace !== "string" || !body.workspace) throw new HttpError(400, "say where to: {workspace}");
+  if (body.workspace === row.workspace_id) return json(diagramOut(row));
+  await requireMember(db, body.workspace, email);
+  await db.prepare("UPDATE diagrams SET workspace_id = ?, updated_at = ? WHERE id = ?").bind(body.workspace, now, id).run();
+  return json(diagramOut(await visibleDiagram(db, id, email)));
+}
+
 export async function getDiagram(db: D1Database, id: string, email: string): Promise<Response> {
   return json(diagramOut(await visibleDiagram(db, id, email)));
 }

@@ -61,6 +61,8 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		 * with [follow] tracks that diagram's snapshots.
 		 */
 		createDiagram: (body: { workspace: string; name?: string; doc?: SkopeDoc; from?: string; follow?: boolean }) => send<Diagram>('/api/diagrams', 'POST', body),
+		/** Moves the diagram, with its history, into another workspace of the owner's. */
+		moveDiagram: (id: string, workspace: string) => send<Diagram>(`/api/diagrams/${q(id)}`, 'PATCH', { workspace }),
 		/** Deletes the diagram and its history, as its owner. Its followers keep their copies. */
 		deleteDiagram: (id: string) => call<void>(`/api/diagrams/${q(id)}`, { method: 'DELETE' }),
 		createWorkspace: (name: string) => send<Workspace>('/api/workspaces', 'POST', { name }),

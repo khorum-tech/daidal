@@ -121,10 +121,17 @@ export async function addMember(db: D1Database, workspace: string, email: string
   return json({ email: member }, 201);
 }
 
+/**
+ * Takes someone out of a workspace: the owner removes anyone else, and a member can remove themselves (leave). The
+ * diagrams they made there stay with the workspace and pass to its owner, so nothing in it becomes uneditable.
+ */
 export async function removeMember(db: D1Database, workspace: string, email: string, member: string): Promise<Response> {
-  const found = await requireOwner(db, workspace, email);
   const target = member.trim().toLowerCase();
-  if (target === found.owner) throw new HttpError(400, "the owner cannot be removed");
-  await db.prepare("DELETE FROM workspace_members WHERE workspace_id = ? AND email = ?").bind(workspace, target).run();
+  const found = target === email ? await requireMember(db, workspace, email) : await requireOwner(db, workspace, email);
+  if (target === found.owner) throw new HttpError(400, target === email ? "the owner can't leave; delete the workspace instead" : "the owner cannot be removed");
+  await db.batch([
+    db.prepare("DELETE FROM workspace_members WHERE workspace_id = ? AND email = ?").bind(workspace, target),
+    db.prepare("UPDATE diagrams SET owner_email = ? WHERE workspace_id = ? AND owner_email = ?").bind(found.owner, workspace, target),
+  ]);
   return noContent();
 }

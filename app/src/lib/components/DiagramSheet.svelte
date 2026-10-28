@@ -22,7 +22,8 @@
 		locked = false,
 		onlock,
 		onexport,
-		onconfig
+		onconfig,
+		onmove
 	}: {
 		name: string;
 		mine: boolean;
@@ -44,7 +45,11 @@
 		onexport?: (format: 'png' | 'svg', ghosted: boolean) => Promise<void>;
 		/** Opens the diagram as YAML or JSON. */
 		onconfig?: () => void;
+		/** The owner moves it, with its history, into another of their workspaces. */
+		onmove?: (workspace: string) => Promise<void>;
 	} = $props();
+	const elsewhere = $derived(workspaces.filter(w => w.id !== here));
+	let moveTo = $state('');
 
 	let ghosted = $state(true);
 
@@ -74,6 +79,7 @@
 		shownFor = name;
 		target = workspaces.some(w => w.id === here) ? here : (workspaces[0]?.id ?? '');
 		copyName = `${name} copy`;
+		moveTo = '';
 		failed = '';
 		confirming = false;
 	});
@@ -180,6 +186,27 @@
 		</label>
 		<button type="submit" class="btn btn-primary" disabled={busy || !copyName.trim() || !target}>{follow ? 'Make a follower' : 'Make a duplicate'}</button>
 	</form>
+
+	{#if mine && onmove && elsewhere.length}
+		<form
+			class="copy"
+			onsubmit={e => {
+				e.preventDefault();
+				if (moveTo) void run(() => onmove(moveTo));
+			}}
+		>
+			<h3>Move</h3>
+			<label class="field">
+				<span>To</span>
+				<select class="input" aria-label="Move to" bind:value={moveTo}>
+					<option value="" disabled>Pick a workspace…</option>
+					{#each elsewhere as w (w.id)}<option value={w.id}>{w.name}</option>{/each}
+				</select>
+			</label>
+			<button type="submit" class="btn btn-secondary" disabled={busy || !moveTo}>Move the diagram</button>
+			<p class="note">It goes with its history; whatever follows it keeps following. Only that workspace's members will see it.</p>
+		</form>
+	{/if}
 
 	{#if mine}
 		<div class="danger-zone">

@@ -39,6 +39,7 @@ Each slice keeps the habits of the ones before it:
 | Home page summaries and search (D, E) | Cards drawn from a summary the server keeps with each diagram (one request, no documents), sixty at a time with Show more; search by diagram or node name, kept in the address |
 | Templates and the edit list (D) | New diagram from the prototype's four templates, with or without their example nodes; this visit's edits under History, to roll back or forward to any of them |
 | Canvas tools (the rest of A) | Drag a connection's end along its box to pin it (double-click for auto); a node's card on hover while editing; isolate a node's tags; a minimap to look around; fold the side panels away |
+| Leave and move (E) | A member leaves a workspace (what they made there passes to its owner); a diagram's owner moves it, with its history, to another of their workspaces |
 | Follow review (part of D) | Accept or skip each change of a lead's newer snapshots, or a whole snapshot; take a verdict back; mark everything reviewed; pause; unlink (server: `leadId: null` on save) |
 | Presenting, locks and links (part of C) | Presentation mode with a hover (or tap) card and a view switcher; lock editing on a device; lock a view in the document; copy a link, optionally to a view (`?view=`) |
 | Image export (part of C) | PNG and SVG of the diagram as it shows now, drawn client side from the document; ghosted nodes kept or left out |
@@ -89,8 +90,6 @@ works well, on a phone especially) and bring back the rest around it.
 
 ### E. Smaller gaps and server work
 
-- **Leave a workspace** as a member. Needs a server route (members can't remove themselves today).
-- **Move a diagram to another workspace** (`toggleEdWs`). Needs a server route; copying works today.
 - **Networks** (the prototype's `Skope-Network-Module`: shared workspaces across organisations, people search).
   Out of scope for the port; it needs its own design.
 - **Hub docs.** `hestia-systems` `ops/mission-control/cloudflare-apps.md` still says the Skope UI keeps diagrams in

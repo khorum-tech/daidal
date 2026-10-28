@@ -72,6 +72,7 @@ function diagramRoute(request: Request, db: D1Database, email: string, url: URL,
   }
   if (method === "GET") return diagrams.getDiagram(db, id, email);
   if (method === "PUT") return diagrams.saveDiagram(db, id, email, request, now);
+  if (method === "PATCH") return diagrams.moveDiagram(db, id, email, request, now);
   if (method === "DELETE") return diagrams.deleteDiagram(db, id, email);
   return notAllowed();
 }

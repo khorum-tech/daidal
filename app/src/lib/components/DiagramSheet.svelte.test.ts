@@ -113,4 +113,14 @@ describe('the diagram sheet', () => {
 		await page.getByRole('button', { name: 'Download PNG' }).click();
 		await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't make the PNG");
 	});
+
+	it('lets the owner move it to another of their workspaces', async () => {
+		const moved: string[] = [];
+		render(DiagramSheet, { name: 'ledger', mine: true, workspaces, here: 't', onrename: () => {}, oncopy: async () => {}, ondelete: async () => {}, onmove: async w => void moved.push(w) });
+		const move = page.getByRole('button', { name: 'Move the diagram' });
+		await expect.element(move).toBeDisabled();
+		await page.getByLabelText('Move to').selectOptions('Personal');
+		await move.click();
+		expect(moved).toEqual(['p']);
+	});
 });
