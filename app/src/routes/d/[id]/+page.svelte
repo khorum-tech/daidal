@@ -595,7 +595,14 @@
 		const before = current();
 		apply(updateEdge(before, selectedEdge, change), before, label, group);
 	}
-	function setEdgeEnd(index: number, end: 'from' | 'to', at: Anchor | null) {
+	async function moveTo(workspace: string) {
+		await working.saver.flush();
+		await api.moveDiagram(data.diagram.id, workspace);
+		sheet = null;
+		await invalidateAll();
+		notify(`Moved to ${data.workspaces.find(w => w.id === workspace)?.name ?? 'the workspace'}`);
+	}
+		function setEdgeEnd(index: number, end: 'from' | 'to', at: Anchor | null) {
 		const before = current();
 		apply(setEnd(before, index, end, at), before, at ? 'Pin connection end' : 'Connection end back to auto');
 	}
@@ -1396,6 +1403,7 @@
 		onlock={setLock}
 		onexport={exportImage}
 		onconfig={openConfig}
+		onmove={moveTo}
 	/>
 </Sheet>
 <!-- The tag manager opens from the tags panel on any screen: a dialog on a wide one, a sheet on a phone. -->

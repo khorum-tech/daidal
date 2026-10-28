@@ -57,4 +57,15 @@ describe('the workspace sheet', () => {
 		await page.getByRole('button', { name: 'Export a backup' }).click();
 		await expect.element(page.getByRole('alert')).toHaveTextContent('not found');
 	});
+
+	it('lets a member leave after asking, and never offers it to the owner', async () => {
+		let left = 0;
+		const r = render(WorkspaceSheet, { workspace: team, me: 'pal@x.io', onrename: noop, onadd: noop, onremove: noop, onexport: noop, ondelete: noop, onleave: async () => void left++ });
+		await page.getByRole('button', { name: 'Leave this workspace…' }).click();
+		await expect.element(page.getByText(/now owner@x.io's/)).toBeVisible();
+		await page.getByRole('button', { name: 'Leave the workspace' }).click();
+		expect(left).toBe(1);
+		await r.rerender({ me: 'owner@x.io' });
+		await expect.element(page.getByRole('button', { name: /Leave/ })).not.toBeInTheDocument();
+	});
 });

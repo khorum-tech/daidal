@@ -271,6 +271,12 @@
 			}}
 			onexport={exportWorkspace}
 			ondelete={deleteWorkspace}
+			onleave={async () => {
+				await api.removeMember(ws.id, data.me.email);
+				managing = false;
+				notice = { text: `You left “${ws.name}”.`, failed: false };
+				await goto(resolve('/'), { invalidateAll: true });
+			}}
 		/>
 	</Sheet>
 {/if}

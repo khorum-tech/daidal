@@ -505,4 +505,15 @@ test.describe("the app on a phone", () => {
     await page.getByRole("dialog", { name: "Node details" }).getByRole("button", { name: "Isolate its tags" }).tap();
     await expect(page.locator('[data-node="collector"]')).toHaveCSS("opacity", "0.22");
   });
+  test("moves a diagram to another workspace from the diagram sheet", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform (DR drill)"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "ledger-platform (DR drill)" }).tap();
+    const sheet = page.getByRole("dialog", { name: "Diagram" });
+    await sheet.getByLabel("Move to").selectOption("Personal");
+    await sheet.getByRole("button", { name: "Move the diagram" }).tap();
+    await expect(sheet).toHaveCount(0);
+    expect((await (await request.get(`/api/diagrams/${id}`)).json()).workspaceId).toBe("personal:e2e-owner@example.com");
+  });
 });

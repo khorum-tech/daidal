@@ -18,7 +18,9 @@ diagram** on a workspace starts an empty one; the diagram's name in the header o
 (rename, as its owner; copy it into a workspace of yours as a duplicate or as a follower of its snapshots; delete it,
 as its owner); and the History panel takes a snapshot of the working copy, with a description. **Workspaces** too:
 **+ New workspace** and **Import a backup…** on the home screen, and **Manage** (or **Members**) by a workspace's
-name to rename it, add and remove members by email, export it as a backup, or delete it. The **toolbar** over the
+name to rename it, add and remove members by email, export it as a backup, or delete it; a member can **leave** it
+(what they made there passes to its owner), and a diagram's owner can **move** it to another workspace from its sheet.
+The **toolbar** over the
 canvas has undo and redo, Select and Connect (click a node, then the other end), one click to add a service,
 database, queue, actor, note, free text or container, and **+ Add** for every other type. While a connection waits
 for its other end, a click (or tap) on empty canvas makes a new node there for it. With a mouse, a double-click on
