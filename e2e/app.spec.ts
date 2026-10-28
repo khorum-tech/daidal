@@ -580,6 +580,55 @@ test.describe("the app at /app", () => {
     expect(made).toMatchObject({ name: "release-plan", workspaceId: team, doc: { version: 1, diagram: { name: "release-plan" } } });
   });
 
+  test("starts a diagram from a template, with or without its example nodes", async ({ page, request }) => {
+    const { team } = await importStageData(request);
+    await page.goto(`/app/?ws=${encodeURIComponent(team)}`);
+    await page.getByRole("button", { name: "+ New diagram" }).click();
+    let dialog = page.getByRole("dialog", { name: "New diagram" });
+    await dialog.getByLabel("Name").fill("edge-plan");
+    await dialog.getByRole("radio", { name: /Deployment topology/ }).click();
+    await dialog.getByRole("checkbox", { name: "Include the example nodes" }).check();
+    await dialog.getByRole("button", { name: "Create diagram" }).click();
+    await expect(page).toHaveTitle("edge-plan · Skope");
+    await expect(page.locator("[data-node]")).toHaveCount(4);
+    await expect(page.getByText("VPC")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Full system/ })).toHaveAttribute("aria-pressed", "true");
+
+    await page.goto(`/app/?ws=${encodeURIComponent(team)}`);
+    await page.getByRole("button", { name: "+ New diagram" }).click();
+    dialog = page.getByRole("dialog", { name: "New diagram" });
+    await dialog.getByLabel("Name").fill("context-only");
+    await dialog.getByRole("radio", { name: /C4 Context/ }).click();
+    await dialog.getByRole("button", { name: "Create diagram" }).click();
+    await expect(page).toHaveTitle("context-only · Skope");
+    await expect(page.locator("[data-node]")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Core only" })).toBeVisible();
+    const made = await (await request.get(`/api/diagrams/${page.url().split("/d/")[1]}`)).json();
+    expect(made.doc).toMatchObject({ diagram: { name: "context-only", kind: "C4" }, nodes: [], tags: { core: { label: "Core" } } });
+  });
+
+  test("rolls back to any edit of the visit from the edit list, and forward again", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    const tools = page.getByRole("toolbar", { name: "Edit" });
+    await tools.getByRole("button", { name: "Add database" }).click();
+    await tools.getByRole("button", { name: "Add service" }).click();
+    const edits = page.getByRole("region", { name: "Edits" });
+    await expect(edits.getByRole("button", { name: /Add service/ })).toHaveAttribute("aria-current", "step");
+
+    await edits.getByRole("button", { name: /As it was when opened/ }).click();
+    await expect(page.getByRole("button", { name: /New (Database|Service)$/ })).toHaveCount(0);
+    expect((await saved(page, request, id)).doc.nodes).toHaveLength(9);
+
+    await edits.getByRole("button", { name: /Add database/ }).click();
+    await expect(page.getByRole("button", { name: "Database: New Database" })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Service: New Service" })).toHaveCount(0);
+    await expect(edits.getByRole("button", { name: /Add service/ })).toContainText("Undone");
+    await expect(tools.getByRole("button", { name: "Redo Add service" })).toBeVisible();
+    expect((await saved(page, request, id)).doc.nodes).toHaveLength(10);
+  });
+
   test("renames a diagram from its name in the header, and takes a snapshot", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];

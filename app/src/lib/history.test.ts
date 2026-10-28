@@ -58,4 +58,22 @@ describe('History', () => {
 		expect(h.undo(doc(2))).toEqual(doc(1));
 		expect(h.undo(doc(1))).toBeNull();
 	});
+
+	it('lists every step in order, and goes to any of them one undo or redo at a time', () => {
+		const h = new History();
+		h.record(doc(0), 'first');
+		h.record(doc(1), 'second');
+		h.record(doc(2), 'third');
+		expect(h.goTo(doc(3), 1)).toEqual(doc(1));
+		expect(h.steps).toEqual([
+			{ label: 'first', done: true },
+			{ label: 'second', done: false },
+			{ label: 'third', done: false }
+		]);
+		expect(h.redoLabel).toBe('second');
+		expect(h.goTo(doc(1), 3)).toEqual(doc(3));
+		expect(h.goTo(doc(3), 0)).toEqual(doc(0));
+		expect(h.goTo(doc(0), 0)).toBeNull();
+		expect(h.goTo(doc(0), 9)).toEqual(doc(3));
+	});
 });

@@ -52,6 +52,22 @@ export class History {
 		return step.doc;
 	}
 
+	/** Every step in the order made: the done ones, then the undone ones redo would bring back. */
+	get steps(): { label: string; done: boolean }[] {
+		return [...this.#past.map(s => ({ label: s.label, done: true })), ...this.#future.toReversed().map(s => ({ label: s.label, done: false }))];
+	}
+
+	/**
+	 * The document with the first [count] steps done and the rest undone, from [current]; one undo or redo per step
+	 * between, so each can still be undone or redone. Null when nothing would change.
+	 */
+	goTo(current: SkopeDoc, count: number): SkopeDoc | null {
+		let doc: SkopeDoc | null = null;
+		while (this.#past.length > count) doc = this.undo(doc ?? current);
+		while (this.#past.length < count && this.#future.length) doc = this.redo(doc ?? current);
+		return doc;
+	}
+
 	/** What undo would take back, for its button's label. */
 	get undoLabel(): string | null {
 		return this.#past.at(-1)?.label ?? null;

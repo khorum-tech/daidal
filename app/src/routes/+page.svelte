@@ -9,6 +9,8 @@
 	import Sheet from '#lib/components/Sheet.svelte';
 	import WorkspaceSheet from '#lib/components/WorkspaceSheet.svelte';
 	import { slug } from '#lib/diagram/model.ts';
+	import { fromTemplate, TEMPLATES } from '#lib/diagram/templates.ts';
+	import TemplatePicker from '#lib/components/TemplatePicker.svelte';
 	import type { ListedDiagram, Workspace } from '#lib/types.ts';
 
 	let { data } = $props();
@@ -63,6 +65,8 @@
 	const api = createApi(fetch);
 	let creating = $state(false);
 	let newName = $state('');
+	let template = $state<string | null>(null);
+	let examples = $state(false);
 	let busy = $state(false);
 	let failed = $state('');
 	// Workspaces: make one, manage the one on show, export it, or import a backup as new ones.
@@ -135,9 +139,12 @@
 		busy = true;
 		failed = '';
 		try {
-			const made = await api.createDiagram({ workspace: data.workspace.id, name, doc: { version: 1, diagram: { name } } });
+			const doc = fromTemplate(name, TEMPLATES.find(t => t.id === template) ?? null, examples);
+			const made = await api.createDiagram({ workspace: data.workspace.id, name, doc });
 			creating = false;
 			newName = '';
+			template = null;
+			examples = false;
 			await goto(resolve('/d/[id]', { id: made.id }));
 		} catch (err) {
 			failed = err instanceof Error ? err.message : "Couldn't create the diagram";
@@ -274,7 +281,11 @@
 			<!-- svelte-ignore a11y_autofocus -->
 			<input class="input" maxlength="100" placeholder="e.g. checkout-platform" autofocus bind:value={newName} />
 		</label>
-		<p class="where">In <strong>{data.workspace?.name}</strong>. It opens empty, ready for <strong>+ Add</strong>.</p>
+		<fieldset class="start">
+			<legend>Start from</legend>
+			<TemplatePicker bind:picked={template} bind:examples />
+		</fieldset>
+		<p class="where">In <strong>{data.workspace?.name}</strong>.</p>
 		{#if failed}<p class="error" role="alert">{failed}</p>{/if}
 		<button type="submit" class="btn btn-primary" disabled={busy || !newName.trim()}>Create diagram</button>
 	</form>
@@ -536,6 +547,18 @@
 	}
 	.error {
 		color: var(--color-danger, #e5767b);
+	}
+	.start {
+		margin: 0;
+		padding: 0;
+		border: none;
+		min-width: 0;
+	}
+	.start legend {
+		padding: 0;
+		margin-bottom: 6px;
+		font-size: 11.5px;
+		color: var(--color-neutral-500);
 	}
 	.create .btn {
 		align-self: flex-start;

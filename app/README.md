@@ -53,6 +53,11 @@ system theme; a colour-vision condition, which strikes the colours that collide 
 and can be simulated over the whole app (an SVG colour matrix, `src/lib/diagram/colour.ts`); and **icon-only cards**
 when presenting (also a switch in the presenting bar), each node drawn as its icon and name.
 
+**+ New diagram** starts from a blank canvas or one of the prototype's templates (`src/lib/diagram/templates.ts`): its
+tags, views and kind always, its example nodes if asked. Under History, **Edits this visit** lists every change since
+the diagram was opened, newest first; picking one rolls back to just after it (or forward, to one undone), a step at a
+time through undo and redo, so ⌘Z carries on from there.
+
 What's left to port, and the order it's planned in: [`docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md`](../docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md).
 
 | Route | What it shows |
