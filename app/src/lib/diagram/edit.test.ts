@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkopeDoc } from '../types';
-import { lockView, addBoundary, clipCentre, copyNodes, moveNodes, pasteNodes, removeMany, toggleTagOn, updateEdges, updateNodes, addEdge, addNode, addTag, addView, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, removeTag, removeView, resizeBoundary, resizeNode, reverseEdge, setDefaultView, TAG_COLORS, updateBoundary, updateEdge, updateNode, updateTag, updateView, viewNameFree } from './edit';
+import { lockView, setEnd, addBoundary, clipCentre, copyNodes, moveNodes, pasteNodes, removeMany, toggleTagOn, updateEdges, updateNodes, addEdge, addNode, addTag, addView, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, removeTag, removeView, resizeBoundary, resizeNode, reverseEdge, setDefaultView, TAG_COLORS, updateBoundary, updateEdge, updateNode, updateTag, updateView, viewNameFree } from './edit';
 import { toScene } from './model';
 
 const base = (): SkopeDoc => ({
@@ -126,6 +126,13 @@ describe('links', () => {
 });
 
 describe('connections', () => {
+	it('pins an end where it was dragged, and puts it back on auto', () => {
+		const doc: SkopeDoc = { version: 1, edges: [{ from: 'a', to: 'b', anchors: { to: 'top:0.5' } }] };
+		const pinned = setEnd(doc, 0, 'from', { side: 'r', t: 0.25 });
+		expect(pinned.edges?.[0].anchors).toEqual({ from: 'right:0.25', to: 'top:0.5' });
+		expect(setEnd(setEnd(pinned, 0, 'to', null), 0, 'from', null).edges?.[0]).toEqual({ from: 'a', to: 'b' });
+	});
+
 	it('adds one with the defaults and reports where it went', () => {
 		const { doc, index } = addEdge(base(), 'db', 'api');
 		expect(index).toBe(2);

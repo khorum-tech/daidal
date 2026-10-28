@@ -25,5 +25,7 @@
 <Story name="Editing: selected, with its port and resize handle" args={{ selected: 'gw', editable: true, onsnap: () => {} }} template={frame} />
 <Story name="Editing: renaming a node in place" args={{ selected: 'gw', editable: true, renaming: 'gw' }} template={frame} />
 <Story name="Editing: snapping off" args={{ editable: true, snap: false, onsnap: () => {} }} template={frame} />
+<Story name="Editing: a connection selected, with its end handles" args={{ editable: true, selectedEdge: 0, onsetend: () => {} }} template={frame} />
+<Story name="With the minimap" args={{ showMinimap: true }} template={frame} />
 <Story name="Straight lines" args={{ edgeStyle: 'straight' }} template={frame} />
 <Story name="Empty" args={{ scene: toScene({ version: 1 }), on: {} }} template={frame} />

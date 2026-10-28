@@ -50,6 +50,7 @@
 		toggleTagOn,
 		updateBoundary,
 		updateEdge,
+		setEnd,
 		updateEdges,
 		updateNode,
 		updateNodes,
@@ -64,7 +65,7 @@
 	import { getClip, putClip } from '#lib/clipboard.ts';
 	import MultiInspector from '#lib/components/MultiInspector.svelte';
 	import { History } from '#lib/history.svelte.ts';
-	import { iconScene, tagsOn, toScene } from '#lib/diagram/model.ts';
+	import { iconScene, tagsOn, toScene, type Anchor } from '#lib/diagram/model.ts';
 	import { appearance } from '#lib/appearance.svelte.ts';
 	import { followState } from '#lib/follow.ts';
 	import { applyChange, pending, withNeeded, type Change } from '#lib/diagram/review.ts';
@@ -376,7 +377,18 @@
 	// The node whose detail shows: the one under the mouse, or on a phone the one tapped.
 	// Icon-only cards, a viewer setting, apply while presenting.
 	const iconCards = $derived(presenting && appearance.iconCards);
-	const tipNode = $derived(presenting ? scene.nodes.find(n => n.id === (narrow ? selected : hover?.id)) : undefined);
+	const tipNode = $derived(scene.nodes.find(n => n.id === (presenting && narrow ? selected : hover?.id)));
+	// While editing, the same card shows on a mouse resting over a node a moment; a press anywhere puts it away.
+	let hoverTimer: ReturnType<typeof setTimeout> | undefined;
+	function hovering(id: string | null, at: DOMRect | null) {
+		clearTimeout(hoverTimer);
+		if (!id || !at) hover = null;
+		else if (presenting) hover = { id, at };
+		else {
+			hover = null;
+			hoverTimer = setTimeout(() => (hover = { id, at }), 700);
+		}
+	}
 	const tipEdges = $derived(
 		tipNode
 			? scene.edges
@@ -582,6 +594,10 @@
 		if (selectedEdge === null) return;
 		const before = current();
 		apply(updateEdge(before, selectedEdge, change), before, label, group);
+	}
+	function setEdgeEnd(index: number, end: 'from' | 'to', at: Anchor | null) {
+		const before = current();
+		apply(setEnd(before, index, end, at), before, at ? 'Pin connection end' : 'Connection end back to auto');
 	}
 	function reverse() {
 		if (selectedEdge === null) return;
@@ -824,6 +840,37 @@
 		view = null;
 	}
 
+	// The side panels, shown or folded away; a viewer setting kept in this browser.
+	let panels = $state({ left: true, right: true });
+	$effect.pre(() => {
+		untrack(() => {
+			try {
+				const saved = JSON.parse(localStorage.getItem('skope.panels') ?? '{}') as Record<string, unknown>;
+				panels = { left: saved.left !== false, right: saved.right !== false };
+			} catch {
+				// Both shown.
+			}
+		});
+	});
+	function fold(side: 'left' | 'right') {
+		panels = { ...panels, [side]: !panels[side] };
+		try {
+			localStorage.setItem('skope.panels', JSON.stringify(panels));
+		} catch {
+			// Kept for this visit only.
+		}
+	}
+
+	// Isolate shows just a node's tags (only what this browser shows, like the switches); Everything brings back all.
+	function isolate(id: string) {
+		const n = scene.nodes.find(x => x.id === id);
+		if (!n?.tags.length) return;
+		on = Object.fromEntries(scene.tags.map(t => [t.key, n.tags.includes(t.key)]));
+		solo = null;
+		view = null;
+		notify(`Showing only ${n.name}'s tags`);
+	}
+
 	// Views and tags are part of the document: saved, and undone like any other edit.
 	const tagsOnNow = () => scene.tags.filter(t => on[t.key]).map(t => t.key);
 	function saveView() {
@@ -993,6 +1040,7 @@
 			onduplicate={duplicate}
 			{connections}
 			onnewtag={newTagOnNode}
+			onisolate={() => selected && isolate(selected)}
 			onpickedge={i => {
 				selectEdge(i);
 				if (narrow) sheet = 'edge';
@@ -1097,8 +1145,17 @@
 {/snippet}
 
 <div class="body">
-	{#if !narrow && !presenting}{@render tags()}{/if}
+	{#if !narrow && !presenting && panels.left}{@render tags()}{/if}
 	<main class="stage" aria-label="Diagram" bind:this={stageEl}>
+		{#if !narrow && !presenting}
+			<!-- Each side panel folds away for more canvas; this browser remembers which. -->
+			<button type="button" class="fold fold-left" aria-expanded={panels.left} aria-label={panels.left ? 'Hide views and tags' : 'Show views and tags'} title={panels.left ? 'Hide views and tags' : 'Show views and tags'} onclick={() => fold('left')}>
+				<Icon name={panels.left ? 'caretLeft' : 'caretRight'} size={12} />
+			</button>
+			<button type="button" class="fold fold-right" aria-expanded={panels.right} aria-label={panels.right ? 'Hide the side panel' : 'Show the side panel'} title={panels.right ? 'Hide the side panel' : 'Show the side panel'} onclick={() => fold('right')}>
+				<Icon name={panels.right ? 'caretRight' : 'caretLeft'} size={12} />
+			</button>
+		{/if}
 		<DiagramCanvas
 			bind:this={canvasRef}
 			scene={iconCards ? iconScene(scene) : scene}
@@ -1123,6 +1180,8 @@
 			boxMode={editable ? boxMode : null}
 			picking={editable && connectTool && !connectFrom}
 			onresize={resize}
+			onsetend={setEdgeEnd}
+			showMinimap={!narrow}
 			onaddat={addAt}
 			{renaming}
 			onrenamestart={startRename}
@@ -1134,7 +1193,7 @@
 			onpick={boxPick}
 			ontoggle={togglePick}
 			onmovemany={moveMany}
-			onhover={presenting && !narrow ? (id, at) => (hover = id && at ? { id, at } : null) : undefined}
+			onhover={narrow ? undefined : hovering}
 		/>
 		{#if tipNode}
 			<div class="tip-at" class:docked={narrow} style:left={narrow ? undefined : `${tipAt.left}px`} style:top={narrow ? undefined : `${tipAt.top}px`}>
@@ -1203,7 +1262,7 @@
 			{/if}
 		{/if}
 	</main>
-	{#if !narrow && !presenting}
+	{#if !narrow && !presenting && panels.right}
 		<aside class="right" class:wide={configOpen}>
 			{#if configOpen}{@render configPanel(true)}{/if}
 			{@render multiInspector()}
@@ -1619,6 +1678,34 @@
 	}
 	.add-sheet {
 		padding: 10px 16px 16px;
+	}
+	.fold {
+		position: absolute;
+		top: 50%;
+		z-index: 5;
+		width: 16px;
+		height: 44px;
+		margin-top: -22px;
+		display: grid;
+		place-items: center;
+		padding: 0;
+		border: 1px solid var(--color-divider);
+		background: var(--color-surface);
+		color: var(--color-neutral-500);
+		cursor: pointer;
+	}
+	.fold:hover {
+		color: var(--color-accent);
+	}
+	.fold-left {
+		left: 0;
+		border-left: none;
+		border-radius: 0 7px 7px 0;
+	}
+	.fold-right {
+		right: 0;
+		border-right: none;
+		border-radius: 7px 0 0 7px;
 	}
 	.right.wide {
 		width: 440px;

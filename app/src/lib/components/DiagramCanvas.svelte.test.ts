@@ -425,3 +425,28 @@ describe('picking many', () => {
 		expect(calls.moved).toEqual([[['gw', 'db'], 0, 100]]);
 	});
 });
+
+describe('the canvas tools', () => {
+	it('puts handles on the ends of the selected connection, and a double-click sends one back to auto', async () => {
+		const ends: unknown[][] = [];
+		render(DiagramCanvas, {
+			target: stage,
+			props: { scene, on: tagsOn(scene, null), selected: null, onselect: () => {}, editable: true, selectedEdge: 0, onsetend: (i, end, at) => ends.push([i, end, at]) }
+		});
+		const handles = document.querySelectorAll('.end-handle');
+		expect(handles).toHaveLength(2);
+		handles[1].dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+		expect(ends).toEqual([[0, 'to', null]]);
+	});
+
+	it('draws the minimap only when asked, and looks where it is pressed', async () => {
+		const r = render(DiagramCanvas, { target: stage, props: { scene, on: tagsOn(scene, null), selected: null, onselect: () => {}, showMinimap: true } });
+		const mini = page.getByRole('img', { name: /^Minimap/ });
+		await expect.element(mini).toBeVisible();
+		const before = document.querySelector<HTMLElement>('[data-node="shop"]')!.getBoundingClientRect().x;
+		await userEvent.click(mini, { position: { x: 170, y: 100 } });
+		expect(document.querySelector<HTMLElement>('[data-node="shop"]')!.getBoundingClientRect().x).not.toBe(before);
+		await r.rerender({ showMinimap: false });
+		await expect.element(mini).not.toBeInTheDocument();
+	});
+});

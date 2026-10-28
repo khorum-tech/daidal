@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampView, clampZoom, fitView, panBy, toContent, zoomAt, type View } from './zoom';
+import { clampView, clampZoom, fitView, panBy, toContent, zoomAt, type View, centreOn } from './zoom';
 
 const area = { x0: 100, y0: 50, w: 1000, h: 500 };
 
@@ -51,5 +51,13 @@ describe('panning', () => {
 	it('leaves a view that is already in bounds alone', () => {
 		const v = fitView(area, 500, 400);
 		expect(clampView(v, area, 500, 400)).toEqual(v);
+	});
+});
+
+describe('centreOn', () => {
+	it('keeps the zoom and puts the point in the middle', () => {
+		const v = centreOn({ s: 2, tx: 5, ty: 5 }, { x: 100, y: 50 }, 800, 600);
+		expect(v).toEqual({ s: 2, tx: 200, ty: 200 });
+		expect(toContent(v, { x: 400, y: 300 })).toEqual({ x: 100, y: 50 });
 	});
 });

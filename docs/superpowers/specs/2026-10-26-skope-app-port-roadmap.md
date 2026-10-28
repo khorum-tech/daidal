@@ -38,6 +38,7 @@ Each slice keeps the habits of the ones before it:
 | Profile and appearance (C and part of D) | Name and title; dark, light or system theme; colour-vision condition (thins the tag colour pickers) and its simulation |
 | Home page summaries and search (D, E) | Cards drawn from a summary the server keeps with each diagram (one request, no documents), sixty at a time with Show more; search by diagram or node name, kept in the address |
 | Templates and the edit list (D) | New diagram from the prototype's four templates, with or without their example nodes; this visit's edits under History, to roll back or forward to any of them |
+| Canvas tools (the rest of A) | Drag a connection's end along its box to pin it (double-click for auto); a node's card on hover while editing; isolate a node's tags; a minimap to look around; fold the side panels away |
 | Follow review (part of D) | Accept or skip each change of a lead's newer snapshots, or a whole snapshot; take a verdict back; mark everything reviewed; pause; unlink (server: `leadId: null` on save) |
 | Presenting, locks and links (part of C) | Presentation mode with a hover (or tap) card and a view switcher; lock editing on a device; lock a view in the document; copy a link, optionally to a view (`?view=`) |
 | Image export (part of C) | PNG and SVG of the diagram as it shows now, drawn client side from the document; ghosted nodes kept or left out |
@@ -60,11 +61,6 @@ works well, on a phone especially) and bring back the rest around it.
 | **Double-click empty canvas** adds a node with its name ready to type | `canvasDbl` | Phone: Add stays the way in; maybe a long press later |
 | **Rename on the canvas**: double-click a node edits its name in place | `startRename`, `commitName` | Phone: Edit in the node menu stays the way in |
 | **Resize a node** by a handle | node resize grab | Needs `w`/`h` on the node, left out when default. Phone: Resize in the node menu, as containers do |
-| **Drag a connection end** along a side | `resetAnchors` | Today the sides are picked in the connection inspector; this adds the handle. Phone: inspector only |
-| **Hover card**: a node's description and links on hover | the read-only hover detail | Desktop only; a tap already shows details on a phone |
-| **Isolate**: show only a node's tags | `isolate` | Like solo, from a node; saves nothing |
-| **Minimap** with drag to pan | `miniDown`, `miniMove`, `miniUp` | Hidden on phones |
-| **Collapse the side panels** | `toggleLeft`, `toggleRight` | Desktop only; phones already use sheets |
 
 ### B. Multi-select and the clipboard
 
