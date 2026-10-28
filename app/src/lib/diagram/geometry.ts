@@ -162,7 +162,7 @@ export function snapAnchor(n: Box, p: { x: number; y: number }): Anchor {
 		const over = Math.max(0, -c.t, c.t - 1);
 		c.d += (c.side === 'l' || c.side === 'r' ? n.h : n.w) * over;
 	}
-	const best = cand.reduce((m, c) => (c.d < m.d ? c : m));
+	const best = cand.reduce((m, c) => (c.d < m.d ? c : m), cand[0]);
 	let t = Math.max(0, Math.min(1, best.t));
 	const near = [0, 0.25, 0.5, 0.75, 1].find(s => Math.abs(t - s) < 0.075);
 	t = near ?? Math.round(t * 100) / 100;

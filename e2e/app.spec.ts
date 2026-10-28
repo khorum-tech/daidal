@@ -1215,7 +1215,8 @@ test.describe("the app at /app", () => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];
     await page.goto(`/app/d/${id}`);
-    await page.locator('[data-hit="0"]').click({ force: true });
+    await page.getByRole("button", { name: "Web App: Ledger Console" }).click();
+    await page.getByRole("region", { name: "Selected node" }).getByRole("button", { name: /Edge Router/ }).click();
     const inspector = page.getByRole("region", { name: "Selected connection" });
     await expect(inspector.getByRole("heading", { level: 2 })).toHaveText("Ledger Console → Edge Router");
     const end = page.locator('.end-handle[data-end="to"]');
