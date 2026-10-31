@@ -187,10 +187,20 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("heading", { name: "Not found" })).toBeVisible();
   });
 
-  test("leaves the prototype where it was", async ({ request }) => {
-    const res = await request.get("/");
-    expect(res.status()).toBe(200);
-    expect(await res.text()).toContain("Loading Skope");
+  test("sends the site root to the app, and keeps the prototype at /prototype", async ({ page, request }) => {
+    const root = await request.get("/", { maxRedirects: 0 });
+    expect(root.status()).toBe(302);
+    expect(root.headers().location).toMatch(/\/app\/$/);
+    const prototype = await request.get("/prototype/");
+    expect(prototype.status()).toBe(200);
+    expect(await prototype.text()).toContain("Loading Skope");
+
+    const { team } = await importStageData(request);
+    await page.goto(`/?ws=${encodeURIComponent(team)}`);
+    await expect(page).toHaveURL(/\/app\/\?ws=/);
+    await expect(page.getByRole("heading", { name: "Platform team" })).toBeVisible();
+    await page.locator("header .who").click();
+    await expect(page.getByRole("menuitem", { name: "Open the prototype" })).toHaveAttribute("href", "/prototype/");
   });
 
   test("moves a node with the mouse and saves it", async ({ page, request }) => {

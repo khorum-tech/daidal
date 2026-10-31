@@ -1,6 +1,7 @@
 # Skope app (SvelteKit)
 
-The SvelteKit port of the prototype, served under **`/app`** beside the prototype at `/`. It reads everything from
+The SvelteKit port of the prototype, served under **`/app`**; the site root `/` redirects here, and the prototype
+is kept at `/prototype` for now. It reads everything from
 the Worker's API, and on a diagram you own it edits **nodes**: add one (the type picker, placed in free space near the
 middle of the view), move, rename, change its type, flags, tags and links, duplicate or delete it (with its
 connections). Every edit saves through the API and can be undone (⌘Z, ⇧⌘Z; ⌘D duplicates, Delete removes the
@@ -104,7 +105,7 @@ connections the way the prototype's canvas does. `icons.ts` is generated from th
 | Command | What it does |
 |---------|--------------|
 | `npm run dev` | Vite dev server; proxies `/api` to `wrangler dev` on port 8787 (start that from the project root) |
-| `npm run build` | Static build into `build/`; the root `npm run build` puts it under `dist/app/` beside the prototype |
+| `npm run build` | Static build into `build/`; the root `npm run build` puts it under `dist/app/`, with the prototype under `dist/prototype/` |
 | `npm run check` | Svelte and TypeScript checks |
 | `npm test` | Unit tests (Node) and component tests (Chromium, via Playwright) |
 | `npm run storybook` | Component stories on port 6006, with the accessibility panel |

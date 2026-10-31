@@ -67,7 +67,7 @@
 				{#if me.title}<p class="title">{me.title}</p>{/if}
 				<button type="button" role="menuitem" onclick={() => openSettings('profile')}>Profile</button>
 				<button type="button" role="menuitem" onclick={() => openSettings('appearance')}>Appearance</button>
-				<a role="menuitem" href="/">Open the prototype</a>
+				<a role="menuitem" href="/prototype/">Open the prototype</a>
 				<a role="menuitem" href="/cdn-cgi/access/logout">Sign out</a>
 			</div>
 		{/if}
