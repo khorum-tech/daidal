@@ -297,6 +297,25 @@
 		el.addEventListener('wheel', onWheel, { passive: false });
 		return () => el.removeEventListener('wheel', onWheel);
 	});
+	// Safari on iOS takes a drag that starts near the screen's left or right edge as Back (or Forward), which threw
+	// away a drag on the canvas there. Claiming touches that start on bare canvas in those strips keeps them for the
+	// canvas, which runs on pointer events, so its pans still work.
+	$effect(() => {
+		const el = canvas;
+		if (!el) return;
+		const EDGE = 24;
+		const onTouch = (e: TouchEvent) => {
+			const x = e.touches[0]?.clientX;
+			if (x === undefined || (x >= EDGE && x <= window.innerWidth - EDGE)) return;
+			// Claiming a touch also cancels its tap, so anything tappable keeps its taps; only bare canvas is claimed.
+			// In a move mode a drag from anywhere moves, so only the controls keep their taps there.
+			const keep = moving || boxMode ? 'button:not([data-node]), input, a, .zoom, .minimap' : '[data-node], [data-box], [data-hit], button, input, a, .zoom, .minimap';
+			if ((e.target as Element).closest(keep)) return;
+			e.preventDefault();
+		};
+		el.addEventListener('touchstart', onTouch, { passive: false });
+		return () => el.removeEventListener('touchstart', onTouch);
+	});
 
 	// Pointer gestures. Every pointer on the canvas is tracked; one decides between a pan and a node drag, two pinch.
 	type Gesture =

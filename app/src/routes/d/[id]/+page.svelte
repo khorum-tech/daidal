@@ -313,7 +313,12 @@
 		const before = current();
 		const made = addNode(before, type, canvasRef?.center() ?? { x: 400, y: 300 });
 		apply(made.doc, before, `Add ${type.toLowerCase()}`);
-		select(made.id);
+		selectNew(made.id);
+	}
+	// A node just made on a phone starts in Move, so a drag places it straight away (a tap anywhere stops).
+	function selectNew(id: string) {
+		select(id);
+		if (narrow) moving = true;
 	}
 	// ---- locked, presenting ----
 	// Locking editing is this device's choice for this diagram, kept in the browser: nothing changes by mistake.
@@ -555,7 +560,7 @@
 		const made = duplicateNode(before, selected);
 		if (!made) return;
 		apply(made.doc, before, 'Duplicate node');
-		select(made.id);
+		selectNew(made.id);
 	}
 	function startConnect(from: string) {
 		if (!editable) return;
@@ -592,7 +597,7 @@
 			// Dropped or tapped on empty canvas: a new node there, connected, as in the prototype.
 			const made = connectToNew(before, from, 'Service', at);
 			apply(made.doc, before, `Connect ${nameOf(from)} to a new service`);
-			select(made.id);
+			selectNew(made.id);
 		}
 	}
 	function changeEdge(change: EdgeChange, label: string, group?: string) {

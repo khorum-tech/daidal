@@ -72,6 +72,16 @@ describe('the inspector', () => {
 		]);
 	});
 
+	it('adds a link typed but not added once focus leaves the link form, and only once', async () => {
+		const { changes } = editing('gw');
+		await page.getByLabelText('Link label').fill('Runbook');
+		await page.getByLabelText('Link address').fill('example.com/run');
+		await page.getByLabelText('Notes').click();
+		await page.getByLabelText('Subtitle').click();
+		expect(changes.filter(c => c.label === 'Add link').map(c => c.change)).toEqual([{ links: [{ label: 'Runbook', url: 'https://example.com/run' }] }]);
+		await expect.element(page.getByLabelText('Link address')).toHaveValue('');
+	});
+
 	it('asks to duplicate or delete the node', async () => {
 		const { calls } = editing('db');
 		await page.getByRole('button', { name: 'Duplicate' }).click();

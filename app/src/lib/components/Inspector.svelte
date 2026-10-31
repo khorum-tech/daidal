@@ -79,8 +79,8 @@
 		const on = node.flags.includes(id);
 		onchange?.({ flags: on ? node.flags.filter(f => f !== id) : [...node.flags, id] }, `${on ? 'Unflag' : 'Flag'} ${label.toLowerCase()}`);
 	}
-	function addLink(e: SubmitEvent) {
-		e.preventDefault();
+	function addLink(e?: SubmitEvent) {
+		e?.preventDefault();
 		if (!linkAddress.trim()) return;
 		onchange?.({ links: [...node.links, { ...(linkLabel.trim() ? { label: linkLabel.trim() } : {}), url: linkUrl(linkAddress) }] }, 'Add link');
 		linkLabel = '';
@@ -194,7 +194,15 @@
 		{/if}
 
 		{@render links()}
-		<form class="link-form" onsubmit={addLink}>
+		<!-- A link typed but not added is added anyway once focus leaves the form: on a phone the first tap on Add link
+		     often only puts the keyboard away, and closing the sheet then would lose what was typed. -->
+		<form
+			class="link-form"
+			onsubmit={addLink}
+			onfocusout={e => {
+				if (!e.currentTarget.contains(e.relatedTarget as Node | null)) addLink();
+			}}
+		>
 			<input class="input" aria-label="Link label" placeholder="Label" bind:value={linkLabel} />
 			<input class="input" aria-label="Link address" placeholder="https://…" inputmode="url" bind:value={linkAddress} />
 			<button type="submit" class="btn btn-secondary" disabled={!linkAddress.trim()}>Add link</button>
