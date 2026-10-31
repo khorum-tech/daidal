@@ -22,6 +22,32 @@
 		crumbs?: { label: string; href?: string; onclick?: () => void; title?: string }[];
 	} = $props();
 	let open = $state(false);
+	let userEl = $state<HTMLElement>();
+	// On a phone the account menu is a sheet from the bottom, like the app's other menus; on a wider screen a
+	// dropdown, which a press anywhere else or Escape closes.
+	let narrow = $state(false);
+	$effect(() => {
+		const mq = window.matchMedia('(max-width: 600px)');
+		narrow = mq.matches;
+		const follow = (e: MediaQueryListEvent) => (narrow = e.matches);
+		mq.addEventListener('change', follow);
+		return () => mq.removeEventListener('change', follow);
+	});
+	$effect(() => {
+		if (!open || narrow) return;
+		const away = (e: PointerEvent) => {
+			if (!userEl?.contains(e.target as Node)) open = false;
+		};
+		const esc = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') open = false;
+		};
+		document.addEventListener('pointerdown', away);
+		document.addEventListener('keydown', esc);
+		return () => {
+			document.removeEventListener('pointerdown', away);
+			document.removeEventListener('keydown', esc);
+		};
+	});
 	let settingsOpen = $state(false);
 	let tab = $state<'profile' | 'appearance'>('profile');
 	const api = createApi(fetch);
@@ -55,24 +81,30 @@
 			{/each}
 		</nav>
 	{/if}
-	<span class="readonly tag tag-outline" title="Workspaces and diagrams are managed, edited, reviewed and presented here; a few prototype tools (templates, search, the minimap) are still to come">Preview</span>
-	<div class="user">
-		<button type="button" class="who" aria-expanded={open} aria-haspopup="menu" onclick={() => (open = !open)}>
+	<span class="readonly tag tag-outline" title="Everything the prototype did is here; the old prototype stays at /prototype for now">Preview</span>
+	<div class="user" bind:this={userEl}>
+		<button type="button" class="who" aria-expanded={open} aria-haspopup={narrow ? 'dialog' : 'menu'} aria-label="Account: {me.name || me.email}" onclick={() => (open = !open)}>
 			<span class="avatar" aria-hidden="true">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>
 			<span class="name">{me.name || me.email}</span>
 		</button>
-		{#if open}
-			<div class="menu" role="menu">
-				<p class="email">{me.email}</p>
-				{#if me.title}<p class="title">{me.title}</p>{/if}
-				<button type="button" role="menuitem" onclick={() => openSettings('profile')}>Profile</button>
-				<button type="button" role="menuitem" onclick={() => openSettings('appearance')}>Appearance</button>
-				<a role="menuitem" href="/prototype/">Open the prototype</a>
-				<a role="menuitem" href="/cdn-cgi/access/logout">Sign out</a>
-			</div>
+		{#if open && !narrow}
+			<div class="menu" role="menu">{@render accountItems()}</div>
 		{/if}
 	</div>
 </header>
+
+{#snippet accountItems()}
+	<p class="email">{me.email}</p>
+	{#if me.title}<p class="title">{me.title}</p>{/if}
+	<button type="button" role="menuitem" onclick={() => openSettings('profile')}>Profile</button>
+	<button type="button" role="menuitem" onclick={() => openSettings('appearance')}>Appearance</button>
+	<a role="menuitem" href="/prototype/">Open the prototype</a>
+	<a role="menuitem" href="/cdn-cgi/access/logout">Sign out</a>
+{/snippet}
+
+<Sheet open={open && narrow} title="Account" onclose={() => (open = false)}>
+	<div class="menu-sheet" role="menu">{@render accountItems()}</div>
+</Sheet>
 
 <Sheet open={settingsOpen} title="Profile and appearance" onclose={() => (settingsOpen = false)}>
 	{#if settingsOpen}
@@ -209,6 +241,29 @@
 	.title {
 		padding-top: 0;
 		color: var(--color-neutral-600);
+	}
+	.menu-sheet {
+		display: flex;
+		flex-direction: column;
+		padding: 6px 8px 14px;
+	}
+	.menu-sheet a,
+	.menu-sheet button {
+		padding: 13px 12px;
+		border: none;
+		border-radius: 8px;
+		background: transparent;
+		color: var(--color-text);
+		font: inherit;
+		font-size: 16px;
+		text-align: left;
+		text-decoration: none;
+		cursor: pointer;
+	}
+	.menu-sheet .email,
+	.menu-sheet .title {
+		font-size: 13px;
+		padding: 4px 12px;
 	}
 	.menu a,
 	.menu button {

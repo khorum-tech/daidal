@@ -268,3 +268,4 @@ Bugs that were fixed, so they stay fixed. Add one whenever a bug is fixed: what 
 | REG-7 | In a node's details, type a link's label and address, then close the sheet (or tap elsewhere) without pressing **Add link** | The typed link was lost; it's now added as focus leaves the link fields | D P | |
 | REG-8 | On the phone, add a node | It was only selected, and moving it took another tap on **Move**; it now starts in Move, so a drag places it | P | |
 | REG-9 | On the iPhone, drag the canvas starting right at the screen's left or right edge | Safari took it as Back and left the diagram; now the canvas keeps the drag (a node right at the edge still takes a tap) | P | |
+| REG-10 | On the phone, tap your initial in the header; on desktop, open your name's menu, then click elsewhere or press Escape | The phone menu didn't work; it's now a sheet from the bottom. The desktop dropdown never closed except from your name; a click elsewhere or Escape now closes it | D P | |

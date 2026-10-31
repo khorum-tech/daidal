@@ -578,4 +578,15 @@ test.describe("the app on a phone", () => {
     expect(await claimed(4, canvas.y + 20)).toBe(true);
     expect(await claimed(canvas.width / 2, canvas.y + 20)).toBe(false);
   });
+  test("opens the account menu as a sheet from your initial", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await page.locator("header .who").tap();
+    const account = page.getByRole("dialog", { name: "Account" });
+    await expect(account).toBeVisible();
+    await expect(account).toContainText("e2e-owner@example.com");
+    await account.getByRole("menuitem", { name: "Appearance" }).tap();
+    await expect(account).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Profile and appearance" }).getByRole("tab", { name: "Appearance" })).toHaveAttribute("aria-selected", "true");
+  });
 });
