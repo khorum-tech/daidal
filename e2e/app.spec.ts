@@ -1323,4 +1323,21 @@ test.describe("the app at /app", () => {
     await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Undo Switch to the Accessible palette" }).click();
     expect((await saved(page, request, id)).doc.tags).toEqual(before);
   });
+
+  test("opens the account menu from your name, and closes it on a click elsewhere or Escape", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    const who = page.locator("header .who");
+    await who.click();
+    await expect(page.getByRole("menu")).toBeVisible();
+    await page.getByRole("main", { name: "Diagram" }).click({ position: { x: 400, y: 500 } });
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await who.click();
+    await expect(page.getByRole("menu")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await who.click();
+    await page.getByRole("menuitem", { name: "Profile" }).click();
+    await expect(page.getByRole("dialog", { name: "Profile and appearance" })).toBeVisible();
+  });
 });
