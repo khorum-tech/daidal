@@ -527,4 +527,55 @@ test.describe("the app on a phone", () => {
     await expect(manager.getByRole("radio", { name: /Lightness steps/ })).toHaveAttribute("aria-checked", "true");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
+  test("starts a new node in Move, so a drag places it straight away", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).tap();
+    await page.getByRole("dialog", { name: "Add a node" }).getByRole("button", { name: "Queue" }).first().tap();
+    const menu = page.getByTestId("node-menu");
+    await expect(menu.getByRole("button", { name: /^Moving/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("mode-hint")).toHaveText("Drag anywhere to move “New Queue” · two fingers pan");
+    await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
+    const before = ((await (await request.get(`/api/diagrams/${id}`)).json()).doc.nodes as { name: string; layout: { x: number } }[]).find(n => n.name === "New Queue")!.layout;
+    const canvas = (await page.locator(".canvas").boundingBox())!;
+    await swipe(page, canvas.x + canvas.width / 2, canvas.y + canvas.height - 60, 60, 0, true);
+    await expect(async () => {
+      const after = ((await (await request.get(`/api/diagrams/${id}`)).json()).doc.nodes as { name: string; layout: { x: number } }[]).find(n => n.name === "New Queue")!.layout;
+      expect(after.x).toBeGreaterThan(before.x);
+    }).toPass();
+  });
+
+  test("keeps a link typed in the node's sheet but not added, when the sheet is closed", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("button", { name: "Database: Journal DB" }).tap();
+    await page.getByTestId("node-menu").getByRole("button", { name: /^Edit/ }).tap();
+    const details = page.getByRole("dialog", { name: "Node details" });
+    await details.getByLabel("Link label").fill("Runbook");
+    await details.getByLabel("Link address").fill("example.com/journal");
+    await details.getByRole("button", { name: "Close Node details" }).tap();
+    await expect(async () => {
+      const saved = (await (await request.get(`/api/diagrams/${id}`)).json()).doc.nodes.find((n: { id: string }) => n.id === "journal");
+      expect(saved.links).toEqual([{ label: "Runbook", url: "https://example.com/journal" }]);
+    }).toPass();
+  });
+
+  test("claims a touch on bare canvas at the screen's edge, so the browser can't take it as Back", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await expect(page.getByTestId("save-status")).toContainText("Saved");
+    const claimed = (x: number, y: number) =>
+      page.evaluate(([x, y]) => {
+        const target = document.elementFromPoint(x, y)!;
+        const touch = new Touch({ identifier: 1, target, clientX: x, clientY: y });
+        const e = new TouchEvent("touchstart", { touches: [touch], targetTouches: [touch], changedTouches: [touch], bubbles: true, cancelable: true });
+        target.dispatchEvent(e);
+        return e.defaultPrevented;
+      }, [x, y]);
+    const canvas = (await page.locator(".canvas").boundingBox())!;
+    expect(await claimed(4, canvas.y + 20)).toBe(true);
+    expect(await claimed(canvas.width / 2, canvas.y + 20)).toBe(false);
+  });
 });

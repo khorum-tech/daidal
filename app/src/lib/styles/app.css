@@ -10,6 +10,8 @@ body {
 }
 body {
 	overflow: hidden;
+	/* No sideways overscroll: on a phone it can turn into the browser's back gesture. */
+	overscroll-behavior-x: none;
 }
 * {
 	scrollbar-width: thin;

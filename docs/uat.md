@@ -265,3 +265,6 @@ Bugs that were fixed, so they stay fixed. Add one whenever a bug is fixed: what 
 | REG-4 | Review a follower's node edit where the follower changed the notes | Accepting wiped the follower's notes; now only the changed fields are taken | D | |
 | REG-5 | On the phone, a follower with updates | The update chip was clipped in the strip; updates now lead the History sheet | P | |
 | REG-6 | Resize a node by its handle on the phone | The handle sat under the zoom bar | P | |
+| REG-7 | In a node's details, type a link's label and address, then close the sheet (or tap elsewhere) without pressing **Add link** | The typed link was lost; it's now added as focus leaves the link fields | D P | |
+| REG-8 | On the phone, add a node | It was only selected, and moving it took another tap on **Move**; it now starts in Move, so a drag places it | P | |
+| REG-9 | On the iPhone, drag the canvas starting right at the screen's left or right edge | Safari took it as Back and left the diagram; now the canvas keeps the drag (a node right at the edge still takes a tap) | P | |
