@@ -20,7 +20,7 @@ function request(path: string, token?: string) {
 describe("handleRequest", () => {
   it("passes non-API paths to the static assets", async () => {
     const assets = { fetch: async () => new Response("the bundle") } as unknown as Fetcher;
-    const res = await handleRequest(request("/index.html"), { ...env, ASSETS: assets }, signer.getKeys);
+    const res = await handleRequest(request("/prototype/index.html"), { ...env, ASSETS: assets }, signer.getKeys);
     expect(await res.text()).toBe("the bundle");
   });
 
@@ -46,7 +46,7 @@ describe("handleRequest", () => {
 describe("serving the app", () => {
   // A stand-in for the assets binding: these paths exist, everything else is a 404. Like the real one, it serves a
   // folder's index.html at the folder's own path.
-  const files: Record<string, string> = { "/": "prototype", "/app/": "the app", "/app/_app/x.js": "js" };
+  const files: Record<string, string> = { "/prototype/": "prototype", "/app/": "the app", "/app/_app/x.js": "js" };
   const assets = {
     fetch: async (input: Request | string) => {
       const path = new URL(typeof input === "string" ? input : input.url).pathname;
@@ -68,8 +68,16 @@ describe("serving the app", () => {
     expect((await get("/app/favicon.png")).status).toBe(404);
   });
 
-  it("leaves the prototype's paths alone", async () => {
+  it("sends the site root to the app, keeping its query", async () => {
+    for (const [path, to] of [["/", "/app/"], ["/index.html", "/app/"], ["/?ws=abc", "/app/?ws=abc"]]) {
+      const res = await get(path);
+      expect(res.status, path).toBe(302);
+      expect(res.headers.get("location"), path).toBe(`https://skope.khorum-oss.org${to}`);
+    }
+  });
+
+  it("serves the prototype under /prototype, and nothing else outside the app", async () => {
+    expect(await (await get("/prototype/")).text()).toBe("prototype");
     expect((await get("/somewhere")).status).toBe(404);
-    expect(await (await get("/")).text()).toBe("prototype");
   });
 });

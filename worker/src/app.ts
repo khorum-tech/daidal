@@ -78,11 +78,13 @@ function diagramRoute(request: Request, db: D1Database, email: string, url: URL,
 }
 
 /**
- * Static files come first; a request reaches the Worker only when no file matches. Under /app that is one of the
- * SvelteKit app's routes, so it gets the app's page, unless it looks like a file (an extension, or the app's
- * `_app/` build folder), which stays a 404. Everything else is the prototype's, served as is.
+ * Static files come first; a request reaches the Worker only when no file matches. The site root goes to the app.
+ * Under /app that is one of the SvelteKit app's routes, so it gets the app's page, unless it looks like a file (an
+ * extension, or the app's `_app/` build folder), which stays a 404. The prototype is under /prototype, served as
+ * is; anything else is a 404.
  */
 async function siteFile(request: Request, env: Env, url: URL): Promise<Response> {
+  if (url.pathname === "/" || url.pathname === "/index.html") return Response.redirect(new URL(`/app/${url.search}`, url).href, 302);
   const file = await env.ASSETS.fetch(request);
   if (file.status !== 404 || !(url.pathname === "/app" || url.pathname.startsWith("/app/"))) return file;
   const last = url.pathname.split("/").pop() ?? "";

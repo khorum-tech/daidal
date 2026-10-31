@@ -9,6 +9,9 @@ The SvelteKit app at `/app` replaces the prototype (`web/index.html`) one slice 
 reads and writes through the D1 API. This doc lists what the prototype still does that the app doesn't, groups it
 into slices, and suggests an order. When the last slice ships, `/app` becomes `/` and the prototype retires.
 
+**Status:** every slice has shipped. The site root `/` now redirects to `/app`, and the prototype is kept at
+`/prototype` for now; retiring it (and the `/app` prefix) comes later.
+
 Each slice keeps the habits of the ones before it:
 
 - Pure document edits in `app/src/lib/diagram/edit.ts`, with unit tests; every edit goes through the History
