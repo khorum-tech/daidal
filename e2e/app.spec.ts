@@ -241,6 +241,19 @@ test.describe("the app at /app", () => {
     await expect(page).toHaveTitle("renamed elsewhere · Skope");
   });
 
+  test("adds an AI Agent from the AI types, drawn with its own icon, and saves its type", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).click();
+    const menu = page.getByRole("dialog", { name: "Add a node" });
+    await menu.getByPlaceholder("Search all types…").fill("agent");
+    await menu.getByRole("button", { name: "AI Agent" }).click();
+    await expect(page.getByRole("button", { name: "AI Agent: New AI Agent" })).toBeVisible();
+    const { doc } = await saved(page, request, id);
+    expect(doc.nodes.find(n => n.name === "New AI Agent")).toMatchObject({ type: "ai-agent" });
+  });
+
   test("adds a node, edits it in the inspector, and saves every field", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];

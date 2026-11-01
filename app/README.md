@@ -100,7 +100,15 @@ and Done. The e2e `phone` project (`e2e/mobile.spec.ts`) keeps this working.
 
 Components live in `src/lib/components/`. What they draw is worked out in `src/lib/diagram/`: `model.ts` turns a
 `.skope.json` document into a scene the way the prototype's config import does, and `geometry.ts` routes
-connections the way the prototype's canvas does. `icons.ts` is generated from the prototype's own tables.
+connections the way the prototype's canvas does.
+
+Icons and node types are data. `src/lib/diagram/icon-library.json` holds every icon Skope draws, all from
+[Phosphor](https://phosphoricons.com) (MIT, regular weight) so they look alike. `src/lib/diagram/types.json` lists the
+type picker's categories, each type with an icon from that library. To add an icon, put its Phosphor name in the list
+in `scripts/icons.mjs` and run `node scripts/icons.mjs` from the project root. It's stored under the camelCase of the
+name, for example `plugsConnected`. To add a type, add a line to `types.json`; `icons.test.ts` checks that its icon
+exists. Icons that came from the prototype are kept exactly as they were, and those marked `ui` are the app's own
+controls, not offered for nodes.
 
 | Command | What it does |
 |---------|--------------|
