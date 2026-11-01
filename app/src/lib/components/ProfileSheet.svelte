@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import type { Settings } from '../appearance.svelte';
 	import { CONDITIONS, distinguishable, simColor } from '../diagram/colour';
 	import { PALETTES } from '../diagram/edit';
@@ -15,6 +16,7 @@
 		light,
 		onchange,
 		onsave,
+		ai,
 		tab = $bindable('profile')
 	}: {
 		me: Me;
@@ -23,7 +25,9 @@
 		light: boolean;
 		onchange: (change: Partial<Settings>) => void;
 		onsave: (profile: { name: string; title: string }) => Promise<void>;
-		tab?: 'profile' | 'appearance';
+		/** The AI access tab's content (access tokens); without it there's no such tab. */
+		ai?: Snippet;
+		tab?: 'profile' | 'appearance' | 'ai';
 	} = $props();
 
 	let name = $state('');
@@ -68,6 +72,7 @@
 	<div class="tabs" role="tablist" aria-label="Settings">
 		<button type="button" role="tab" aria-selected={tab === 'profile'} onclick={() => (tab = 'profile')}>Profile</button>
 		<button type="button" role="tab" aria-selected={tab === 'appearance'} onclick={() => (tab = 'appearance')}>Appearance</button>
+		{#if ai}<button type="button" role="tab" aria-selected={tab === 'ai'} onclick={() => (tab = 'ai')}>AI access</button>{/if}
 	</div>
 
 	{#if tab === 'profile'}
@@ -91,6 +96,8 @@
 			</div>
 			{#if failed}<p class="error" role="alert">{failed}</p>{/if}
 		</form>
+	{:else if tab === 'ai' && ai}
+		<section class="section" aria-label="AI access">{@render ai()}</section>
 	{:else}
 		<section class="section" aria-label="Theme">
 			<h3>Theme</h3>

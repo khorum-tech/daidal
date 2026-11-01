@@ -227,6 +227,8 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | APP-5 | Reload | Theme and simulation are kept | D P | |
 | APP-6 | Tick **Icon-only cards**, then present | Presenting starts with icon cards | D P | |
 | APP-7 | Put everything back: **Full colour**, **Dark**, icon cards off | Back to normal | D P | |
+| APP-8 | Your initial → **AI access**: name a token, **Read**, **Only some workspaces** → Payments, **Create token** | The secret shows once with **Copy**; the list shows it as Read, reaching Payments, never used | D P | |
+| APP-9 | **Revoke…** on that token, then confirm | It leaves the list; a script using it gets "not valid or was revoked" | D P | |
 
 ## 15. Diagrams as a whole
 

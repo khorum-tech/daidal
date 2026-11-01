@@ -15,7 +15,7 @@ import { importWorkspaces } from "../worker/src/importer";
 import { DEV, OWNER_PROFILE, PRIYA, TEAMMATES, ownerBackup, priyaBackup } from "./diagrams";
 
 /** Every app table, children first, so deleting in this order never trips a foreign key. `d1_migrations` stays. */
-export const APP_TABLES = ["snapshots", "diagrams", "workspace_members", "workspaces", "users"] as const;
+export const APP_TABLES = ["access_tokens", "workspace_types", "snapshots", "diagrams", "workspace_members", "workspaces", "users"] as const;
 
 /** D1 refuses SQL statements longer than 100 KB; stay well under. */
 const MAX_STATEMENT_BYTES = 90_000;

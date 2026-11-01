@@ -5,12 +5,14 @@ import type { Env } from "./env";
 import { HttpError, json, readJson } from "./http";
 import { exportWorkspace, importWorkspaces } from "./importer";
 import { parseProfilePatch } from "./profile";
+import { actorFor, bearerOf, checkToken, checkWorkspaces, countWrite, tokensRoute, type Actor } from "./tokens";
 import { deleteType, putType } from "./types";
 import * as workspaces from "./workspaces";
 
 const MAX_PROFILE_BODY = 64 * 1024;
 const WORKSPACE_PATH = /^\/api\/workspaces(?:\/([^/]+)(?:\/([^/]+)(?:\/([^/]+))?)?)?$/;
 const DIAGRAM_PATH = /^\/api\/diagrams(?:\/([^/]+)(?:\/(snapshots))?)?$/;
+const TOKENS_PATH = /^\/api\/me\/tokens(?:\/([^/]+))?$/;
 
 const notAllowed = (): never => {
   throw new HttpError(405, "method not allowed");
@@ -99,22 +101,50 @@ async function siteFile(request: Request, env: Env, url: URL): Promise<Response>
   return env.ASSETS.fetch(new Request(new URL("/app/", url), request));
 }
 
+/** Who is asking: [as] when the MCP server calls in for its client, else an access token, else the browser's sign-in. */
+async function actorOf(request: Request, env: Env, getKeys: () => KeySource, now: number, as?: Actor): Promise<Actor | null> {
+  if (as) return as;
+  // A token not shaped like ours is refused before any lookup, so a stranger's guess costs no database read.
+  const bearer = bearerOf(request);
+  if (bearer) return actorFor(env.DB, bearer, now);
+  const email = await currentEmail(request, env, getKeys);
+  return email ? { email, token: null } : null;
+}
+
 export async function handleRequest(
   request: Request,
   env: Env,
   getKeys: () => KeySource,
+  /** Who is asking, already decided: the MCP server's own calls into the API, as the client it signed in. */
+  as?: Actor,
 ): Promise<Response> {
   const url = new URL(request.url);
   if (!url.pathname.startsWith("/api/")) return siteFile(request, env, url);
 
   try {
-    const email = await currentEmail(request, env, getKeys);
-    if (!email) return json({ error: "not signed in" }, 401);
-
     const now = Date.now();
+    const actor = await actorOf(request, env, getKeys, now, as);
+    if (!actor) return json({ error: "not signed in" }, 401);
+    const { email, token } = actor;
+    if (token) {
+      checkToken(token, request.method, url.pathname);
+      await checkWorkspaces(env.DB, token, request, url);
+      if (request.method !== "GET" && request.method !== "HEAD") await countWrite(env.DB, token, now);
+    }
+
+    const tokens = TOKENS_PATH.exec(url.pathname);
+    if (tokens) return await tokensRoute(env.DB, email, request, segments(tokens)[0], now);
     if (url.pathname === "/api/me") return await me(request, env, email);
     const workspace = WORKSPACE_PATH.exec(url.pathname);
-    if (workspace) return await workspaceRoute(request, env.DB, email, workspace, now);
+    if (workspace) {
+      const response = await workspaceRoute(request, env.DB, email, workspace, now);
+      // A token limited to some workspaces lists only those.
+      const allowed = token?.workspaces;
+      if (allowed && !workspace[1] && request.method === "GET" && response.ok) {
+        return json(((await response.json()) as { id: string }[]).filter(w => allowed.includes(w.id)));
+      }
+      return response;
+    }
     const diagram = DIAGRAM_PATH.exec(url.pathname);
     if (diagram) return await diagramRoute(request, env.DB, email, url, diagram, now);
     return json({ error: "not found" }, 404);
