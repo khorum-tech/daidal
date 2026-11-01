@@ -111,7 +111,7 @@ export function typeName(value: unknown, cats: TypeCats = TYPE_CATS): string {
 	if (!value) return 'Service';
 	const s = typeKey(slug(value));
 	for (const c of cats) for (const [label] of c.items) if (typeKey(label) === s) return label;
-	return String(value).replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+	return (typeof value === 'string' ? value : s).replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 const SIDE_IN: Record<string, Side> = { left: 'l', right: 'r', top: 't', bottom: 'b', l: 'l', r: 'r', t: 't', b: 'b' };

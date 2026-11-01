@@ -57,7 +57,10 @@ export function catalogue(custom: CustomType[] = []): TypeCats {
 	const cats: TypeCats = TYPE_CATS.map(c => ({ cat: c.cat, items: c.items.filter(([label]) => !replaced.has(typeKey(label))) }));
 	for (const t of custom) {
 		let cat = cats.find(c => c.cat.toLowerCase() === t.category.trim().toLowerCase());
-		if (!cat) cats.push((cat = { cat: t.category.trim(), items: [] }));
+		if (!cat) {
+			cat = { cat: t.category.trim(), items: [] };
+			cats.push(cat);
+		}
 		cat.items.push([t.name, isNodeIcon(t.icon) ? t.icon : 'cube']);
 	}
 	return cats.filter(c => c.items.length);
@@ -75,6 +78,9 @@ const iconMaps = new WeakMap<TypeCats, Map<string, string>>();
 /** The icon for a type in [cats] (the built-ins unless given); a type it doesn't know gets the cube. */
 export function typeIcon(type: string, cats: TypeCats = TYPE_CATS): string {
 	let icons = iconMaps.get(cats);
-	if (!icons) iconMaps.set(cats, (icons = new Map(cats.flatMap(c => c.items.map(([label, icon]) => [typeKey(label), icon])))));
+	if (!icons) {
+		icons = new Map(cats.flatMap(c => c.items.map(([label, icon]) => [typeKey(label), icon])));
+		iconMaps.set(cats, icons);
+	}
 	return icons.get(typeKey(type)) ?? 'cube';
 }
