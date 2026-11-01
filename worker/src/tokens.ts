@@ -31,7 +31,7 @@ const hashOf = async (token: string) => hex(await crypto.subtle.digest("SHA-256"
 
 function newToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return `skt_${btoa(String.fromCodePoint(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "")}`;
+  return `skt_${btoa(String.fromCodePoint(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "")}`;
 }
 
 /** The bearer token on [request], or null when there is none. One not shaped like ours is refused here, before any lookup. */
