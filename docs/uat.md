@@ -258,6 +258,15 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | PHONE-3 | Tap into a text field in a sheet | The page doesn't zoom; the keyboard doesn't hide the field's button | P | |
 | PHONE-4 | Turn the phone sideways | The layout follows | P | |
 
+## 20. AI over MCP
+
+| ID | Do | Expect | On | Result |
+|----|----|--------|----|--------|
+| MCP-1 | Locally: `npx wrangler dev`, make a Read-and-write token under AI access, run the Claude Code command it gives, then `claude mcp list` | `skope … ✓ Connected` | D | |
+| MCP-2 | In Claude Code: “List my Skope diagrams, then add an MCP Server called Tools to <one> and connect <a node> to it” | It names your diagrams, makes the change, and the editor shows it after a reload (or offers to load the latest if open) | D | |
+| MCP-3 | With a **Read** token, ask it to change something | It says the token can only read; nothing changes | D | |
+| MCP-4 | Online (once Managed OAuth is on, see `docs/mcp.md`): add `https://<site>/mcp` as a claude.ai custom connector and sign in | It lists your workspaces as you | D | |
+
 ## Regressions
 
 Bugs that were fixed, so they stay fixed. Add one whenever a bug is fixed: what to do, and what used to go wrong.
