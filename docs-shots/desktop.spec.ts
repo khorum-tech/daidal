@@ -14,8 +14,8 @@ test("the editor and its panels", async ({ page, request }) => {
   // Presenting.
   await page.getByRole("button", { name: "Present", exact: true }).click();
   await expect(page.getByRole("region", { name: "Presenting" })).toBeVisible();
-  await page.getByRole("button", { name: "Database: Journal DB" }).hover();
-  await page.waitForTimeout(800);
+  await page.locator('[data-node="journal"]').hover();
+  await expect(page.getByRole("tooltip", { name: "About Journal DB" })).toContainText("Append-only journal");
   await page.screenshot({ path: "app/static/docs-images/presenting.png", animations: "disabled" });
   await page.keyboard.press("Escape");
   await expect(page.getByRole("region", { name: "Presenting" })).toHaveCount(0);
