@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE } from '../fixtures/docs';
+import { catalogue } from './icons';
 import { bounds, ICON_CARD, iconScene, isHidden, NODE_H, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName } from './model';
 
 describe('typeName', () => {
@@ -102,5 +103,22 @@ describe('iconScene', () => {
 		expect(a).toMatchObject({ w: ICON_CARD, h: ICON_CARD, x: 100 + (190 - ICON_CARD) / 2, y: 200 + (88 - ICON_CARD) / 2 });
 		expect(out.nodes.find(n => n.id === 't')).toEqual(scene.nodes.find(n => n.id === 't'));
 		expect(scene.nodes.find(n => n.id === 'a')!.w).toBe(190);
+	});
+});
+
+describe('a node’s icon', () => {
+	const cats = catalogue([{ name: 'Billing Agent', category: 'AI', icon: 'robot' }]);
+	const doc = (node: Record<string, unknown>) => ({ version: 1 as const, nodes: [{ id: 'n', name: 'N', ...node }] as never });
+
+	it('comes from its type, read against the workspace’s catalogue', () => {
+		expect(toScene(doc({ type: 'database' })).nodes[0]).toMatchObject({ type: 'Database', icon: 'database', ownIcon: null });
+		expect(toScene(doc({ type: 'billing-agent' }), cats).nodes[0]).toMatchObject({ type: 'Billing Agent', icon: 'robot' });
+		expect(toScene(doc({ type: 'billing-agent' })).nodes[0]).toMatchObject({ type: 'Billing Agent', icon: 'cube' });
+		expect(typeName('billing-agent', cats)).toBe('Billing Agent');
+	});
+
+	it('is its own when it has one from the library, else its type’s', () => {
+		expect(toScene(doc({ type: 'database', icon: 'vault' })).nodes[0]).toMatchObject({ icon: 'vault', ownIcon: 'vault' });
+		expect(toScene(doc({ type: 'database', icon: 'trash' })).nodes[0]).toMatchObject({ icon: 'database', ownIcon: null });
 	});
 });

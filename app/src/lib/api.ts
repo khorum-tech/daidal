@@ -1,4 +1,4 @@
-import type { Diagram, ListedDiagram, Me, SkopeDoc, Snapshot, Workspace } from './types';
+import type { CustomType, Diagram, ListedDiagram, Me, SkopeDoc, Snapshot, Workspace } from './types';
 
 /** An API answer other than 2xx, with the server's `{ error }` message. */
 export class ApiError extends Error {
@@ -73,6 +73,9 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		/** Adds someone by email (they need not have signed in yet), as the owner. */
 		addMember: (id: string, email: string) => send<{ email: string }>(`/api/workspaces/${q(id)}/members`, 'POST', { email }),
 		removeMember: (id: string, email: string) => call<void>(`/api/workspaces/${q(id)}/members/${q(email)}`, { method: 'DELETE' }),
+		/** Adds a type to a workspace, or changes the one stored under [key] (the slug of its name); any member can. */
+		putType: (id: string, key: string, type: CustomType) => send<CustomType>(`/api/workspaces/${q(id)}/types/${q(key)}`, 'PUT', type),
+		removeType: (id: string, key: string) => call<void>(`/api/workspaces/${q(id)}/types/${q(key)}`, { method: 'DELETE' }),
 		/** A workspace as a skope-backup file: its diagrams, their history and who follows whom (not its members). */
 		exportWorkspace: (id: string) => get<Record<string, unknown>>(`/api/workspaces/${q(id)}/export`),
 		/** Imports a skope-backup file: each workspace in it becomes a new one of yours (a personal one fills yours). */

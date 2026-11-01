@@ -15,7 +15,7 @@ describe("workspaces", () => {
     const res = await call.get("ws-first@example.com", "/api/workspaces");
     expect(res.status).toBe(200);
     expect(res.body).toEqual([
-      { id: "personal:ws-first@example.com", name: "Personal", ownerEmail: "ws-first@example.com", personal: true, members: ["ws-first@example.com"] },
+      { id: "personal:ws-first@example.com", name: "Personal", ownerEmail: "ws-first@example.com", personal: true, members: ["ws-first@example.com"], types: [] },
     ]);
   });
 
@@ -86,5 +86,54 @@ describe("workspaces", () => {
   it("rejects a member that is not an email address", async () => {
     const { body: ws } = await call.post("ws-bad-member@example.com", "/api/workspaces", { name: "W" });
     expect((await call.post("ws-bad-member@example.com", `/api/workspaces/${ws.id}/members`, { email: "nope" })).body).toEqual({ error: "email must be an email address" });
+  });
+});
+
+describe("workspace types", () => {
+  const agent = { name: "Billing Agent", category: "AI", icon: "robot" };
+
+  it("lets any member add, rename and remove a type, listed with the workspace", async () => {
+    const { body: ws } = await call.post("wt-owner@example.com", "/api/workspaces", { name: "Types" });
+    await call.post("wt-owner@example.com", `/api/workspaces/${ws.id}/members`, { email: "wt-member@example.com" });
+    const put = await call.put("wt-member@example.com", `/api/workspaces/${ws.id}/types/billing-agent`, { ...agent, name: "  Billing Agent " });
+    expect(put).toEqual({ status: 200, body: agent });
+    const listed = await call.get("wt-owner@example.com", "/api/workspaces");
+    expect(listed.body.find((w: { id: string }) => w.id === ws.id).types).toEqual([agent]);
+
+    await call.put("wt-owner@example.com", `/api/workspaces/${ws.id}/types/billing-agent`, { name: "Payments Agent", category: "AI", icon: "brain" });
+    const renamed = await call.get("wt-member@example.com", "/api/workspaces");
+    expect(renamed.body.find((w: { id: string }) => w.id === ws.id).types).toEqual([{ name: "Payments Agent", category: "AI", icon: "brain" }]);
+
+    expect((await call.del("wt-member@example.com", `/api/workspaces/${ws.id}/types/payments-agent`)).status).toBe(204);
+    expect((await call.get("wt-owner@example.com", "/api/workspaces")).body.find((w: { id: string }) => w.id === ws.id).types).toEqual([]);
+  });
+
+  it("refuses a name another type has, an icon outside the library, and a blank category", async () => {
+    const { body: ws } = await call.post("wt-check@example.com", "/api/workspaces", { name: "Checks" });
+    const path = (key: string) => `/api/workspaces/${ws.id}/types/${key}`;
+    await call.put("wt-check@example.com", path("billing-agent"), agent);
+    await call.put("wt-check@example.com", path("ledger"), { name: "Ledger", category: "Data", icon: "database" });
+    expect((await call.put("wt-check@example.com", path("ledger"), { ...agent, name: "billing agent" })).status).toBe(409);
+    expect((await call.put("wt-check@example.com", path("x"), { ...agent, name: "X", icon: "trash" })).body).toEqual({ error: "icon must be one of the library's node icons" });
+    expect((await call.put("wt-check@example.com", path("x"), { ...agent, name: "X", icon: "toString" })).status).toBe(400);
+    expect((await call.put("wt-check@example.com", path("x"), { ...agent, name: "X", category: " " })).body).toEqual({ error: "category is required" });
+    expect((await call.put("wt-check@example.com", path("x"), { ...agent, name: "!!" })).body).toEqual({ error: "name needs a letter or a digit" });
+  });
+
+  it("is a 404 to someone outside the workspace", async () => {
+    const { body: ws } = await call.post("wt-private@example.com", "/api/workspaces", { name: "Private" });
+    expect((await call.put("wt-stranger@example.com", `/api/workspaces/${ws.id}/types/billing-agent`, agent)).status).toBe(404);
+    expect((await call.del("wt-stranger@example.com", `/api/workspaces/${ws.id}/types/billing-agent`)).status).toBe(404);
+  });
+
+  it("goes out with an export and comes back with an import", async () => {
+    const { body: ws } = await call.post("wt-backup@example.com", "/api/workspaces", { name: "Backed up" });
+    await call.put("wt-backup@example.com", `/api/workspaces/${ws.id}/types/billing-agent`, agent);
+    const exported = await call.get("wt-backup@example.com", `/api/workspaces/${ws.id}/export`);
+    expect(exported.body.workspaces[0].types).toEqual([agent]);
+    const imported = await call.post("wt-backup@example.com", "/api/workspaces/import", exported.body);
+    const copy = imported.body.workspaces[0].id;
+    const listed = await call.get("wt-backup@example.com", "/api/workspaces");
+    expect(listed.body.find((w: { id: string }) => w.id === copy).types).toEqual([agent]);
   });
 });

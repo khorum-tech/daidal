@@ -104,6 +104,8 @@ export function resizeNode(doc: SkopeDoc, id: string, w: number, h: number): Sko
 export type NodeChange = Partial<Pick<DocNode, 'name' | 'subtitle' | 'notes' | 'flags' | 'tags' | 'links'>> & {
 	/** A display name, e.g. "Web App"; stored slugged. */
 	type?: string;
+	/** An icon from the library in place of the type's; null goes back to the type's. */
+	icon?: string | null;
 };
 
 export function updateNode(doc: SkopeDoc, id: string, change: NodeChange): SkopeDoc {
@@ -111,7 +113,10 @@ export function updateNode(doc: SkopeDoc, id: string, change: NodeChange): Skope
 		...doc,
 		nodes: (doc.nodes ?? []).map(n => {
 			if (n.id !== id) return n;
-			const next: DocNode = { ...n, ...change, ...(change.type === undefined ? {} : { type: slug(change.type) }) };
+			const { icon, ...rest } = change;
+			const next: DocNode = { ...n, ...rest, ...(change.type === undefined ? {} : { type: slug(change.type) }) };
+			if (icon === null) delete next.icon;
+			else if (icon !== undefined) next.icon = icon;
 			for (const key of ['subtitle', 'notes'] as const) if (next[key] === '') delete next[key];
 			for (const key of ['flags', 'tags', 'links'] as const) if (next[key]?.length === 0) delete next[key];
 			return next;

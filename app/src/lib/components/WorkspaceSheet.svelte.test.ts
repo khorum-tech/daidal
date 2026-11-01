@@ -4,7 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import WorkspaceSheet from './WorkspaceSheet.svelte';
 import type { Workspace } from '../types';
 
-const team: Workspace = { id: 't', name: 'Team', ownerEmail: 'owner@x.io', personal: false, members: ['owner@x.io', 'pal@x.io'] };
+const team: Workspace = { id: 't', name: 'Team', ownerEmail: 'owner@x.io', personal: false, members: ['owner@x.io', 'pal@x.io'], types: [] };
 const noop = async () => {};
 
 describe('the workspace sheet', () => {
@@ -42,7 +42,7 @@ describe('the workspace sheet', () => {
 
 	it("keeps a personal workspace unshared and undeletable, and shows a failure", async () => {
 		render(WorkspaceSheet, {
-			workspace: { ...team, personal: true, members: ['owner@x.io'] },
+			workspace: { ...team, personal: true, members: ['owner@x.io'], types: [] },
 			me: 'owner@x.io',
 			onrename: noop,
 			onadd: noop,
@@ -67,5 +67,29 @@ describe('the workspace sheet', () => {
 		expect(left).toBe(1);
 		await r.rerender({ me: 'owner@x.io' });
 		await expect.element(page.getByRole('button', { name: /Leave/ })).not.toBeInTheDocument();
+	});
+
+	it('lets a member manage the workspace’s types, when it can save them', async () => {
+		const calls: unknown[] = [];
+		render(WorkspaceSheet, {
+			workspace: { ...team, types: [{ name: 'Billing Agent', category: 'AI', icon: 'robot' }] },
+			me: 'pal@x.io',
+			onrename: noop,
+			onadd: noop,
+			onremove: noop,
+			onexport: noop,
+			ondelete: noop,
+			onsavetype: noop,
+			onremovetype: async key => void calls.push(key)
+		});
+		const types = page.getByRole('region', { name: 'Types' });
+		await expect.element(types.getByText('Billing Agent')).toBeVisible();
+		await types.getByRole('button', { name: 'Remove Billing Agent' }).click();
+		expect(calls).toEqual(['billing-agent']);
+	});
+
+	it('leaves types out when it can’t save them', async () => {
+		render(WorkspaceSheet, { workspace: team, me: 'owner@x.io', onrename: noop, onadd: noop, onremove: noop, onexport: noop, ondelete: noop });
+		expect(page.getByRole('region', { name: 'Types' }).elements()).toHaveLength(0);
 	});
 });

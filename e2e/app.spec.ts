@@ -753,6 +753,42 @@ test.describe("the app at /app", () => {
     expect(left.some(w => w.id === id)).toBe(false);
   });
 
+  test("adds a workspace type with a library icon, uses it in a diagram, and gives one node its own icon", async ({ page, request }) => {
+    const ws = await (await request.post("/api/workspaces", { data: { name: `Types ${Date.now()}` } })).json();
+    await page.goto(`/app/?ws=${encodeURIComponent(ws.id)}`);
+    await page.getByRole("button", { name: `Manage ${ws.name}` }).click();
+    const types = page.getByRole("dialog", { name: ws.name }).getByRole("region", { name: "Types" });
+    await types.getByRole("button", { name: "+ Add a type" }).click();
+    await types.getByLabel("Name").fill("Billing Agent");
+    await types.getByLabel("Category").fill("AI");
+    await types.getByLabel("Search icons").fill("robot");
+    await types.getByRole("button", { name: "Robot" }).click();
+    await types.getByRole("button", { name: "Add type" }).click();
+    await expect(types.getByRole("listitem").filter({ hasText: "Billing Agent" })).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    const made = await (await request.post("/api/diagrams", { data: { workspace: ws.id, name: "agents", doc: { version: 1 } } })).json();
+    await page.goto(`/app/d/${made.id}`);
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).click();
+    const menu = page.getByRole("dialog", { name: "Add a node" });
+    await menu.getByPlaceholder("Search all types…").fill("billing");
+    await menu.getByRole("button", { name: "Billing Agent" }).click();
+    await expect(page.getByRole("button", { name: "Billing Agent: New Billing Agent" })).toBeVisible();
+
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    await inspector.getByRole("button", { name: /^Icon:/ }).click();
+    await inspector.getByLabel("Search icons").fill("vault");
+    await inspector.getByRole("button", { name: "Vault" }).click();
+    await expect(inspector.getByRole("button", { name: "Icon: Vault" })).toBeVisible();
+    const { doc } = await saved(page, request, made.id);
+    expect(doc.nodes[0]).toMatchObject({ name: "New Billing Agent", type: "billing-agent", icon: "vault" });
+
+    await page.reload();
+    await page.getByRole("button", { name: "Billing Agent: New Billing Agent" }).click();
+    await expect(page.getByRole("region", { name: "Selected node" }).getByRole("button", { name: "Icon: Vault" })).toBeVisible();
+    await request.delete(`/api/workspaces/${ws.id}`);
+  });
+
   test("exports a workspace as a backup, and imports it back as a new workspace", async ({ page, request }, info) => {
     const { team } = await importStageData(request);
     await page.goto(`/app/?ws=${encodeURIComponent(team)}`);

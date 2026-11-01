@@ -1,5 +1,5 @@
 import { edgePath, type Box } from './geometry';
-import { ICON_PATHS, typeIcon } from './icons';
+import { ICON_PATHS } from './icons';
 import { bounds, isHidden, type Scene } from './model';
 
 /**
@@ -103,7 +103,7 @@ function nodeMarkup(scene: Scene, shown: (id: string) => number | null): string 
 				return [g(`<text x="${n.x + 10}" y="${n.y + n.h / 2}" dominant-baseline="middle" font-size="17" font-weight="500" fill="${C.text}">${esc(fit(n.name, n.w - 20, 17))}</text>`)];
 			}
 			const dash = op < 1 ? ' stroke-dasharray="4 3"' : '';
-			const icon = ICON_PATHS[typeIcon(n.type)] ?? ICON_PATHS.cube;
+			const icon = ICON_PATHS[n.icon] ?? ICON_PATHS.cube;
 			const dot = n.tags[0] && tagColor.get(n.tags[0]) ? `<circle cx="${n.x + n.w - 16}" cy="${n.y + 18}" r="3.5" fill="${tagColor.get(n.tags[0])}"/>` : '';
 			const sub = n.sub.trim() ? `<text x="${n.x + 13}" y="${n.y + 66}" font-size="11.5" fill="${C.muted}">${esc(fit(n.sub, n.w - 26, 11.5))}</text>` : '';
 			return [

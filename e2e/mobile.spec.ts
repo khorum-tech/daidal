@@ -562,6 +562,26 @@ test.describe("the app on a phone", () => {
     }).toPass();
   });
 
+  test("draws a workspace's own type, and picks a node's own icon from its sheet", async ({ page, request }) => {
+    const ws = await (await request.post("/api/workspaces", { data: { name: `Phone types ${Date.now()}` } })).json();
+    await request.put(`/api/workspaces/${ws.id}/types/billing-agent`, { data: { name: "Billing Agent", category: "AI", icon: "robot" } });
+    const doc = { version: 1, nodes: [{ id: "bill", name: "Biller", type: "billing-agent", layout: { x: 40, y: 120 } }] };
+    const made = await (await request.post("/api/diagrams", { data: { workspace: ws.id, name: "phone agents", doc } })).json();
+    await page.goto(`/app/d/${made.id}`);
+    await page.getByRole("button", { name: "Billing Agent: Biller" }).tap();
+    await page.getByTestId("node-menu").getByRole("button", { name: /^Edit/ }).tap();
+    const details = page.getByRole("dialog", { name: "Node details" });
+    await details.getByRole("button", { name: /^Icon:/ }).tap();
+    await details.getByLabel("Search icons").fill("brain");
+    await details.getByRole("button", { name: "Brain" }).tap();
+    await expect(details.getByRole("button", { name: "Icon: Brain" })).toBeVisible();
+    await expect(async () => {
+      const saved = (await (await request.get(`/api/diagrams/${made.id}`)).json()).doc.nodes[0];
+      expect(saved).toMatchObject({ type: "billing-agent", icon: "brain" });
+    }).toPass();
+    await request.delete(`/api/workspaces/${ws.id}`);
+  });
+
   test("claims a touch on bare canvas at the screen's edge, so the browser can't take it as Back", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);

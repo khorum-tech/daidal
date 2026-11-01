@@ -13,6 +13,15 @@ export interface Workspace {
 	ownerEmail: string;
 	personal: boolean;
 	members: string[];
+	/** The workspace's own node types. */
+	types: CustomType[];
+}
+
+/** A node type a workspace adds (or a built-in one it re-draws): a name, a picker category, a library icon. */
+export interface CustomType {
+	name: string;
+	category: string;
+	icon: string;
 }
 
 /** A diagram as listed: everything but the document. */
@@ -74,6 +83,8 @@ export interface DocNode {
 	id: string;
 	name: string;
 	type: string;
+	/** An icon from the library in place of the type's own. */
+	icon?: string;
 	subtitle?: string;
 	flags?: string[];
 	tags?: string[];

@@ -95,4 +95,21 @@ describe('the inspector', () => {
 		await page.getByRole('button', { name: 'Isolate its tags' }).click();
 		expect(isolated).toBe(1);
 	});
+
+	it('gives a node its own icon from the library, and takes it back to its type’s', async () => {
+		const { changes } = editing(scene.nodes[0].id);
+		await expect.element(page.getByText('The type’s icon')).toBeVisible();
+		await page.getByRole('button', { name: /^Icon:/ }).click();
+		await page.getByLabelText('Search icons').fill('robot');
+		await page.getByRole('button', { name: 'Robot' }).click();
+		expect(changes.at(-1)).toMatchObject({ change: { icon: 'robot' }, label: 'Change icon' });
+	});
+
+	it('offers the type’s icon back when the node has its own', async () => {
+		const changes: NodeChange[] = [];
+		render(Inspector, { node: { ...scene.nodes[0], icon: 'robot', ownIcon: 'robot' }, tags, editable: true, onchange: c => changes.push(c) });
+		await expect.element(page.getByRole('button', { name: 'Icon: Robot' })).toBeVisible();
+		await page.getByRole('button', { name: 'Use the type’s' }).click();
+		expect(changes).toEqual([{ icon: null }]);
+	});
 });

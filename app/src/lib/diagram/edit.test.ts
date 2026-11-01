@@ -106,6 +106,13 @@ describe('updateNode', () => {
 		expect(next.nodes![1]).toEqual(base().nodes![1]);
 	});
 
+	it('sets a node’s own icon, and takes it away again with null', () => {
+		const withIcon = updateNode(base(), 'api', { icon: 'robot' });
+		expect(withIcon.nodes![0].icon).toBe('robot');
+		expect(updateNode(withIcon, 'api', { name: 'Renamed' }).nodes![0].icon).toBe('robot');
+		expect('icon' in updateNode(withIcon, 'api', { icon: null }).nodes![0]).toBe(false);
+	});
+
 	it('leaves empty fields out of the document', () => {
 		const next = updateNode(updateNode(base(), 'api', { notes: 'x', links: [{ url: 'https://a' }] }), 'api', { notes: '', tags: [], links: [] });
 		expect(next.nodes![0]).toEqual({ id: 'api', name: 'API', type: 'service', layout: { x: 100, y: 100 } });

@@ -110,6 +110,11 @@ name, for example `plugsConnected`. To add a type, add a line to `types.json`; `
 exists. Icons that came from the prototype are kept exactly as they were, and those marked `ui` are the app's own
 controls, not offered for nodes.
 
+A workspace can add its own types (the **Types** section of its sheet, stored in `workspace_types` and listed with
+the workspace), each with an icon from the same library. `catalogue()` in `icons.ts` merges them into the built-in
+ones, and `toScene(doc, cats)` works out each node's icon: the node's own (`icon` in the document), else its type's,
+else the cube.
+
 | Command | What it does |
 |---------|--------------|
 | `npm run dev` | Vite dev server; proxies `/api` to `wrangler dev` on port 8787 (start that from the project root) |
