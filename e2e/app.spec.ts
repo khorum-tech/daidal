@@ -283,6 +283,13 @@ test.describe("the app at /app", () => {
     await expect(page.locator(".tour")).toHaveCount(0);
   });
 
+  test("starts the tour from the Getting started docs page", async ({ page }) => {
+    await page.goto("/app/docs/getting-started");
+    await page.getByRole("article").getByRole("link", { name: "Take the tour" }).click();
+    await expect(page).toHaveURL(/\/app\/d\//);
+    await expect(page.getByRole("dialog", { name: "Welcome to Skope" })).toBeVisible();
+  });
+
   test("offers the tour on the home screen once, and remembers No thanks", async ({ page, request }) => {
     const me = await (await request.get("/api/me")).json();
     await request.put("/api/me", { data: { settings: { ...me.settings, tutorial: undefined } } });
@@ -294,6 +301,36 @@ test.describe("the app at /app", () => {
     await expect.poll(async () => (await (await request.get("/api/me")).json()).settings.tutorial).toMatchObject({ dismissed: true });
     await page.reload();
     await expect(page.getByRole("region", { name: "Take the tour" })).toHaveCount(0);
+  });
+
+  test("opens the docs from the account menu, follows links between pages, and says when a page doesn't exist", async ({ page }) => {
+    await page.goto("/app/");
+    await page.getByRole("button", { name: /^Account:/ }).click();
+    await page.getByRole("menuitem", { name: "Docs" }).click();
+    await expect(page).toHaveURL(/\/app\/docs$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Skope docs" })).toBeVisible();
+    await page.getByRole("main").getByRole("link", { name: /Getting started/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Getting started" })).toBeVisible();
+    await expect(page).toHaveTitle("Getting started · Skope docs");
+    await page.getByRole("article").getByRole("link", { name: "The config format", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "The config format" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Docs" }).getByRole("link", { name: "The config format" })).toHaveAttribute("aria-current", "page");
+    await page.getByRole("navigation", { name: "More docs" }).getByRole("link", { name: /Next/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Keyboard and touch" })).toBeVisible();
+
+    // The page scrolls in its own box (the app's page never does), and a new page opens at the top.
+    await page.getByRole("navigation", { name: "Docs", exact: true }).getByRole("link", { name: "The config format" }).click();
+    const scroll = page.getByTestId("docs-scroll");
+    await page.mouse.move(800, 500);
+    await page.mouse.wheel(0, 4000);
+    await expect.poll(() => scroll.evaluate(el => el.scrollTop)).toBeGreaterThan(500);
+    await expect(page.getByRole("navigation", { name: "More docs" })).toBeInViewport();
+    await page.getByRole("navigation", { name: "More docs" }).getByRole("link", { name: /Next/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Keyboard and touch" })).toBeInViewport();
+    await expect.poll(() => scroll.evaluate(el => el.scrollTop)).toBe(0);
+
+    await page.goto("/app/docs/no-such-thing");
+    await expect(page.getByRole("heading", { level: 1, name: "No such page" })).toBeVisible();
   });
 
   test("adds an AI Agent from the AI types, drawn with its own icon, and saves its type", async ({ page, request }) => {

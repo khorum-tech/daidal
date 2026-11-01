@@ -38,7 +38,7 @@ export function tourCounts(doc: SkopeDoc, presenting = false): TourCounts {
 		boxes: (doc.boundaries ?? []).length,
 		views: (doc.views ?? []).length,
 		tagged: nodes.filter(n => n.tags?.length).length,
-		unnamed: nodes.filter(n => /^New /.test(n.name ?? '')).length,
+		unnamed: nodes.filter(n => (n.name ?? '').startsWith('New ')).length,
 		presenting
 	};
 }

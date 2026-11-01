@@ -107,6 +107,7 @@
 	<button type="button" role="menuitem" onclick={() => openSettings('profile')}>Profile</button>
 	<button type="button" role="menuitem" onclick={() => openSettings('appearance')}>Appearance</button>
 	<button type="button" role="menuitem" onclick={tutorial}>Tutorial</button>
+	<a role="menuitem" href={resolve('/docs/[[page]]', {})}>Docs</a>
 	<a role="menuitem" href="/prototype/">Open the prototype</a>
 	<a role="menuitem" href="/cdn-cgi/access/logout">Sign out</a>
 {/snippet}

@@ -102,6 +102,13 @@ Components live in `src/lib/components/`. What they draw is worked out in `src/l
 `.skope.json` document into a scene the way the prototype's config import does, and `geometry.ts` routes
 connections the way the prototype's canvas does.
 
+The docs at `/app/docs` are markdown in `src/lib/docs/`, one file per page with a small header (title, summary,
+order), read by `src/lib/docs/docs.ts` and rendered with `marked`. To add a page, add a file; `docs.test.ts` checks
+that every `/app/docs/…` link points at a page that exists. Pictures live in `static/docs-images/` (served at
+`/app/docs-images/`) and are taken from the real app on the stage data by `npm run docs:shots` (run from the
+project root; `docs-shots/`): run it after changing what a pictured screen looks like, look at the pictures, and
+commit them. The test also checks every picture is shown somewhere and every one shown exists.
+
 The getting-started tour is `src/lib/tour.ts` (the steps, each pointing at a `data-tour` control and moving on
 when its check sees it done) and `TourCallout.svelte`. It runs on a practice diagram, starts from the account menu's
 **Tutorial**, the offer on home, or `/app/?tour=start`, and keeps its place in `/api/me` settings (`tutorial`).
