@@ -241,6 +241,25 @@ test.describe("the app at /app", () => {
     await expect(page).toHaveTitle("renamed elsewhere · Skope");
   });
 
+  test("opens the docs from the account menu, follows links between pages, and says when a page doesn't exist", async ({ page }) => {
+    await page.goto("/app/");
+    await page.getByRole("button", { name: /^Account:/ }).click();
+    await page.getByRole("menuitem", { name: "Docs" }).click();
+    await expect(page).toHaveURL(/\/app\/docs$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Skope docs" })).toBeVisible();
+    await page.getByRole("main").getByRole("link", { name: /Getting started/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Getting started" })).toBeVisible();
+    await expect(page).toHaveTitle("Getting started · Skope docs");
+    await page.getByRole("article").getByRole("link", { name: "The config format", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "The config format" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Docs" }).getByRole("link", { name: "The config format" })).toHaveAttribute("aria-current", "page");
+    await page.getByRole("navigation", { name: "More docs" }).getByRole("link", { name: /Next/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Keyboard and touch" })).toBeVisible();
+
+    await page.goto("/app/docs/no-such-thing");
+    await expect(page.getByRole("heading", { level: 1, name: "No such page" })).toBeVisible();
+  });
+
   test("adds an AI Agent from the AI types, drawn with its own icon, and saves its type", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];

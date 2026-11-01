@@ -582,6 +582,16 @@ test.describe("the app on a phone", () => {
     await request.delete(`/api/workspaces/${ws.id}`);
   });
 
+  test("reads the docs: opens them from the account sheet and moves between pages with the picker", async ({ page }) => {
+    await page.goto("/app/");
+    await page.getByRole("button", { name: /^Account:/ }).tap();
+    await page.getByRole("dialog", { name: "Account" }).getByRole("menuitem", { name: "Docs" }).tap();
+    await expect(page.getByRole("heading", { level: 1, name: "Skope docs" })).toBeVisible();
+    await page.getByLabel("Go to a page").selectOption({ label: "Connections" });
+    await expect(page.getByRole("heading", { level: 1, name: "Connections" })).toBeVisible();
+    await expect(page).toHaveURL(/\/app\/docs\/connections$/);
+  });
+
   test("claims a touch on bare canvas at the screen's edge, so the browser can't take it as Back", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);

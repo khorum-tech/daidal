@@ -1,0 +1,80 @@
+---
+title: The config format
+summary: A whole diagram as YAML or JSON, to write by hand, generate, or merge in.
+order: 10
+---
+
+# The config format
+
+Every diagram is a document, and **Config** (in the toolbar, or the diagram's sheet) shows it as YAML or JSON. Its owner can edit it there, or drop or open a `.skope.yaml` / `.skope.json` file, and apply it:
+
+- **Replace** makes the diagram exactly what the config says.
+- **Merge** adds and updates: nodes and containers by `id`, tags by key, views by name, and connections that aren't there yet. Fields the config leaves out stay as they are.
+
+Applying is one undo step. A config that can't be read says why, with the line, and changes nothing. This is also the format an [AI connected to Skope](/app/docs/connecting-ai) uses for bigger changes.
+
+## An example
+
+```yaml
+version: 1
+diagram:
+  name: checkout
+  kind: C4
+  view: Request path
+tags:
+  public: { label: Public, color: "#968ae0", group: Exposure }
+  data: { label: Data, color: "#5fb3a1", group: Layer }
+views:
+  - name: Request path
+    tags: [public]
+nodes:
+  - id: web
+    name: Storefront
+    type: web-app
+    tags: [public]
+    layout: { x: 60, y: 80 }
+  - id: api
+    name: Checkout API
+    type: service
+    subtitle: Kotlin · 3 replicas
+    notes: Owns carts and orders.
+    links:
+      - { label: Runbook, url: "https://example.com/runbook" }
+  - id: db
+    name: Orders DB
+    type: database
+    tags: [data]
+    flags: [db]
+edges:
+  - { from: web, to: api, label: HTTPS }
+  - { from: api, to: db, line: dashed }
+boundaries:
+  - id: vpc
+    label: Production VPC
+    layout: { x: 280, y: 40, w: 520, h: 260 }
+```
+
+## Fields
+
+**`diagram`**: `name`, `kind` (C4, Infra, Freeform…), `view` (the view it opens on).
+
+**`tags`**: a map from a key to `{ label, color, group }`. Tags a node uses that aren't defined here are made up for you.
+
+**`views`**: a list of `{ name, tags, locked }`.
+
+**`nodes`**: a list. Each needs an `id`; the rest are optional:
+
+| Field | What it is |
+|-------|------------|
+| `name` | The label (defaults to the id) |
+| `type` | A type, written slugged: `web-app`, `api-gateway`, `ai-agent`, or one of your workspace's |
+| `icon` | An icon from the library, in place of the type's |
+| `subtitle`, `notes` | Text |
+| `flags` | Any of `db`, `cache`, `mq` |
+| `tags` | Tag keys |
+| `links` | A list of `{ label, url }` |
+| `layout` | `{ x, y, w, h }`; left out, the node is placed in a grid |
+
+**`edges`**: a list of `{ from, to }` (node or container ids), with optional `label`, `showLabel`, `line` (`solid`, `dashed`, `dotted`), `direction` (`forward`, `back`, `both`, `none`), `width`, `route` (`curved`, `straight`, `angled`) and `anchors` (`{ from: "left:0.25", to: "top" }`).
+
+**`boundaries`**: containers, a list of `{ id, label, layout: { x, y, w, h } }`, with optional `border: { width, style }`, `moveContents` and `labelPosition`.
