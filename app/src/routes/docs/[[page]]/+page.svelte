@@ -9,13 +9,21 @@
 	const href = (slug: string) => (slug ? resolve('/docs/[[page]]', { page: slug }) : resolve('/docs/[[page]]', {}));
 	const html = $derived(data.page ? render(data.page.body) : '');
 	const title = $derived(data.page?.title ?? (data.slug ? 'Not found' : 'Docs'));
+
+	// The app's page itself never scrolls (the canvas needs that), so the docs scroll in their own box: back to its
+	// top whenever another page opens in it.
+	let scroller = $state<HTMLElement>();
+	$effect(() => {
+		void data.slug;
+		scroller?.scrollTo({ top: 0 });
+	});
 </script>
 
 <svelte:head><title>{title} · Skope docs</title></svelte:head>
 
 <AppHeader me={data.me} homeHref={resolve('/')} crumbs={data.slug ? [{ label: 'Docs', href: href('') }, { label: title }] : [{ label: 'Docs' }]} />
 
-<div class="docs">
+<div class="docs" bind:this={scroller} data-testid="docs-scroll">
 	<aside class="side"><DocsNav pages={PAGES} current={data.page ? data.slug : null} {href} /></aside>
 	<main class="main">
 		{#if data.page}
@@ -57,6 +65,13 @@
 		gap: 32px;
 		padding: 24px 32px 64px;
 		justify-content: center;
+		align-content: start;
+		/* Its own scrolling box: the app's page is fixed to the screen. */
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+		overscroll-behavior-y: contain;
 	}
 	.side {
 		position: sticky;

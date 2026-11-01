@@ -256,6 +256,17 @@ test.describe("the app at /app", () => {
     await page.getByRole("navigation", { name: "More docs" }).getByRole("link", { name: /Next/ }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Keyboard and touch" })).toBeVisible();
 
+    // The page scrolls in its own box (the app's page never does), and a new page opens at the top.
+    await page.getByRole("navigation", { name: "Docs", exact: true }).getByRole("link", { name: "The config format" }).click();
+    const scroll = page.getByTestId("docs-scroll");
+    await page.mouse.move(800, 500);
+    await page.mouse.wheel(0, 4000);
+    await expect.poll(() => scroll.evaluate(el => el.scrollTop)).toBeGreaterThan(500);
+    await expect(page.getByRole("navigation", { name: "More docs" })).toBeInViewport();
+    await page.getByRole("navigation", { name: "More docs" }).getByRole("link", { name: /Next/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Keyboard and touch" })).toBeInViewport();
+    await expect.poll(() => scroll.evaluate(el => el.scrollTop)).toBe(0);
+
     await page.goto("/app/docs/no-such-thing");
     await expect(page.getByRole("heading", { level: 1, name: "No such page" })).toBeVisible();
   });
