@@ -233,6 +233,7 @@
 					<span class="empty-icon"><Icon name="folder" size={30} /></span>
 					<h2>No diagrams here yet</h2>
 					<p>Start one with <strong>+ New diagram</strong>, or copy one from another workspace from its name in the header.</p>
+					<p class="learn">New to Skope? <a href={resolve('/docs/[[page]]', { page: 'getting-started' })}>Learn Skope</a> in five minutes.</p>
 				</div>
 			{/if}
 		{/if}
@@ -447,6 +448,12 @@
 		line-height: 1.6;
 		color: var(--color-neutral-500);
 		margin: 0;
+	}
+	.empty .learn {
+		margin-top: 10px;
+	}
+	.empty .learn a {
+		color: var(--color-accent);
 	}
 	.side-actions {
 		display: flex;
