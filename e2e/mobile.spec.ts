@@ -582,6 +582,23 @@ test.describe("the app on a phone", () => {
     await request.delete(`/api/workspaces/${ws.id}`);
   });
 
+  test("reads the docs: opens them from the account sheet and moves between pages with the picker", async ({ page }) => {
+    await page.goto("/app/");
+    await page.getByRole("button", { name: /^Account:/ }).tap();
+    await page.getByRole("dialog", { name: "Account" }).getByRole("menuitem", { name: "Docs" }).tap();
+    await expect(page.getByRole("heading", { level: 1, name: "Skope docs" })).toBeVisible();
+    await page.getByLabel("Go to a page").selectOption({ label: "Connections" });
+    await expect(page.getByRole("heading", { level: 1, name: "Connections" })).toBeVisible();
+    await expect(page).toHaveURL(/\/app\/docs\/connections$/);
+
+    // A long page scrolls with a finger, down to its Previous and Next links.
+    await page.getByLabel("Go to a page").selectOption({ label: "The config format" });
+    const scroll = page.getByTestId("docs-scroll");
+    const box = (await scroll.boundingBox())!;
+    for (let i = 0; i < 6; i++) await swipe(page, box.x + box.width / 2, box.y + box.height - 80, 0, -(box.height - 200));
+    await expect.poll(() => scroll.evaluate(el => el.scrollTop)).toBeGreaterThan(500);
+  });
+
   test("claims a touch on bare canvas at the screen's edge, so the browser can't take it as Back", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
