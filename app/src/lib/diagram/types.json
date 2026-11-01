@@ -1,0 +1,64 @@
+[
+	{ "cat": "Client", "items": [["Web App", "browser"], ["Mobile App", "deviceMobile"], ["Desktop App", "desktop"], ["CLI", "terminalWindow"], ["IDE Extension", "puzzlePiece"], ["Actor", "user"]] },
+	{
+		"cat": "AI",
+		"items": [
+			["AI Agent", "robot"],
+			["LLM", "brain"],
+			["MCP Server", "plugsConnected"],
+			["Agent Tool", "wrench"],
+			["Vector Store", "cubeFocus"],
+			["Embeddings", "graph"],
+			["Knowledge Base", "bookOpen"],
+			["Prompt", "chatCircleText"],
+			["Guardrail", "shieldCheck"],
+			["Evaluation", "exam"]
+		]
+	},
+	{
+		"cat": "Compute",
+		"items": [["Service", "cube"], ["System", "layers"], ["Function", "pulse"], ["Worker", "cube"], ["Scheduled Job", "arrowCW"], ["Container", "frameCorners"], ["Cluster", "circuitry"]]
+	},
+	{
+		"cat": "Data",
+		"items": [
+			["Database", "database"],
+			["Cache", "hardDrives"],
+			["Object Storage", "hardDrives"],
+			["Storage", "hardDrives"],
+			["Data Warehouse", "layers"],
+			["Search Index", "magnifyingGlass"],
+			["Stream", "waves"],
+			["Feature Store", "table"]
+		]
+	},
+	{ "cat": "Messaging", "items": [["Queue", "queue"], ["Topic", "queue"], ["Event Bus", "flowArrow"], ["Relay", "flowArrow"], ["Notification", "bell"], ["Email", "envelope"]] },
+	{
+		"cat": "Network",
+		"items": [
+			["Edge", "globe"],
+			["CDN", "cloudArrowDown"],
+			["Load Balancer", "arrowsSplit"],
+			["Proxy", "arrowRight"],
+			["API Gateway", "crosshair"],
+			["Firewall", "lock"],
+			["DNS", "signpost"],
+			["VPN", "lock"]
+		]
+	},
+	{ "cat": "Transfer", "items": [["FTP", "arrowRight"], ["SFTP", "lock"], ["File Share", "note"], ["Webhook", "webhooksLogo"]] },
+	{ "cat": "External", "items": [["External", "globe"], ["Third-party API", "crosshair"], ["Identity Provider", "lock"], ["Payment Provider", "creditCard"]] },
+	{
+		"cat": "Operations",
+		"items": [
+			["Telemetry", "pulse"],
+			["Monitoring", "gauge"],
+			["Log Sink", "note"],
+			["Alerting", "siren"],
+			["Feature Flags", "toggleRight"],
+			["Secrets Manager", "key"],
+			["CI/CD Pipeline", "arrowCW"]
+		]
+	},
+	{ "cat": "Annotation", "items": [["Note", "note"], ["Text", "textT"]] }
+]

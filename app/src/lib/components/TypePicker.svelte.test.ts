@@ -11,6 +11,13 @@ describe('the type picker', () => {
 		await expect.element(page.getByRole('button', { name: 'Queue' }).first()).toHaveAttribute('aria-pressed', 'true');
 	});
 
+	it('knows the AI types', async () => {
+		render(TypePicker, { onpick: () => {} });
+		await expect.element(page.getByText('AI', { exact: true })).toBeVisible();
+		await page.getByLabelText('Search all types').fill('mcp');
+		await expect.element(page.getByRole('button', { name: 'MCP Server' })).toBeVisible();
+	});
+
 	it('narrows the catalogue as you type, and reports the pick', async () => {
 		const picked: string[] = [];
 		render(TypePicker, { onpick: t => picked.push(t) });

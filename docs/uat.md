@@ -122,6 +122,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | NODE-10 | ⌘D on a selected node, then Delete | A copy appears beside it; Delete removes the selected node and its connections | D | |
 | NODE-11 | **Duplicate** and **Delete node** from its details (on the phone, its sheet) | The same, from the buttons | D P | |
 | NODE-12 | **Isolate its tags** on Journal DB | Everything not tagged Data fades | D P | |
+| NODE-13 | **+ Add**, open the **AI** group (or search `mcp`), pick **MCP Server**; then change its type to **AI Agent** | Each draws with its own icon (plugs, robot), not the cube; reload keeps the type | D P | |
 
 ## 6. Connections
 
