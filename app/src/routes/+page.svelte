@@ -12,6 +12,8 @@
 	import { fromTemplate, TEMPLATES } from '#lib/diagram/templates.ts';
 	import TemplatePicker from '#lib/components/TemplatePicker.svelte';
 	import type { ListedDiagram, Workspace } from '#lib/types.ts';
+	import { offerTour, saveTour, startTour } from '#lib/tour.ts';
+	import { page } from '$app/state';
 
 	let { data } = $props();
 
@@ -74,6 +76,28 @@
 	let wsName = $state('');
 	let managing = $state(false);
 	let notice = $state<{ text: string; failed: boolean } | null>(null);
+	// The getting-started tour: offered once to someone who has never started or turned it down, and started by
+	// ?tour=start (so a docs page can link to it).
+	let touring = $state(false);
+	let tourDismissed = $state(false);
+	const offering = $derived(offerTour(data.me) && !tourDismissed);
+	async function beginTour() {
+		touring = true;
+		try {
+			const id = await startTour(api, `personal:${data.me.email}`);
+			await goto(`${resolve('/d/[id]', { id })}?tour=1`, { invalidateAll: true });
+		} catch (err) {
+			notice = { text: `Couldn't start the tour: ${err instanceof Error ? err.message : 'unknown error'}`, failed: true };
+			touring = false;
+		}
+	}
+	async function noTour() {
+		tourDismissed = true;
+		await saveTour(api, { step: 0, dismissed: true }).catch(() => {});
+	}
+	$effect(() => {
+		if (untrack(() => page.url.searchParams.get('tour')) === 'start') void beginTour();
+	});
 	const showWorkspace = (id: string) => goto(`${resolve('/')}?ws=${encodeURIComponent(id)}`, { invalidateAll: true });
 	async function createWorkspace(e: SubmitEvent) {
 		e.preventDefault();
@@ -191,6 +215,13 @@
 
 	<main class="list">
 		{#if notice}<p class="notice" class:failed={notice.failed} role={notice.failed ? 'alert' : 'status'}>{notice.text}</p>{/if}
+		{#if offering}
+			<section class="tour-offer" aria-label="Take the tour">
+				<p><strong>New to Skope?</strong> A three-minute tour on a practice diagram shows the basics.</p>
+				<button type="button" class="btn btn-primary" disabled={touring} onclick={beginTour}>{touring ? 'Starting…' : 'Start the tour'}</button>
+				<button type="button" class="btn btn-ghost" onclick={noTour}>No thanks</button>
+			</section>
+		{/if}
 		{#if data.workspace}
 			<div class="heading">
 				<h1>{data.workspace.name}</h1>
@@ -469,6 +500,26 @@
 	.side-btn:hover {
 		color: var(--color-accent);
 		border-color: var(--color-accent-700);
+	}
+	.tour-offer {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 10px;
+		margin: 0 0 16px;
+		padding: 10px 14px;
+		border-radius: 10px;
+		border: 1px solid var(--color-accent-700);
+		background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+	}
+	.tour-offer p {
+		flex: 1 1 260px;
+		margin: 0;
+		font-size: 13px;
+		color: var(--color-neutral-300);
+	}
+	.tour-offer .btn {
+		font-size: 12.5px;
 	}
 	.notice {
 		margin: 0 0 14px;

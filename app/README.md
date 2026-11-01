@@ -102,6 +102,10 @@ Components live in `src/lib/components/`. What they draw is worked out in `src/l
 `.skope.json` document into a scene the way the prototype's config import does, and `geometry.ts` routes
 connections the way the prototype's canvas does.
 
+The getting-started tour is `src/lib/tour.ts` (the steps, each pointing at a `data-tour` control and moving on
+when its check sees it done) and `TourCallout.svelte`. It runs on a practice diagram, starts from the account menu's
+**Tutorial**, the offer on home, or `/app/?tour=start`, and keeps its place in `/api/me` settings (`tutorial`).
+
 Icons and node types are data. `src/lib/diagram/icon-library.json` holds every icon Skope draws, all from
 [Phosphor](https://phosphoricons.com) (MIT, regular weight) so they look alike. `src/lib/diagram/types.json` lists the
 type picker's categories, each type with an icon from that library. To add an icon, put its Phosphor name in the list

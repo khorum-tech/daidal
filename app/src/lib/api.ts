@@ -40,6 +40,8 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		me: () => get<Me>('/api/me'),
 		/** Saves the signed-in person's name and title. */
 		updateMe: (profile: { name: string; title: string }) => send<Me>('/api/me', 'PUT', profile),
+		/** Replaces the signed-in person's settings (all of them: read, change and send back the whole object). */
+		saveSettings: (settings: Record<string, unknown>) => send<Me>('/api/me', 'PUT', { settings }),
 		workspaces: () => get<Workspace[]>('/api/workspaces'),
 		/** A workspace's diagrams, newest first, as cards; [search] keeps those whose name or a node's name has it. */
 		diagrams: (workspace: string, page: { search?: string; limit?: number; offset?: number } = {}) => {

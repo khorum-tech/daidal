@@ -241,6 +241,61 @@ test.describe("the app at /app", () => {
     await expect(page).toHaveTitle("renamed elsewhere · Skope");
   });
 
+  test("takes the getting-started tour from the menu: each step moves on once it's done, and finishing is remembered", async ({ page }) => {
+    await page.goto("/app/");
+    await page.getByRole("button", { name: /^Account:/ }).click();
+    await page.getByRole("menuitem", { name: "Tutorial" }).click();
+    await expect(page).toHaveURL(/\/app\/d\//);
+    const tour = (title: string) => page.getByRole("dialog", { name: title });
+    await tour("Welcome to Skope").getByRole("button", { name: "Next" }).click();
+
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).click();
+    await page.getByRole("dialog", { name: "Add a node" }).getByRole("button", { name: "Service" }).first().click();
+    await expect(tour("Name it")).toBeVisible();
+    await page.getByRole("region", { name: "Selected node" }).getByLabel("Name").fill("Checkout API");
+    await expect(tour("Connect two nodes")).toBeVisible();
+
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Connect" }).click();
+    await page.getByRole("button", { name: "Web App: Storefront" }).click();
+    await page.getByRole("button", { name: "Service: Checkout API" }).click();
+    await expect(tour("Group them")).toBeVisible();
+    await page.getByRole("button", { name: "Add container" }).click();
+    await expect(tour("Tag something")).toBeVisible();
+
+    await page.getByRole("button", { name: "Web App: Storefront" }).click();
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    await inspector.getByLabel("Add a tag").selectOption("+new");
+    await inspector.getByLabel("New tag name").fill("Public");
+    await inspector.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(tour("Save a view")).toBeVisible();
+    await page.getByRole("button", { name: "+ Save the tags on now as a view" }).click();
+    await expect(tour("Undo anything")).toBeVisible();
+    await tour("Undo anything").getByRole("button", { name: "Next" }).click();
+
+    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await expect(tour("That’s the basics")).toBeVisible();
+    await tour("That’s the basics").getByRole("button", { name: "Finish" }).click();
+    await expect(page.getByRole("dialog", { name: "That’s the basics" })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Service: Checkout API" })).toBeVisible();
+    await expect(page.locator(".tour")).toHaveCount(0);
+  });
+
+  test("offers the tour on the home screen once, and remembers No thanks", async ({ page, request }) => {
+    const me = await (await request.get("/api/me")).json();
+    await request.put("/api/me", { data: { settings: { ...me.settings, tutorial: undefined } } });
+    await page.goto("/app/");
+    const offer = page.getByRole("region", { name: "Take the tour" });
+    await expect(offer).toBeVisible();
+    await offer.getByRole("button", { name: "No thanks" }).click();
+    await expect(offer).toHaveCount(0);
+    await expect.poll(async () => (await (await request.get("/api/me")).json()).settings.tutorial).toMatchObject({ dismissed: true });
+    await page.reload();
+    await expect(page.getByRole("region", { name: "Take the tour" })).toHaveCount(0);
+  });
+
   test("adds an AI Agent from the AI types, drawn with its own icon, and saves its type", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];
