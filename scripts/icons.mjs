@@ -37,7 +37,7 @@ const ICONS = `
 	.filter(Boolean);
 
 const camel = name => name.replace(/-(\w)/g, (_, c) => c.toUpperCase());
-const words = name => name.replace(/-/g, ' ').replace(/^\w/, c => c.toUpperCase());
+const words = name => name.replaceAll('-', ' ').replace(/^\w/, c => c.toUpperCase());
 
 const current = JSON.parse(readFileSync(OUT, 'utf8'));
 const kept = Object.fromEntries(Object.entries(current).filter(([, icon]) => icon.from === 'prototype'));
