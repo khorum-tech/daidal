@@ -5,6 +5,7 @@ import type { Env } from "./env";
 import { HttpError, json, readJson } from "./http";
 import { exportWorkspace, importWorkspaces } from "./importer";
 import { parseProfilePatch } from "./profile";
+import { deleteType, putType } from "./types";
 import * as workspaces from "./workspaces";
 
 const MAX_PROFILE_BODY = 64 * 1024;
@@ -53,6 +54,11 @@ function workspaceRoute(request: Request, db: D1Database, email: string, parts: 
   if (section === "members") {
     if (!member) return method === "POST" ? workspaces.addMember(db, id, email, request, now) : notAllowed();
     return method === "DELETE" ? workspaces.removeMember(db, id, email, member) : notAllowed();
+  }
+  if (section === "types" && member) {
+    if (method === "PUT") return putType(db, id, email, member, request, now);
+    if (method === "DELETE") return deleteType(db, id, email, member);
+    return notAllowed();
   }
   throw new HttpError(404, "not found");
 }

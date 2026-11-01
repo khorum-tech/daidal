@@ -1,12 +1,18 @@
 <script lang="ts">
-	import { TYPE_CATS, typeIcon } from '../diagram/icons';
+	import { TYPE_CATS, typeIcon, type TypeCats } from '../diagram/icons';
 	import Icon from './Icon.svelte';
 
 	/**
 	 * The prototype's type picker: the core types first, and the whole catalogue behind a search field.
-	 * [current] is marked; picking one calls [onpick] with its display name.
+	 * [current] is marked; picking one calls [onpick] with its display name. [cats] is the workspace's catalogue,
+	 * its own types merged into the built-in ones.
 	 */
-	let { current = null, onpick, autofocus = false }: { current?: string | null; onpick: (type: string) => void; autofocus?: boolean } = $props();
+	let {
+		current = null,
+		onpick,
+		autofocus = false,
+		cats = TYPE_CATS
+	}: { current?: string | null; onpick: (type: string) => void; autofocus?: boolean; cats?: TypeCats } = $props();
 
 	/** The prototype's core types (web/index.html CORE_TYPES). */
 	const CORE = ['Web App', 'Service', 'Database', 'Queue', 'Actor', 'External', 'Storage', 'Note'];
@@ -14,7 +20,7 @@
 	let q = $state('');
 	const query = $derived(q.trim().toLowerCase());
 	const groups = $derived(
-		TYPE_CATS.map(c => ({ cat: c.cat, items: c.items.map(([label]) => label).filter(l => !query || l.toLowerCase().includes(query)) })).filter(g => g.items.length)
+		cats.map(c => ({ cat: c.cat, items: c.items.map(([label]) => label).filter(l => !query || l.toLowerCase().includes(query)) })).filter(g => g.items.length)
 	);
 	let search = $state<HTMLInputElement>();
 	$effect(() => {
@@ -24,7 +30,7 @@
 
 {#snippet option(label: string)}
 	<button type="button" class="opt" class:active={current === label} aria-pressed={current === label} onclick={() => onpick(label)}>
-		<Icon name={typeIcon(label)} size={14} />
+		<Icon name={typeIcon(label, cats)} size={14} />
 		<span>{label}</span>
 	</button>
 {/snippet}

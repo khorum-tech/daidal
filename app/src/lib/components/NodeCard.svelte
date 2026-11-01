@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { SceneNode, SceneTag } from '../diagram/model';
-	import { FLAGS, typeIcon } from '../diagram/icons';
+	import { FLAGS } from '../diagram/icons';
 	import Icon from './Icon.svelte';
 
 	/** One node on the canvas, read-only. Mirrors the prototype's card and text nodes (web/index.html). */
@@ -70,11 +70,11 @@
 	{#if node.isText}
 		<span class="text-name">{node.name}</span>
 	{:else if iconOnly}
-		<span class="big-icon"><Icon name={typeIcon(node.type)} size={46} /></span>
+		<span class="big-icon"><Icon name={node.icon} size={46} /></span>
 		<span class="icon-name">{node.name}</span>
 	{:else}
 		<span class="head">
-			<span class="type-icon"><Icon name={typeIcon(node.type)} size={15} /></span>
+			<span class="type-icon"><Icon name={node.icon} size={15} /></span>
 			<span class="type">{node.type}</span>
 			<span class="badges">
 				{#each flags as f (f.id)}<span title={f.label} class="flag"><Icon name={f.icon} size={11} label={f.label} /></span>{/each}

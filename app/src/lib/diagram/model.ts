@@ -1,5 +1,5 @@
 import type { DocBoundary, DocEdge, DocNode, SkopeDoc } from '../types';
-import { TYPE_CATS } from './icons';
+import { isNodeIcon, TYPE_CATS, typeIcon, typeKey, type TypeCats } from './icons';
 
 /**
  * A document turned into what the canvas draws. The rules follow the prototype's config import
@@ -31,6 +31,10 @@ export interface SceneNode {
 	name: string;
 	/** The display type, e.g. "Web App" (documents store it slugged: "web-app"). */
 	type: string;
+	/** What the card draws: the node's own icon, else its type's. */
+	icon: string;
+	/** The node's own icon, when it has one. */
+	ownIcon: string | null;
 	sub: string;
 	desc: string;
 	flags: string[];
@@ -102,13 +106,12 @@ export function slug(s: unknown): string {
 	);
 }
 
-const KNOWN_TYPES = TYPE_CATS.flatMap(c => c.items.map(([label]) => label));
-
-/** A slugged type back to its display name: a known type's own spelling, else Title Case words. */
-export function typeName(value: unknown): string {
+/** A slugged type back to its display name: a known type's own spelling (in [cats]), else Title Case words. */
+export function typeName(value: unknown, cats: TypeCats = TYPE_CATS): string {
 	if (!value) return 'Service';
-	const s = slug(value);
-	return KNOWN_TYPES.find(t => slug(t) === s) ?? String(value).replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+	const s = typeKey(slug(value));
+	for (const c of cats) for (const [label] of c.items) if (typeKey(label) === s) return label;
+	return (typeof value === 'string' ? value : s).replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 const SIDE_IN: Record<string, Side> = { left: 'l', right: 'r', top: 't', bottom: 'b', l: 'l', r: 'r', t: 't', b: 'b' };
@@ -125,13 +128,16 @@ export function parseAnchor(value: unknown): Anchor | null {
 
 const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
 
-function node(n: DocNode, i: number, tagKeys: Set<string>): SceneNode {
+function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats): SceneNode {
 	const lay = n.layout ?? { x: 60 + (i % 4) * 280, y: 80 + Math.floor(i / 4) * 160 };
-	const type = typeName(n.type);
+	const type = typeName(n.type, cats);
+	const ownIcon = isNodeIcon(n.icon) ? n.icon : null;
 	return {
 		id: String(n.id),
 		name: String(n.name ?? n.id),
 		type,
+		icon: ownIcon ?? typeIcon(type, cats),
+		ownIcon,
 		sub: n.subtitle ?? '',
 		desc: n.notes ?? '',
 		flags: Array.isArray(n.flags) ? n.flags : [],
@@ -181,7 +187,8 @@ function boundary(b: DocBoundary, i: number): SceneBoundary {
 	};
 }
 
-export function toScene(doc: SkopeDoc): Scene {
+/** [doc] as the canvas draws it, its types read against [cats] (a workspace's catalogue; the built-ins unless given). */
+export function toScene(doc: SkopeDoc, cats: TypeCats = TYPE_CATS): Scene {
 	const tags = Object.entries(doc.tags ?? {}).map(([key, t]) => ({
 		key,
 		label: t.label ?? key,
@@ -199,7 +206,7 @@ export function toScene(doc: SkopeDoc): Scene {
 		tags,
 		views,
 		initialView: views.some(v => v.label === want) ? want! : null,
-		nodes: (doc.nodes ?? []).map((n, i) => node(n, i, tagKeys)),
+		nodes: (doc.nodes ?? []).map((n, i) => node(n, i, tagKeys, cats)),
 		edges: (doc.edges ?? []).map((e, i) => edge(e, i)),
 		boundaries: (doc.boundaries ?? []).map((b, i) => boundary(b, i))
 	};

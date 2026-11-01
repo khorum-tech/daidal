@@ -77,6 +77,7 @@ Journal DB and Balance Cache, which doesn't move its contents).
 | WS-7 | Open **Payments**, then **Members** | You can see who's in it, but not change it; there's no delete | D P | |
 | WS-8 ⚠ | In one of the UAT workspaces, **Delete workspace…**, then **Delete for good** | It asks first, then it's gone and you're taken home | D P | |
 | WS-9 ⚠ | In **Payments**, **Members**, then **Leave this workspace…**, then **Leave the workspace** | It warns that what you made there stays with Priya, then you're taken home and Payments is gone from the list | D P | |
+| WS-10 | In **Manage** on a workspace, **Types** → **+ Add a type**: `Billing Agent`, category `AI`, the **Robot** icon. Open a diagram in it and **+ Add** | **Billing Agent** is under AI in the type picker, drawn with the robot; a member sees it too; a type named `Database` redraws the built-in one in this workspace only | D P | |
 
 ## 3. Starting a diagram
 
@@ -123,6 +124,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | NODE-11 | **Duplicate** and **Delete node** from its details (on the phone, its sheet) | The same, from the buttons | D P | |
 | NODE-12 | **Isolate its tags** on Journal DB | Everything not tagged Data fades | D P | |
 | NODE-13 | **+ Add**, open the **AI** group (or search `mcp`), pick **MCP Server**; then change its type to **AI Agent** | Each draws with its own icon (plugs, robot), not the cube; reload keeps the type | D P | |
+| NODE-14 | On a node, **Icon** → search `vault` → pick **Vault**; reload; then **Use the type’s** | The card shows the vault; it's still there after the reload; the type's icon comes back | D P | |
 
 ## 6. Connections
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ICON_LIBRARY, ICON_PATHS, NODE_ICONS, searchIcons, TYPE_CATS, typeIcon } from './icons';
+import { catalogue, ICON_LIBRARY, ICON_PATHS, isNodeIcon, NODE_ICONS, searchIcons, TYPE_CATS, typeIcon } from './icons';
 
 const types = TYPE_CATS.flatMap(c => c.items);
 
@@ -48,5 +48,44 @@ describe('the type catalogue', () => {
 
 	it('gives a type it doesn’t know the cube', () => {
 		expect(typeIcon('Quantum Thing')).toBe('cube');
+	});
+});
+
+describe('a workspace catalogue', () => {
+	const custom = [
+		{ name: 'Billing Agent', category: 'AI', icon: 'robot' },
+		{ name: 'Ledger', category: 'Finance', icon: 'bank' },
+		{ name: 'database', category: 'data', icon: 'hardDrive' }
+	];
+	const cats = catalogue(custom);
+
+	it('is the built-ins when the workspace has no types', () => {
+		expect(catalogue([])).toBe(TYPE_CATS);
+	});
+
+	it('puts a type in its category, matched without regard to case, and a new category after the built-ins', () => {
+		expect(cats.find(c => c.cat === 'AI')!.items.at(-1)).toEqual(['Billing Agent', 'robot']);
+		expect(cats.at(-1)).toEqual({ cat: 'Finance', items: [['Ledger', 'bank']] });
+	});
+
+	it('lets a type named like a built-in one take its place', () => {
+		const data = cats.find(c => c.cat === 'Data')!.items;
+		expect(data.filter(([l]) => l.toLowerCase() === 'database')).toEqual([['database', 'hardDrive']]);
+		expect(typeIcon('Database', cats)).toBe('hardDrive');
+		expect(typeIcon('Database')).toBe('database');
+	});
+
+	it('draws the workspace types, any spelling, and the cube for an icon outside the library', () => {
+		expect(typeIcon('billing-agent', cats)).toBe('robot');
+		expect(typeIcon('Billing Agent', cats)).toBe('robot');
+		expect(typeIcon('Billing Agent')).toBe('cube');
+		expect(catalogue([{ name: 'Odd', category: 'AI', icon: 'trash' }]).find(c => c.cat === 'AI')!.items.at(-1)).toEqual(['Odd', 'cube']);
+	});
+
+	it('knows which icons a node can show', () => {
+		expect(isNodeIcon('robot')).toBe(true);
+		expect(isNodeIcon('trash')).toBe(false);
+		expect(isNodeIcon('toString')).toBe(false);
+		expect(isNodeIcon(undefined)).toBe(false);
 	});
 });

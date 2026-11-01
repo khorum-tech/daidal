@@ -5,8 +5,8 @@ import DiagramSheet from './DiagramSheet.svelte';
 import type { Workspace } from '../types';
 
 const workspaces: Workspace[] = [
-	{ id: 'p', name: 'Personal', ownerEmail: 'a@x.io', personal: true, members: ['a@x.io'] },
-	{ id: 't', name: 'Platform team', ownerEmail: 'a@x.io', personal: false, members: ['a@x.io', 'b@x.io'] }
+	{ id: 'p', name: 'Personal', ownerEmail: 'a@x.io', personal: true, members: ['a@x.io'], types: [] },
+	{ id: 't', name: 'Platform team', ownerEmail: 'a@x.io', personal: false, members: ['a@x.io', 'b@x.io'], types: [] }
 ];
 
 describe('the diagram sheet', () => {

@@ -1,7 +1,9 @@
 import { ensureUserStatements, personalWorkspaceId } from "./db";
 import { decidedText, docName, docText, nameOf } from "./docs";
 import { HttpError, isPlainObject, json, readJson } from "./http";
+import { slug } from "../../app/src/lib/diagram/model";
 import { summaryText } from "./summary";
+import { customTypeOf, MAX_TYPES } from "./types";
 import { requireMember } from "./workspaces";
 
 /**
@@ -11,7 +13,9 @@ import { requireMember } from "./workspaces";
  * are local to it: everything gets a new id, and `follows` points at another diagram in the same file.
  *
  *   { "format": "skope-backup", "version": 1, "workspaces": [
- *       { "name": "Platform team", "personal": false, "diagrams": [
+ *       { "name": "Platform team", "personal": false,
+ *         "types": [ { "name": "Billing Agent", "category": "AI", "icon": "robot" } ],
+ *         "diagrams": [
  *           { "id": "ledger", "name": "…", "doc": { "version": 1, … }, "updated": "2026-10-01T…Z",
  *             "snapshots": [ { "id": "s1", "label": "…", "doc": { … }, "at": "2026-09-01T…Z" } ],
  *             "follows": { "diagram": "<file id>", "synced": "<its snapshot id>" | null, "paused": false, "decided": {} } } ] } ] }
@@ -44,6 +48,13 @@ interface PlannedSnapshot {
   label: string;
   doc: string;
   created_at: number;
+}
+interface PlannedType {
+  workspace_id: string;
+  slug: string;
+  name: string;
+  category: string;
+  icon: string;
 }
 interface PlannedFollow {
   id: string;
@@ -101,6 +112,7 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
   const diagrams: PlannedDiagram[] = [];
   const snapshots: PlannedSnapshot[] = [];
   const follows: { from: string; spec: Row }[] = [];
+  const types: PlannedType[] = [];
   const newId = new Map<string, string>(); // file diagram id -> new id
   const snapshotIds = new Map<string, Map<string, string>>(); // file diagram id -> file snapshot id -> new id
   const summary: { id: string; name: string; personal: boolean; diagrams: number; snapshots: number }[] = [];
@@ -117,6 +129,15 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
     }
     const entry = { id: workspaceId, name, personal, diagrams: 0, snapshots: 0 };
     summary.push(entry);
+
+    // The workspace's own types; a later one with the same name wins, as it would saving them one by one.
+    const ownTypes = new Map<string, PlannedType>();
+    for (const t of list(ws.types, `workspace "${name}"'s types`)) {
+      const type = customTypeOf(t);
+      ownTypes.set(slug(type.name), { workspace_id: workspaceId, slug: slug(type.name), ...type });
+    }
+    if (ownTypes.size > MAX_TYPES) throw new HttpError(400, `workspace "${name}" has more than ${MAX_TYPES} types`);
+    types.push(...ownTypes.values());
 
     for (const d of list(ws.diagrams, `workspace "${name}"'s diagrams`)) {
       const local = fileId(d.id, "a diagram");
@@ -205,6 +226,13 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
       [email],
       snapshots,
     ),
+    // A personal workspace may have types already; the file's take their place.
+    ...chunked(
+      db,
+      `INSERT OR REPLACE INTO workspace_types (workspace_id, slug, name, category, icon, updated_at) SELECT ${cols(["workspace_id", "slug", "name", "category", "icon"])}, ?1 FROM json_each(?2)`,
+      [now],
+      types,
+    ),
   );
   if (statements.length > MAX_STATEMENTS) throw new HttpError(400, "the file is too large to import in one request; import one workspace at a time");
 
@@ -215,7 +243,7 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
 /** `GET /api/workspaces/:id/export`: the workspace as a `skope-backup` that import reads back. */
 export async function exportWorkspace(db: D1Database, workspace: string, email: string): Promise<Response> {
   await requireMember(db, workspace, email);
-  const [ws, rows, snaps] = await db.batch<Record<string, string | number | null>>([
+  const [ws, rows, snaps, types] = await db.batch<Record<string, string | number | null>>([
     db.prepare("SELECT id, name, owner_email FROM workspaces WHERE id = ?").bind(workspace),
     db.prepare("SELECT id, name, doc, updated_at, lead_id, synced_snapshot_id, paused, decided FROM diagrams WHERE workspace_id = ? ORDER BY updated_at, rowid").bind(workspace),
     db
@@ -224,6 +252,7 @@ export async function exportWorkspace(db: D1Database, workspace: string, email: 
          WHERE d.workspace_id = ? ORDER BY s.created_at, s.rowid`,
       )
       .bind(workspace),
+    db.prepare("SELECT name, category, icon FROM workspace_types WHERE workspace_id = ? ORDER BY category, name").bind(workspace),
   ]);
   const info = ws.results[0];
   const here = new Set(rows.results.map(r => r.id));
@@ -252,6 +281,13 @@ export async function exportWorkspace(db: D1Database, workspace: string, email: 
   return json({
     format: BACKUP_FORMAT,
     version: 1,
-    workspaces: [{ name: info.name, personal: info.id === personalWorkspaceId(String(info.owner_email)) && info.owner_email === email, diagrams }],
+    workspaces: [
+      {
+        name: info.name,
+        personal: info.id === personalWorkspaceId(String(info.owner_email)) && info.owner_email === email,
+        ...(types.results.length ? { types: types.results } : {}),
+        diagrams,
+      },
+    ],
   });
 }

@@ -2,8 +2,9 @@
 	import type { SceneNode, SceneTag } from '../diagram/model';
 	import type { NodeChange } from '../diagram/edit';
 	import { hostOf, linkUrl } from '../diagram/edit';
-	import { FLAGS, typeIcon } from '../diagram/icons';
+	import { FLAGS, ICON_LIBRARY, TYPE_CATS, type TypeCats } from '../diagram/icons';
 	import Icon from './Icon.svelte';
+	import IconPicker from './IconPicker.svelte';
 	import TypePicker from './TypePicker.svelte';
 
 	/**
@@ -23,7 +24,8 @@
 		connections = [],
 		onpickedge,
 		onnewtag,
-		onisolate
+		onisolate,
+		cats = TYPE_CATS
 	}: {
 		node: SceneNode;
 		tags: Record<string, SceneTag>;
@@ -39,6 +41,8 @@
 		onnewtag?: (label: string) => void;
 		/** Shows only this node's tags, as the prototype's Isolate does; nothing is saved. */
 		onisolate?: () => void;
+		/** The workspace's types, for the type picker. */
+		cats?: TypeCats;
 	} = $props();
 	let naming = $state(false);
 	let tagName = $state('');
@@ -51,6 +55,7 @@
 	}
 
 	let picking = $state(false);
+	let pickingIcon = $state(false);
 	let linkLabel = $state('');
 	let linkAddress = $state('');
 	// A different node starts with the type list closed and an empty link form.
@@ -59,6 +64,7 @@
 		if (node.id === shown) return;
 		shown = node.id;
 		picking = false;
+		pickingIcon = false;
 		naming = false;
 		linkLabel = '';
 		linkAddress = '';
@@ -132,18 +138,43 @@
 
 		<h3>Type</h3>
 		<button type="button" class="type-btn" aria-expanded={picking} onclick={() => (picking = !picking)}>
-			<Icon name={typeIcon(node.type)} size={15} />
+			<Icon name={node.icon} size={15} />
 			<span>{node.type}</span>
 			<Icon name="caretDown" size={11} />
 		</button>
 		{#if picking}
 			<div class="pick">
 				<TypePicker
+					{cats}
 					current={node.type}
 					autofocus
 					onpick={t => {
 						picking = false;
 						if (t !== node.type) onchange?.({ type: t }, 'Change type');
+					}}
+				/>
+			</div>
+		{/if}
+
+		<h3>Icon</h3>
+		<div class="icon-row">
+			<button type="button" class="type-btn" aria-expanded={pickingIcon} aria-label="Icon: {ICON_LIBRARY[node.icon]?.label ?? node.icon}" onclick={() => (pickingIcon = !pickingIcon)}>
+				<Icon name={node.icon} size={15} />
+				<span>{node.ownIcon ? (ICON_LIBRARY[node.icon]?.label ?? node.icon) : 'The type’s icon'}</span>
+				<Icon name="caretDown" size={11} />
+			</button>
+			{#if node.ownIcon}
+				<button type="button" class="btn btn-ghost reset" onclick={() => onchange?.({ icon: null }, 'Use the type’s icon')}>Use the type’s</button>
+			{/if}
+		</div>
+		{#if pickingIcon}
+			<div class="pick">
+				<IconPicker
+					current={node.ownIcon}
+					autofocus
+					onpick={i => {
+						pickingIcon = false;
+						if (i !== node.ownIcon) onchange?.({ icon: i }, 'Change icon');
 					}}
 				/>
 			</div>
@@ -388,6 +419,21 @@
 		min-height: 64px;
 		line-height: 1.5;
 		font-family: var(--font-body);
+	}
+	.icon-row {
+		display: flex;
+		gap: 6px;
+		align-items: center;
+		margin-top: 6px;
+	}
+	.icon-row .type-btn {
+		flex: 1;
+		min-width: 0;
+		margin-top: 0;
+	}
+	.reset {
+		flex: none;
+		font-size: 12px;
 	}
 	.type-btn {
 		width: 100%;

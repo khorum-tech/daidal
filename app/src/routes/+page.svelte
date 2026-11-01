@@ -271,6 +271,14 @@
 			}}
 			onexport={exportWorkspace}
 			ondelete={deleteWorkspace}
+			onsavetype={async (key, type) => {
+				await api.putType(ws.id, key ?? slug(type.name), type);
+				await invalidateAll();
+			}}
+			onremovetype={async key => {
+				await api.removeType(ws.id, key);
+				await invalidateAll();
+			}}
 			onleave={async () => {
 				await api.removeMember(ws.id, data.me.email);
 				managing = false;

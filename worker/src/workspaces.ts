@@ -1,6 +1,7 @@
 import { ensureUserStatements, personalWorkspaceId } from "./db";
 import { emailOf, nameOf } from "./docs";
 import { HttpError, isPlainObject, json, noContent, readJson } from "./http";
+import { type CustomType, typesStatement } from "./types";
 
 const MAX_BODY = 16 * 1024;
 
@@ -10,6 +11,8 @@ export interface Workspace {
   ownerEmail: string;
   personal: boolean;
   members: string[];
+  /** The workspace's own node types (see types.ts). */
+  types: CustomType[];
 }
 
 interface Access {
@@ -52,7 +55,7 @@ const nameFrom = (body: unknown) => nameOf(isPlainObject(body) ? body.name : und
 
 export async function listWorkspaces(db: D1Database, email: string, now: number): Promise<Response> {
   await db.batch(ensureUserStatements(db, email, now));
-  const [workspaces, members] = await db.batch<Record<string, string>>([
+  const [workspaces, members, types] = await db.batch<Record<string, string>>([
     db
       .prepare(
         `SELECT w.id, w.name, w.owner_email FROM workspaces w
@@ -67,7 +70,10 @@ export async function listWorkspaces(db: D1Database, email: string, now: number)
          ORDER BY added_at, rowid`,
       )
       .bind(email),
+    typesStatement(db, email),
   ]);
+  const typesOf = new Map<string, CustomType[]>();
+  for (const t of types.results) typesOf.set(t.workspace_id, [...(typesOf.get(t.workspace_id) ?? []), { name: t.name, category: t.category, icon: t.icon }]);
   const byWorkspace = new Map<string, string[]>();
   for (const m of members.results) byWorkspace.set(m.workspace_id, [...(byWorkspace.get(m.workspace_id) ?? []), m.email]);
   return json(
@@ -78,6 +84,7 @@ export async function listWorkspaces(db: D1Database, email: string, now: number)
         ownerEmail: w.owner_email,
         personal: w.id === personalWorkspaceId(w.owner_email),
         members: byWorkspace.get(w.id) ?? [],
+        types: typesOf.get(w.id) ?? [],
       }),
     ),
   );
@@ -91,7 +98,7 @@ export async function createWorkspace(db: D1Database, email: string, request: Re
     db.prepare("INSERT INTO workspaces (id, name, owner_email, created_at) VALUES (?, ?, ?, ?)").bind(id, name, email, now),
     db.prepare("INSERT INTO workspace_members (workspace_id, email, added_at) VALUES (?, ?, ?)").bind(id, email, now),
   ]);
-  return json({ id, name, ownerEmail: email, personal: false, members: [email] } satisfies Workspace, 201);
+  return json({ id, name, ownerEmail: email, personal: false, members: [email], types: [] } satisfies Workspace, 201);
 }
 
 export async function renameWorkspace(db: D1Database, workspace: string, email: string, request: Request): Promise<Response> {

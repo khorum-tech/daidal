@@ -70,6 +70,7 @@
 	import MultiInspector from '#lib/components/MultiInspector.svelte';
 	import { History } from '#lib/history.svelte.ts';
 	import { iconScene, tagsOn, toScene, type Anchor } from '#lib/diagram/model.ts';
+	import { catalogue } from '#lib/diagram/icons.ts';
 	import { appearance } from '#lib/appearance.svelte.ts';
 	import { distinguishable } from '#lib/diagram/colour.ts';
 	import { followState } from '#lib/follow.ts';
@@ -116,7 +117,9 @@
 		replaying = null;
 	});
 	const replayed = $derived(replaying ? working.snapshots.find(s => s.id === replaying) : undefined);
-	const scene = $derived(toScene(replayed?.doc ?? working.doc));
+	// The workspace's own types, merged into the built-in ones, name and draw the nodes.
+	const cats = $derived(catalogue(workspace?.types ?? []));
+	const scene = $derived(toScene(replayed?.doc ?? working.doc, cats));
 
 	// View and tag switches are only what this browser shows; nothing is saved.
 	let view = $state<string | null>(null);
@@ -1053,6 +1056,7 @@
 {#snippet nodeInspector()}
 	{#if selectedNode}
 		<Inspector
+			{cats}
 			node={selectedNode}
 			tags={tagByKey}
 			{editable}
@@ -1080,7 +1084,7 @@
 		<button type="button" class="add-box" onclick={paste}><Icon name="note" size={15} />Paste {plural(clipSize, 'node')}<span>what you copied</span></button>
 	{/if}
 	<button type="button" class="add-box" onclick={addBox}><Icon name="frameCorners" size={15} />Container<span>a labelled box to group nodes</span></button>
-	<TypePicker autofocus={focus} onpick={add} />
+	<TypePicker {cats} autofocus={focus} onpick={add} />
 {/snippet}
 {#snippet multiInspector()}
 	{#if multi}

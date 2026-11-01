@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { SceneNode, SceneTag } from '../diagram/model';
-	import { typeIcon } from '../diagram/icons';
 	import Icon from './Icon.svelte';
 
 	/**
@@ -25,7 +24,7 @@
 <div class="tip" role="tooltip" aria-label="About {node.name}">
 	<div class="glow" aria-hidden="true"></div>
 	<div class="head">
-		<span class="icon"><Icon name={typeIcon(node.type)} size={14} /></span>
+		<span class="icon"><Icon name={node.icon} size={14} /></span>
 		<span class="type">{node.type}</span>
 	</div>
 	<p class="name">{node.name}</p>

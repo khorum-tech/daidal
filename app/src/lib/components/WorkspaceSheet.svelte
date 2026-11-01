@@ -1,12 +1,13 @@
 <script lang="ts">
-	import type { Workspace } from '../types';
+	import type { CustomType, Workspace } from '../types';
 	import Icon from './Icon.svelte';
+	import TypeManager from './TypeManager.svelte';
 
 	/**
 	 * A workspace as a whole. Its owner renames it, adds and removes members (by email: someone can be added before
 	 * they first sign in), and deletes it; anyone in it sees who else is and exports it as a backup. A personal
-	 * workspace is only ever yours: it can't be shared or deleted. Actions report back by promise, so a failure
-	 * shows here.
+	 * workspace is only ever yours: it can't be shared or deleted. Anyone in it can add the workspace's own node
+	 * types ([onsavetype]). Actions report back by promise, so a failure shows here.
 	 */
 	let {
 		workspace,
@@ -16,7 +17,9 @@
 		onremove,
 		onexport,
 		ondelete,
-		onleave
+		onleave,
+		onsavetype,
+		onremovetype
 	}: {
 		workspace: Workspace;
 		/** The signed-in person's email. */
@@ -28,6 +31,9 @@
 		ondelete: () => Promise<void>;
 		/** A member (not the owner) takes themselves out; what they made here stays, now the owner's. */
 		onleave?: () => Promise<void>;
+		/** Adds a type, or changes the one stored under [key] (null for a new one). */
+		onsavetype?: (key: string | null, type: CustomType) => Promise<void>;
+		onremovetype?: (key: string) => Promise<void>;
 	} = $props();
 
 	const owner = $derived(workspace.ownerEmail === me);
@@ -110,6 +116,13 @@
 			{/if}
 		{/if}
 	</section>
+
+	{#if onsavetype && onremovetype}
+		<section aria-label="Types">
+			<h3>Types</h3>
+			<TypeManager types={workspace.types} onsave={onsavetype} onremove={onremovetype} />
+		</section>
+	{/if}
 
 	<section aria-label="Backup">
 		<h3>Backup</h3>
