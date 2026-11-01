@@ -104,7 +104,10 @@ connections the way the prototype's canvas does.
 
 The docs at `/app/docs` are markdown in `src/lib/docs/`, one file per page with a small header (title, summary,
 order), read by `src/lib/docs/docs.ts` and rendered with `marked`. To add a page, add a file; `docs.test.ts` checks
-that every `/app/docs/…` link points at a page that exists.
+that every `/app/docs/…` link points at a page that exists. Pictures live in `static/docs-images/` (served at
+`/app/docs-images/`) and are taken from the real app on the stage data by `npm run docs:shots` (run from the
+project root; `docs-shots/`): run it after changing what a pictured screen looks like, look at the pictures, and
+commit them. The test also checks every picture is shown somewhere and every one shown exists.
 
 Icons and node types are data. `src/lib/diagram/icon-library.json` holds every icon Skope draws, all from
 [Phosphor](https://phosphoricons.com) (MIT, regular weight) so they look alike. `src/lib/diagram/types.json` lists the

@@ -19,6 +19,10 @@ A connection joins two nodes, or a node and a container.
 
 Click (or tap) a connection to open its details:
 
+
+![A connection's details: label, arrows, weight, line, route and ends](/app/docs-images/connection-details.png)
+
+
 - **Label**, and whether it shows on the line.
 - **Arrows**: forward, back, both or none.
 - **Weight** and **line**: solid, dashed or dotted.

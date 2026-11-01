@@ -56,6 +56,11 @@ export function docLinks(body: string): string[] {
 	return [...body.matchAll(/\]\(\/app\/docs\/([^)#\s]*)/g)].map(m => m[1]);
 }
 
+/** Every picture in [body] (from app/static/docs-images, served at /app/docs-images), by file name. */
+export function docImages(body: string): string[] {
+	return [...body.matchAll(/!\[[^\]]*\]\(\/app\/docs-images\/([^)\s]+)\)/g)].map(m => m[1]);
+}
+
 const marked = new Marked({ gfm: true });
 
 /** A page's markdown as HTML. The pages are Skope's own, so nothing in them needs sanitising. */

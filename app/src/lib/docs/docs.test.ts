@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { docLinks, neighbours, PAGES, pageOf, parsePage, render } from './docs';
+import { readdirSync } from 'node:fs';
+import { docImages, docLinks, neighbours, PAGES, pageOf, parsePage, render } from './docs';
 
 describe('the docs pages', () => {
 	it('each have a title, a summary and their own slug, in order', () => {
@@ -16,6 +17,14 @@ describe('the docs pages', () => {
 
 	it('only link to pages that exist', () => {
 		for (const p of PAGES) for (const slug of docLinks(p.body)) expect(pageOf(slug), `${p.slug} → ${slug}`).toBeDefined();
+	});
+
+	it('show only pictures that exist, with words for each, and every picture taken is shown', () => {
+		const files = readdirSync(new URL('../../../static/docs-images', import.meta.url)).filter(f => f.endsWith('.png'));
+		const shown = PAGES.flatMap(p => docImages(p.body));
+		for (const name of shown) expect(files, name).toContain(name);
+		expect([...new Set(shown)].sort()).toEqual([...files].sort());
+		for (const p of PAGES) for (const m of p.body.matchAll(/!\[([^\]]*)\]\(/g)) expect(m[1].length, p.slug).toBeGreaterThan(10);
 	});
 
 	it('know their neighbours', () => {

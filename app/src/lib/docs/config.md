@@ -13,6 +13,9 @@ Every diagram is a document, and **Config** (in the toolbar, or the diagram's sh
 
 Applying is one undo step. A config that can't be read says why, with the line, and changes nothing. This is also the format an [AI connected to Skope](/app/docs/connecting-ai) uses for bigger changes.
 
+![The config panel: the diagram as YAML, with Apply, Replace or Merge, and download](/app/docs-images/config.png)
+
+
 ## An example
 
 ```yaml

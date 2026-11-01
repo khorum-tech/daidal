@@ -131,6 +131,18 @@
 		padding: 0;
 		background: none;
 	}
+	.prose :global(img) {
+		display: block;
+		max-width: 100%;
+		height: auto;
+		margin: 14px 0 18px;
+		border-radius: 10px;
+		border: 1px solid var(--color-divider);
+	}
+	/* Pictures of the phone are tall: keep them phone-sized. */
+	.prose :global(img[src*='/phone-']) {
+		max-width: min(100%, 300px);
+	}
 	.prose :global(table) {
 		width: 100%;
 		border-collapse: collapse;

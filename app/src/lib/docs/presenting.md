@@ -10,6 +10,9 @@ order: 8
 
 **Present** (in the strip above the canvas, or the diagram's sheet) shows the canvas alone, full screen where the browser allows, read-only. Hover a node (tap, on a phone) for its notes, tags and connections, and switch views from the bar. **Icon-only cards** draws each node as its icon and name. Escape ends it.
 
+![Presenting: the canvas alone, with a node's card showing its notes, tags and connections](/app/docs-images/presenting.png)
+
+
 ## Locking
 
 - The diagram's owner can **lock editing on this device** from its sheet: picking and views still work, nothing changes by accident. It's kept in this browser.

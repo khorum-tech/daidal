@@ -22,8 +22,14 @@ For something the built-ins don't cover, add a type to the workspace:
 
 A type named like a built-in one (say *Database*) changes how that type looks in this workspace only. Anyone in the workspace can add, edit or remove types. They travel with a workspace backup.
 
+![A workspace's Manage sheet, with its own type Billing Agent listed under Types](/app/docs-images/workspace-sheet.png)
+
+
 A diagram moved to another workspace keeps its types; one that workspace doesn't have draws as a cube.
 
 ## One node's icon
 
 In a node's details, **Icon** picks any icon from the library for that node alone; **Use the type's** goes back. It's saved in the document as the node's `icon`.
+
+![The icon picker in a node's details: a search box over a grid of icons](/app/docs-images/icon-picker.png)
+

@@ -12,6 +12,9 @@ A node is one thing in your system: a web app, a service, a database, a queue, a
 
 - **+ Add** in the toolbar opens the type picker: the common types first, then every type by category, with a search box. The new node lands in free space near the middle of the view.
 - The toolbar's one-click buttons add a service, database, queue, actor, note, free text or container straight away.
+
+![The type picker: common types first, then every type by category, with a search box](/app/docs-images/add-node.png)
+
 - With a mouse, **double-click empty canvas** to add a node there with its name ready to type.
 - While a connection waits for its other end, a click on empty canvas makes a new node there for it.
 
@@ -33,6 +36,9 @@ Select a node to open its details (on a phone: the node, then **Edit**):
 - **Tags**: which tags it carries. See [Tags and views](/app/docs/tags-and-views).
 - **Links**: a label and an address, opened from the node's card.
 - **Duplicate** (⌘D) and **Delete node** (Delete), which also removes its connections.
+
+![A node's details: name, subtitle, notes, type, icon, flags, tags, links and connections](/app/docs-images/node-details.png)
+
 
 A mouse resting on a node shows its card: notes, tags and connections.
 

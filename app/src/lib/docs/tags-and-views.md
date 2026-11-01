@@ -16,6 +16,9 @@ Big diagrams get busy. **Tags** label nodes (Data, Public, Team A…), and **vie
 - **Manage tags** adds, renames, recolours, regroups and deletes tags, and switches the diagram's **palette** (Nocturne, Spectrum, Accessible or Lightness steps), recolouring every tag at once.
 - In a node's details, **Isolate its tags** shows only the tags it carries.
 
+![The views and tags panel: saved views at the top, tags by group below, each with a switch and a solo button](/app/docs-images/tags-panel.png)
+
+
 ## Views
 
 - With the tags you want on, **+ Save the tags on now as a view** names and keeps them.

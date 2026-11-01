@@ -18,12 +18,19 @@ Skope draws how your systems fit together: the services, databases, queues and p
 
 ## Where things are
 
+
+![The editor: views and tags on the left, the canvas with its toolbar in the middle, History on the right](/app/docs-images/editor.png)
+
+
 - **Home** lists your workspaces (yours, then those shared with you) and the diagrams in one. Search finds diagrams by their name or the names of their nodes.
 - **The canvas** is the diagram. Drag to pan, pinch or ctrl+scroll to zoom. The toolbar over it adds and connects things.
 - **The left panel** holds views and tags: what you see. **The right panel** holds the details of what's selected, and the History.
 - **The menu under your name** has your Profile, Appearance, and these docs.
 
 On a phone the canvas takes the whole screen and the panels open as sheets from the bottom bar. See [Keyboard and touch](/app/docs/shortcuts).
+
+![The editor on a phone: the canvas full screen, with Add, undo and redo at the top](/app/docs-images/phone-editor.png)
+
 
 ## Next
 

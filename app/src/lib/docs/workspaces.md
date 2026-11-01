@@ -8,6 +8,9 @@ order: 9
 
 A workspace holds diagrams and the people who can see them. Everyone has a **Personal** workspace, only ever theirs.
 
+![The home screen: workspaces on the left, the diagrams in one as cards](/app/docs-images/home.png)
+
+
 - **+ New workspace** on the home screen makes one; you're its owner.
 - **Manage** by its name: rename it, add people by email (they can be added before they first sign in), remove them, export a backup, add [types](/app/docs/types-and-icons), or delete it with all its diagrams.
 - Members see every diagram in it and can copy them. A diagram is changed only by its owner, the person who made it.

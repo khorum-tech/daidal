@@ -17,6 +17,9 @@ A snapshot is a named copy of the diagram at a moment: before a big change, at a
 - **+ Take a snapshot** in the History panel, with a description.
 - Pick a snapshot to **replay** it on the canvas; the working copy is untouched.
 
+![The History panel: the working copy, then snapshots with who took them and when](/app/docs-images/history.png)
+
+
 ## Copies and followers
 
 The diagram's name in the header opens its sheet, where you can **copy** it into one of your workspaces:
