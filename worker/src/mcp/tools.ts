@@ -85,6 +85,9 @@ const need = (args: Row, key: string): string => {
 };
 const q = encodeURIComponent;
 const same = (a: unknown, b: string) => str(a).trim().toLowerCase() === b.trim().toLowerCase();
+/** "Name (id), Name (id)", for an error that lists what there is to choose from. */
+const choices = (items: { name?: string; label?: string; id: string }[], none = "none") =>
+  items.map(i => `${i.name ?? i.label ?? i.id} (${i.id})`).join(", ") || none;
 
 async function workspaces(api: Api): Promise<Workspace[]> {
   return (await api("GET", "/api/workspaces")) as Workspace[];
@@ -93,9 +96,9 @@ async function workspaces(api: Api): Promise<Workspace[]> {
 async function workspaceOf(api: Api, param: unknown): Promise<Workspace> {
   const wanted = str(param).trim();
   const all = await workspaces(api);
-  if (!wanted) throw new ToolError(`workspace is required; yours are ${all.map(w => `${w.name} (${w.id})`).join(", ")}`);
+  if (!wanted) throw new ToolError(`workspace is required; yours are ${choices(all)}`);
   const hit = all.find(w => w.id === wanted) ?? all.find(w => same(w.name, wanted));
-  if (!hit) throw new ToolError(`no workspace ${JSON.stringify(wanted)} that you can reach; yours are ${all.map(w => `${w.name} (${w.id})`).join(", ")}`, 404);
+  if (!hit) throw new ToolError(`no workspace ${JSON.stringify(wanted)} that you can reach; yours are ${choices(all)}`, 404);
   return hit;
 }
 
@@ -108,13 +111,15 @@ async function diagramOf(api: Api, param: unknown): Promise<Diagram> {
   } catch (e) {
     if (!(e instanceof ToolError) || e.status !== 404) throw e;
   }
-  const hits: Row[] = [];
-  for (const w of await workspaces(api)) {
-    const found = (await api("GET", `/api/diagrams?workspace=${q(w.id)}&q=${q(wanted)}&limit=50`)) as Row[];
-    hits.push(...found.filter(d => same(d.name, wanted)).map(d => ({ ...d, workspace: w.name })));
-  }
+  const lists = await Promise.all(
+    (await workspaces(api)).map(async w => {
+      const found = (await api("GET", `/api/diagrams?workspace=${q(w.id)}&q=${q(wanted)}&limit=50`)) as Row[];
+      return found.filter(d => same(d.name, wanted)).map(d => ({ id: String(d.id), name: `in ${w.name}` }));
+    }),
+  );
+  const hits = lists.flat();
   if (hits.length === 1) return (await api("GET", `/api/diagrams/${q(hits[0].id)}`)) as Diagram;
-  if (hits.length > 1) throw new ToolError(`more than one diagram is called ${JSON.stringify(wanted)}: ${hits.map(d => `${d.id} in ${d.workspace}`).join(", ")}; name it by id`);
+  if (hits.length > 1) throw new ToolError(`more than one diagram is called ${JSON.stringify(wanted)}: ${choices(hits)}; name it by id`);
   throw new ToolError(`no diagram ${JSON.stringify(wanted)} that you can reach; list_diagrams shows them`, 404);
 }
 
@@ -122,8 +127,8 @@ function nodeOf(doc: SkopeDoc, param: unknown, label = "node"): string {
   const wanted = str(param).trim();
   if (!wanted) throw new ToolError(`${label} is required (a node id, or an exact name)`);
   const nodes = doc.nodes ?? [];
-  const hit = nodes.find(n => n.id === wanted) ?? nodes.filter(n => same(n.name, wanted)).at(0);
-  if (!hit) throw new ToolError(`no ${label} ${JSON.stringify(wanted)}; this diagram has ${nodes.map(n => `${n.name} (${n.id})`).join(", ") || "no nodes"}`, 404);
+  const hit = nodes.find(n => n.id === wanted) ?? nodes.find(n => same(n.name, wanted));
+  if (!hit) throw new ToolError(`no ${label} ${JSON.stringify(wanted)}; this diagram has ${choices(nodes, "no nodes")}`, 404);
   return hit.id;
 }
 
@@ -138,7 +143,7 @@ function boxOf(doc: SkopeDoc, param: unknown): string {
   const wanted = str(param).trim();
   const boxes = doc.boundaries ?? [];
   const hit = boxes.find(b => b.id === wanted) ?? boxes.find(b => same(b.label, wanted));
-  if (!hit) throw new ToolError(`no container ${JSON.stringify(wanted)}; this diagram has ${boxes.map(b => `${b.label ?? b.id} (${b.id})`).join(", ") || "no containers"}`, 404);
+  if (!hit) throw new ToolError(`no container ${JSON.stringify(wanted)}; this diagram has ${choices(boxes, "no containers")}`, 404);
   return hit.id;
 }
 
@@ -188,7 +193,10 @@ function readText(text: string, current: SkopeDoc, mode: "replace" | "merge") {
   try {
     return readConfig(text, current, mode);
   } catch (e) {
-    if (e instanceof ConfigError) throw new ToolError(`the config can't be read${e.line ? ` (line ${e.line})` : ""}: ${e.message}`);
+    if (e instanceof ConfigError) {
+      const where = e.line ? ` (line ${String(e.line)})` : "";
+      throw new ToolError(`the config can't be read${where}: ${e.message}`);
+    }
     throw e;
   }
 }
@@ -214,7 +222,7 @@ function outline(d: Diagram, workspace?: string): Row {
       y: n.y,
     })),
     connections: (doc.edges ?? []).map((e, index) => ({ index, from: e.from, to: e.to, ...(e.label ? { label: e.label } : {}) })),
-    containers: (doc.boundaries ?? []).map(b => ({ id: b.id, label: b.label ?? "", ...(b.layout ?? {}) })),
+    containers: (doc.boundaries ?? []).map(b => ({ id: b.id, label: b.label ?? "", ...b.layout })),
     tags: Object.entries(doc.tags ?? {}).map(([key, t]) => ({ key, label: t.label, group: t.group ?? "" })),
     views: (doc.views ?? []).map(v => ({ name: v.name, tags: v.tags })),
   };
