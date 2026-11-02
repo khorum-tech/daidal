@@ -143,6 +143,39 @@ describe("the MCP server", () => {
     expect(replaced).toMatchObject({ did: "replaced", nodes: 1, connections: 0 });
   });
 
+  it("takes a config's connections, containers and plain x and y, and names types the workspace doesn't offer", async () => {
+    const email = "mcp-config-words@example.com";
+    const { body: d } = await call.post(email, "/api/diagrams", { workspace: personal(email), doc: doc("words") });
+    const { tool } = await client(email);
+    const merged = await tool("apply_config", {
+      diagram: d.id,
+      config: "nodes:\n  - { id: ledger, name: Ledger, type: database, x: 900, y: 420 }\n  - { id: q, name: Q, type: quantum-thing }\nconnections:\n  - { from: gw, to: ledger }\n",
+    });
+    expect(merged).toMatchObject({ nodes: 3, connections: 1 });
+    expect(merged.summary).toBe(
+      "Merged in: 2 new nodes, 1 new connection. Types this workspace doesn't offer (shown with a plain icon): Q (quantum-thing); list_types shows the ones it does",
+    );
+    const out = await tool("get_diagram", { diagram: d.id });
+    expect(out.nodes.find((n: { id: string }) => n.id === "ledger")).toMatchObject({ x: 900, y: 420 });
+    expect((await tool("apply_config", { diagram: d.id, config: "nodes:\n  - { id: ledger, subtitle: books }\n" })).summary).toBe("Merged in: 1 updated");
+  });
+
+  it("gives nodes only the types the workspace offers, its own included", async () => {
+    const email = "mcp-types@example.com";
+    const ws = personal(email);
+    await call.put(email, `/api/workspaces/${encodeURIComponent(ws)}/types/billing-bot`, { name: "Billing Bot", category: "AI", icon: "robot" });
+    const { tool } = await client(email);
+    const d = (await tool("create_diagram", { workspace: ws, name: "typed" })).diagram;
+    expect((await tool("add_node", { diagram: d, name: "Q", type: "Quantum Thing" })).error).toBe('no node type "Quantum Thing" in this workspace. list_types shows them all');
+    expect((await tool("add_node", { diagram: d, name: "A", type: "agent" })).error).toMatch(/^no node type "agent" in this workspace; near it: .*AI Agent.*list_types shows them all$/);
+    await tool("add_node", { diagram: d, name: "Bot", type: "billing bot" });
+    await tool("add_node", { diagram: d, name: "Agent", type: "ai agent" });
+    expect((await tool("update_node", { diagram: d, node: "Agent", type: "Nope" })).error).toContain('no node type "Nope"');
+    await tool("update_node", { diagram: d, node: "Agent", type: "mcp server" });
+    const out = await tool("get_diagram", { diagram: d });
+    expect(out.nodes.map((n: { name: string; type: string }) => [n.name, n.type])).toEqual([["Bot", "Billing Bot"], ["Agent", "MCP Server"]]);
+  });
+
   it("creates from a config or a template, and takes a snapshot", async () => {
     const email = "mcp-create@example.com";
     const { tool } = await client(email);
@@ -173,7 +206,8 @@ describe("the MCP server", () => {
     const current = { ...stale, rev: 2, doc: { ...doc("race"), nodes: [...doc("race").nodes, { id: "theirs", name: "Theirs", type: "service" }] } };
     const puts: { rev: number; names: string[] }[] = [];
     let conflicts = 1;
-    const fake = async (method: string, _path: string, sent?: unknown) => {
+    const fake = async (method: string, path: string, sent?: unknown) => {
+      if (path === "/api/workspaces") return [{ id: "w", types: [] }];
       if (method === "GET") return stale;
       const body = sent as { rev: number; doc: { nodes: { name: string }[] } };
       puts.push({ rev: body.rev, names: body.doc.nodes.map(n => n.name) });

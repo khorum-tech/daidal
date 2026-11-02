@@ -69,15 +69,17 @@ boundaries:
 
 | Field | What it is |
 |-------|------------|
-| `name` | The label (defaults to the id) |
+| `name` | The label (defaults to the id for a new node) |
 | `type` | A type, written slugged: `web-app`, `api-gateway`, `ai-agent`, or one of your workspace's |
 | `icon` | An icon from the library, in place of the type's |
 | `subtitle`, `notes` | Text |
 | `flags` | Any of `db`, `cache`, `mq` |
 | `tags` | Tag keys |
 | `links` | A list of `{ label, url }` |
-| `layout` | `{ x, y, w, h }`; left out, the node is placed in a grid |
+| `layout` | `{ x, y, w, h }`; plain `x` and `y` on the node work too. Left out, the node is placed in a grid |
 
-**`edges`**: a list of `{ from, to }` (node or container ids), with optional `label`, `showLabel`, `line` (`solid`, `dashed`, `dotted`), `direction` (`forward`, `back`, `both`, `none`), `width`, `route` (`curved`, `straight`, `angled`) and `anchors` (`{ from: "left:0.25", to: "top" }`).
+**`edges`** (or `connections`): a list of `{ from, to }` (node or container ids), with optional `label`, `showLabel`, `line` (`solid`, `dashed`, `dotted`), `direction` (`forward`, `back`, `both`, `none`), `width`, `route` (`curved`, `straight`, `angled`) and `anchors` (`{ from: "left:0.25", to: "top" }`).
 
-**`boundaries`**: containers, a list of `{ id, label, layout: { x, y, w, h } }`, with optional `border: { width, style }`, `moveContents` and `labelPosition`.
+**`boundaries`** (or `containers`): a list of `{ id, label, layout: { x, y, w, h } }`, with optional `border: { width, style }`, `moveContents` and `labelPosition`.
+
+Any other section is refused, so a misspelt one doesn't go missing without a word.

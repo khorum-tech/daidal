@@ -24,8 +24,8 @@ import {
   updateNode,
   updateView,
 } from "../../../app/src/lib/diagram/edit";
-import { catalogue, isNodeIcon } from "../../../app/src/lib/diagram/icons";
-import { toScene, typeName } from "../../../app/src/lib/diagram/model";
+import { catalogue, isNodeIcon, typeKey, type TypeCats } from "../../../app/src/lib/diagram/icons";
+import { toScene } from "../../../app/src/lib/diagram/model";
 import { fromTemplate, TEMPLATES } from "../../../app/src/lib/diagram/templates";
 import type { CustomType, DocEdge, SkopeDoc } from "../../../app/src/lib/types";
 
@@ -121,6 +121,31 @@ async function diagramOf(api: Api, param: unknown): Promise<Diagram> {
   if (hits.length === 1) return (await api("GET", `/api/diagrams/${q(hits[0].id)}`)) as Diagram;
   if (hits.length > 1) throw new ToolError(`more than one diagram is called ${JSON.stringify(wanted)}: ${choices(hits)}; name it by id`);
   throw new ToolError(`no diagram ${JSON.stringify(wanted)} that you can reach; list_diagrams shows them`, 404);
+}
+
+/** The node types the diagram's workspace offers (the built-in ones and its own), by category. */
+async function typesOf(api: Api, param: unknown): Promise<TypeCats> {
+  const d = await diagramOf(api, param);
+  const ws = (await workspaces(api)).find(w => w.id === d.workspaceId);
+  return catalogue(ws?.types ?? []);
+}
+
+/** [given] as the display name of a type in [cats]; an error suggests near ones and points at list_types. */
+function typeIn(cats: TypeCats, given: string): string {
+  const key = typeKey(given);
+  const labels = cats.flatMap(c => c.items.map(([label]) => label));
+  const hit = labels.find(l => typeKey(l) === key);
+  if (hit) return hit;
+  const near = key ? labels.filter(l => typeKey(l).includes(key) || key.includes(typeKey(l))).slice(0, 6) : [];
+  const hint = near.length ? `; near it: ${near.join(", ")}` : "";
+  throw new ToolError(`no node type ${JSON.stringify(given)} in this workspace${hint}. list_types shows them all`);
+}
+
+/** Nodes [next] gives a type [cats] doesn't offer, that [before] didn't already have: "Name (type)". */
+function strangers(before: SkopeDoc, next: SkopeDoc, cats: TypeCats): string[] {
+  const had = new Map((before.nodes ?? []).map(n => [n.id, n.type]));
+  const known = new Set(cats.flatMap(c => c.items.map(([label]) => typeKey(label))));
+  return (next.nodes ?? []).filter(n => had.get(n.id) !== n.type && !known.has(typeKey(n.type ?? ""))).map(n => `${n.name} (${n.type})`);
 }
 
 function nodeOf(doc: SkopeDoc, param: unknown, label = "node"): string {
@@ -386,19 +411,22 @@ export const TOOLS: Tool[] = [
     name: "apply_config",
     title: "Apply a config",
     description:
-      "Changes a diagram from a Skope config (YAML or JSON), the format get_diagram's yaml shows. merge (the default) adds and updates: nodes and containers by id, tags by key, views by name, new connections added. replace makes the diagram exactly the config.",
+      "Changes a diagram from a Skope config (YAML or JSON), the format get_diagram's yaml shows: connections go under edges (or connections), containers under boundaries, and a node's place under layout: { x, y } (or x and y). merge (the default) adds and updates: nodes and containers by id, tags by key, views by name, new connections added. replace makes the diagram exactly the config.",
     readOnly: false,
     destructive: true,
     inputSchema: schema({ diagram: DIAGRAM, config: { type: "string" }, mode: { type: "string", enum: ["merge", "replace"] } }, ["diagram", "config"]),
     run: async (args, api) => {
       const text = need(args, "config");
       const mode = args.mode === "replace" ? "replace" : "merge";
+      const cats = await typesOf(api, args.diagram);
       return save(
         api,
         args.diagram,
         doc => {
           const read = readText(text, doc, mode);
-          return just(read.doc, { summary: read.summary });
+          const odd = strangers(doc, read.doc, cats);
+          const note = odd.length ? `. Types this workspace doesn't offer (shown with a plain icon): ${odd.join(", ")}; list_types shows the ones it does` : "";
+          return just(read.doc, { summary: `${read.summary}${note}` });
         },
         mode === "replace" ? "replaced" : "merged",
       );
@@ -425,6 +453,7 @@ export const TOOLS: Tool[] = [
     ),
     run: async (args, api) => {
       const name = need(args, "name");
+      const type = typeIn(await typesOf(api, args.diagram), str(args.type).trim() || "Service");
       return save(
         api,
         args.diagram,
@@ -438,7 +467,7 @@ export const TOOLS: Tool[] = [
             const scene = toScene(doc).nodes;
             at = { x: Math.max(...scene.map(n => n.x + n.w)) + 80, y: Math.min(...scene.map(n => n.y)) };
           }
-          const made = addNode(doc, str(args.type).trim() || "Service", at);
+          const made = addNode(doc, type, at);
           const tagged = tagKeys(made.doc, list(args.tags));
           const change: NodeChange = { name, ...(str(args.subtitle) ? { subtitle: str(args.subtitle) } : {}), ...(str(args.notes) ? { notes: str(args.notes) } : {}) };
           if (tagged.keys.length) change.tags = tagged.keys;
@@ -470,8 +499,9 @@ export const TOOLS: Tool[] = [
       },
       ["diagram", "node"],
     ),
-    run: async (args, api) =>
-      save(
+    run: async (args, api) => {
+      const type = typeof args.type === "string" ? typeIn(await typesOf(api, args.diagram), args.type) : undefined;
+      return save(
         api,
         args.diagram,
         doc => {
@@ -479,7 +509,7 @@ export const TOOLS: Tool[] = [
           let next = doc;
           const change: NodeChange = {};
           for (const key of ["name", "subtitle", "notes"] as const) if (typeof args[key] === "string") change[key] = args[key];
-          if (typeof args.type === "string") change.type = typeName(args.type);
+          if (type) change.type = type;
           if (Array.isArray(args.flags)) change.flags = list(args.flags);
           if (Array.isArray(args.links)) change.links = (args.links as Row[]).filter(l => str(l.url)).map(l => ({ ...(str(l.label) ? { label: str(l.label) } : {}), url: str(l.url) }));
           if (args.icon === null) change.icon = null;
@@ -500,7 +530,8 @@ export const TOOLS: Tool[] = [
           return just(next, { node: id });
         },
         "changed a node",
-      ),
+      );
+    },
   },
   {
     name: "remove_node",
