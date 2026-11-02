@@ -5,6 +5,8 @@ import type { Env } from "./env";
 import { HttpError, json, readJson } from "./http";
 import { exportWorkspace, importWorkspaces } from "./importer";
 import { parseProfilePatch } from "./profile";
+import { mcpRoute } from "./mcp/server";
+import { ToolError, type Api } from "./mcp/tools";
 import { actorFor, bearerOf, checkToken, checkWorkspaces, countWrite, tokensRoute, type Actor, type TokenGrant } from "./tokens";
 import { deleteType, putType } from "./types";
 import * as workspaces from "./workspaces";
@@ -101,6 +103,46 @@ async function siteFile(request: Request, env: Env, url: URL): Promise<Response>
   return env.ASSETS.fetch(new Request(new URL("/app/", url), request));
 }
 
+/** A 401 an MCP client understands: it needs to sign in, or a bearer token. */
+function unauthorized(message: string): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status: 401,
+    headers: { "content-type": "application/json", "cache-control": "no-store", "www-authenticate": 'Bearer realm="skope"' },
+  });
+}
+
+/**
+ * `/mcp`: the MCP server. A client signs in with a personal access token (local work, scripts) or through
+ * Cloudflare Access, whose Managed OAuth lets MCP clients sign in as the person (claude.ai, Claude Desktop, Claude
+ * Code online). Without either, a 401 comes before any database read. Its tools call this API in-process as that
+ * person, so every rule the API applies to them, and to a token, applies to the tools.
+ */
+async function mcpEndpoint(request: Request, env: Env, getKeys: () => KeySource): Promise<Response> {
+  let actor: Actor | null;
+  try {
+    actor = await actorOf(request, env, getKeys, Date.now());
+  } catch (e) {
+    return unauthorized(e instanceof HttpError ? e.message : "not signed in");
+  }
+  if (!actor) return unauthorized("sign in through Cloudflare Access, or send a personal access token (your initial → AI access)");
+  const signedIn = actor;
+  const headers = new Headers({ "content-type": "application/json" });
+  const api: Api = async (method, path, body) => {
+    const init: RequestInit = { method, headers, body: body === undefined ? undefined : JSON.stringify(body) };
+    const res = await handleRequest(new Request(new URL(path, request.url), init), env, getKeys, signedIn);
+    if (res.status === 204) return null;
+    const data = (await res.json().catch(() => null)) as { error?: string; diagram?: never } | null;
+    if (!res.ok) throw new ToolError(data?.error ?? `the request failed (${res.status})`, res.status, data?.diagram);
+    return data;
+  };
+  try {
+    return await mcpRoute(request, api);
+  } catch (e) {
+    console.error("MCP request failed:", e);
+    return json({ jsonrpc: "2.0", id: null, error: { code: -32603, message: "internal error" } }, 500);
+  }
+}
+
 /** What a token may do, checked before its request runs: the route, the workspace, and its writes this minute. */
 async function guardToken(db: D1Database, token: TokenGrant, request: Request, url: URL, now: number): Promise<void> {
   checkToken(token, request.method, url.pathname);
@@ -133,6 +175,7 @@ export async function handleRequest(
   as?: Actor,
 ): Promise<Response> {
   const url = new URL(request.url);
+  if (url.pathname === "/mcp") return mcpEndpoint(request, env, getKeys);
   if (!url.pathname.startsWith("/api/")) return siteFile(request, env, url);
 
   try {

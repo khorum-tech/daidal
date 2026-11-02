@@ -342,6 +342,20 @@ test.describe("the app at /app", () => {
     await request.delete(`/api/diagrams/${id}`);
   });
 
+  test("lets an MCP client with a token from AI access add a node, which the editor shows", async ({ page, request }) => {
+    const made = await (await request.post("/api/diagrams", { data: { workspace: "personal:e2e-owner@example.com", name: `mcp ${Date.now()}`, doc: { version: 1 } } })).json();
+    const { token } = await (await request.post("/api/me/tokens", { data: { name: "e2e mcp", scope: "write" } })).json();
+    const rpc = async (method: string, params: unknown) =>
+      (await request.post("/mcp", { headers: { authorization: `Bearer ${token}` }, data: { jsonrpc: "2.0", id: 1, method, params } })).json();
+    expect((await rpc("initialize", { protocolVersion: "2025-06-18" })).result.serverInfo.name).toBe("skope");
+    const added = await rpc("tools/call", { name: "add_node", arguments: { diagram: made.id, name: "Billing Agent", type: "AI Agent" } });
+    expect(added.result.structuredContent).toMatchObject({ nodes: 1 });
+
+    await page.goto(`/app/d/${made.id}`);
+    await expect(page.getByRole("button", { name: "AI Agent: Billing Agent" })).toBeVisible();
+    await request.delete(`/api/diagrams/${made.id}`);
+  });
+
   test("opens the docs from the account menu, follows links between pages, and says when a page doesn't exist", async ({ page }) => {
     await page.goto("/app/");
     await page.getByRole("button", { name: /^Account:/ }).click();
