@@ -268,6 +268,10 @@ test.describe("the app at /app", () => {
     await inspector.getByLabel("New tag name").fill("Public");
     await inspector.getByRole("button", { name: "Add", exact: true }).click();
     await expect(tour("Save a view")).toBeVisible();
+    const tags = page.getByRole("complementary", { name: "Views and tags" });
+    const [card, panel] = [await tour("Save a view").boundingBox(), await tags.boundingBox()];
+    expect(card!.x).toBeGreaterThanOrEqual(panel!.x + panel!.width);
+    await tags.getByRole("checkbox", { name: /Public/ }).uncheck();
     await page.getByRole("button", { name: "+ Save the tags on now as a view" }).click();
     await expect(tour("Undo anything")).toBeVisible();
     await tour("Undo anything").getByRole("button", { name: "Next" }).click();

@@ -3,7 +3,8 @@
 
 	/**
 	 * One step of the getting-started tour: a card beside the control it's about, which gets a ring round it. It
-	 * never blocks the page, so the step is done on the real controls. On a phone the card sits above the bottom bar.
+	 * never blocks the page, and never sits on the side panel the control is in, so the step is done on the real
+	 * controls. On a phone the card sits above the bottom bar.
 	 * The target is found again every so often, since panels open and close as the person works.
 	 */
 	let {
@@ -25,22 +26,27 @@
 	} = $props();
 
 	let rect = $state<DOMRect | null>(null);
+	/** The side panel the target sits in, if any: the card goes beside it, so it never covers the panel. */
+	let panel = $state<DOMRect | null>(null);
 	let card = $state<HTMLElement>();
 	let size = $state({ w: 0, h: 0, vw: 0, vh: 0 });
 
 	function measure() {
 		let found: DOMRect | null = null;
+		let side: DOMRect | null = null;
 		for (const selector of step.targets) {
 			for (const el of document.querySelectorAll(selector)) {
 				const r = el.getBoundingClientRect();
 				if (r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight) {
 					found = r;
+					side = el.closest('aside')?.getBoundingClientRect() ?? null;
 					break;
 				}
 			}
 			if (found) break;
 		}
 		rect = found;
+		panel = side;
 		size = { w: card?.offsetWidth ?? 0, h: card?.offsetHeight ?? 0, vw: innerWidth, vh: innerHeight };
 	}
 
@@ -58,15 +64,20 @@
 	});
 
 	const GAP = 12;
-	/** Where the card goes on a wide screen: under the target if it fits, else over it; centred low without one. */
+	/**
+	 * Where the card goes on a wide screen: beside the side panel the target is in (on the canvas side, level with
+	 * the target), else under the target if it fits, else over it; low on the right without a target.
+	 */
 	const place = $derived.by(() => {
 		if (narrow) return null;
 		const { w, h, vw, vh } = size;
 		if (!rect) return { left: Math.max(16, vw - w - 24), top: Math.max(16, vh - h - 24) };
+		const top = Math.min(Math.max(16, rect.top + rect.height / 2 - h / 2), Math.max(16, vh - h - 16));
+		if (panel && panel.right + GAP + w <= vw - 16 && panel.left + panel.width / 2 < vw / 2) return { left: panel.right + GAP, top };
+		if (panel && panel.left - GAP - w >= 16) return { left: panel.left - GAP - w, top };
 		const left = Math.min(Math.max(16, rect.left + rect.width / 2 - w / 2), Math.max(16, vw - w - 16));
 		const below = rect.bottom + GAP;
-		const top = below + h <= vh - 16 ? below : Math.max(16, rect.top - GAP - h);
-		return { left, top };
+		return { left, top: below + h <= vh - 16 ? below : Math.max(16, rect.top - GAP - h) };
 	});
 
 	/** The step's text, with its **bold** bits. */

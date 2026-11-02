@@ -45,4 +45,20 @@ describe('a tour step', () => {
 		expect(page.getByRole('button', { name: 'Back' }).elements()).toHaveLength(0);
 		target.remove();
 	});
+
+	it('sits beside the side panel its control is in, never over the panel', async () => {
+		const aside = document.createElement('aside');
+		Object.assign(aside.style, { position: 'fixed', left: '0px', top: '0px', width: '260px', height: '100vh' });
+		const target = document.createElement('button');
+		target.id = 'target';
+		target.textContent = '+ Save the tags on now as a view';
+		Object.assign(target.style, { position: 'fixed', left: '16px', top: '300px', width: '220px', height: '30px' });
+		aside.append(target);
+		document.body.append(aside);
+		shown({ index: 0 });
+		const card = () => document.querySelector('.tour') as HTMLElement;
+		await expect.poll(() => card().style.left).toBe('272px');
+		expect(card().getBoundingClientRect().left).toBeGreaterThanOrEqual(aside.getBoundingClientRect().right);
+		aside.remove();
+	});
 });
