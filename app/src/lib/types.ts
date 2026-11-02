@@ -17,6 +17,17 @@ export interface Workspace {
 	types: CustomType[];
 }
 
+/** A personal access token as listed: never its secret, which is shown once when it's made. */
+export interface AccessToken {
+	id: string;
+	name: string;
+	scope: 'read' | 'write';
+	/** The workspaces it may reach, or null for all of yours. */
+	workspaces: string[] | null;
+	createdAt: string;
+	lastUsedAt: string | null;
+}
+
 /** A node type a workspace adds (or a built-in one it re-draws): a name, a picker category, a library icon. */
 export interface CustomType {
 	name: string;

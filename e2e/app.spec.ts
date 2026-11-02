@@ -290,17 +290,56 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("dialog", { name: "Welcome to Skope" })).toBeVisible();
   });
 
-  test("offers the tour on the home screen once, and remembers No thanks", async ({ page, request }) => {
-    const me = await (await request.get("/api/me")).json();
-    await request.put("/api/me", { data: { settings: { ...me.settings, tutorial: undefined } } });
+  test("offers the tour on the home screen once, and remembers No thanks", async ({ page }) => {
+    // Other tests take the tour as the same person at the same time, so this one is served a person who has never
+    // seen it, and remembers what the page saves, rather than rely on the shared settings.
+    let saved: Record<string, unknown> | null = null;
+    await page.route("**/api/me", async route => {
+      const request = route.request();
+      if (request.method() === "PUT") {
+        saved = request.postDataJSON().settings;
+        return route.fulfill({ json: { email: "e2e-owner@example.com", name: "E2E", title: "", settings: saved } });
+      }
+      const res = await route.fetch();
+      const me = await res.json();
+      return route.fulfill({ response: res, json: { ...me, settings: saved ?? { ...me.settings, tutorial: undefined } } });
+    });
     await page.goto("/app/");
     const offer = page.getByRole("region", { name: "Take the tour" });
     await expect(offer).toBeVisible();
     await offer.getByRole("button", { name: "No thanks" }).click();
     await expect(offer).toHaveCount(0);
-    await expect.poll(async () => (await (await request.get("/api/me")).json()).settings.tutorial).toMatchObject({ dismissed: true });
+    await expect.poll(() => saved?.tutorial).toMatchObject({ dismissed: true });
     await page.reload();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.getByRole("region", { name: "Take the tour" })).toHaveCount(0);
+  });
+
+  test("makes an access token under AI access, which then reads and writes as you until it's revoked", async ({ page, request }) => {
+    await page.goto("/app/");
+    await page.getByRole("button", { name: /^Account:/ }).click();
+    await page.getByRole("menuitem", { name: "AI access" }).click();
+    const sheet = page.getByRole("region", { name: "AI access" });
+    await expect(sheet.getByText("http://localhost:8790/mcp").first()).toBeVisible();
+    const name = `e2e ${Date.now()}`;
+    await sheet.getByLabel("Name").fill(name);
+    await sheet.getByRole("button", { name: "Create token" }).click();
+    const token = await sheet.getByLabel("Your new token").inputValue();
+    expect(token).toMatch(/^skt_/);
+    await expect(sheet.getByLabel("Claude Code command")).toHaveValue(new RegExp(`Bearer ${token}`));
+
+    const auth = { authorization: `Bearer ${token}` };
+    const made = await request.post("/api/diagrams", { headers: auth, data: { workspace: "personal:e2e-owner@example.com", name: "made with a token", doc: { version: 1 } } });
+    expect(made.status()).toBe(201);
+    const { id } = await made.json();
+    expect((await request.delete(`/api/diagrams/${id}`, { headers: auth })).status()).toBe(403);
+
+    await sheet.getByRole("button", { name: "Done" }).click();
+    await sheet.getByRole("button", { name: `Revoke ${name}…` }).click();
+    await sheet.getByRole("button", { name: `Revoke “${name}”` }).click();
+    await expect(sheet.getByText(name)).toHaveCount(0);
+    expect((await request.get("/api/workspaces", { headers: auth })).status()).toBe(401);
+    await request.delete(`/api/diagrams/${id}`);
   });
 
   test("opens the docs from the account menu, follows links between pages, and says when a page doesn't exist", async ({ page }) => {
