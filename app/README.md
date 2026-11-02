@@ -109,6 +109,10 @@ that every `/app/docs/…` link points at a page that exists. Pictures live in `
 project root; `docs-shots/`): run it after changing what a pictured screen looks like, look at the pictures, and
 commit them. The test also checks every picture is shown somewhere and every one shown exists.
 
+The getting-started tour is `src/lib/tour.ts` (the steps, each pointing at a `data-tour` control and moving on
+when its check sees it done) and `TourCallout.svelte`. It runs on a practice diagram, starts from the account menu's
+**Tutorial**, the offer on home, or `/app/?tour=start`, and keeps its place in `/api/me` settings (`tutorial`).
+
 Icons and node types are data. `src/lib/diagram/icon-library.json` holds every icon Skope draws, all from
 [Phosphor](https://phosphoricons.com) (MIT, regular weight) so they look alike. `src/lib/diagram/types.json` lists the
 type picker's categories, each type with an icon from that library. To add an icon, put its Phosphor name in the list

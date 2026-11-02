@@ -190,7 +190,7 @@
 		</div>
 
 		<h3>Tags</h3>
-		<div class="chips">
+		<div class="chips" data-tour="tags">
 			{#each node.tags as key (key)}
 				<span class="chip tag">
 					<span class="swatch" style:background={tags[key]?.color}></span>{tags[key]?.label ?? key}

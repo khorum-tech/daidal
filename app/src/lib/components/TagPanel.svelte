@@ -120,7 +120,7 @@
 				</div>
 			{/if}
 			{#if editable}
-				<button type="button" class="add-view" onclick={() => onsaveview?.()}>+ Save the tags on now as a view</button>
+				<button type="button" class="add-view" data-tour="save-view" onclick={() => onsaveview?.()}>+ Save the tags on now as a view</button>
 			{/if}
 		</section>
 	{/if}

@@ -241,6 +241,84 @@ test.describe("the app at /app", () => {
     await expect(page).toHaveTitle("renamed elsewhere · Skope");
   });
 
+  test("takes the getting-started tour from the menu: each step moves on once it's done, and finishing is remembered", async ({ page }) => {
+    await page.goto("/app/");
+    await page.getByRole("button", { name: /^Account:/ }).click();
+    await page.getByRole("menuitem", { name: "Tutorial" }).click();
+    await expect(page).toHaveURL(/\/app\/d\//);
+    const tour = (title: string) => page.getByRole("dialog", { name: title });
+    await tour("Welcome to Skope").getByRole("button", { name: "Next" }).click();
+
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).click();
+    await page.getByRole("dialog", { name: "Add a node" }).getByRole("button", { name: "Service" }).first().click();
+    await expect(tour("Name it")).toBeVisible();
+    await page.getByRole("region", { name: "Selected node" }).getByLabel("Name").fill("Checkout API");
+    await expect(tour("Connect two nodes")).toBeVisible();
+
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Connect" }).click();
+    await page.getByRole("button", { name: "Web App: Storefront" }).click();
+    await page.getByRole("button", { name: "Service: Checkout API" }).click();
+    await expect(tour("Group them")).toBeVisible();
+    await page.getByRole("button", { name: "Add container" }).click();
+    await expect(tour("Tag something")).toBeVisible();
+
+    await page.getByRole("button", { name: "Web App: Storefront" }).click();
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    await inspector.getByLabel("Add a tag").selectOption("+new");
+    await inspector.getByLabel("New tag name").fill("Public");
+    await inspector.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(tour("Save a view")).toBeVisible();
+    const tags = page.getByRole("complementary", { name: "Views and tags" });
+    const [card, panel] = [await tour("Save a view").boundingBox(), await tags.boundingBox()];
+    expect(card!.x).toBeGreaterThanOrEqual(panel!.x + panel!.width);
+    await tags.getByRole("checkbox", { name: /Public/ }).uncheck();
+    await page.getByRole("button", { name: "+ Save the tags on now as a view" }).click();
+    await expect(tour("Undo anything")).toBeVisible();
+    await tour("Undo anything").getByRole("button", { name: "Next" }).click();
+
+    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await expect(tour("That’s the basics")).toBeVisible();
+    await tour("That’s the basics").getByRole("button", { name: "Finish" }).click();
+    await expect(page.getByRole("dialog", { name: "That’s the basics" })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Service: Checkout API" })).toBeVisible();
+    await expect(page.locator(".tour")).toHaveCount(0);
+  });
+
+  test("starts the tour from the Getting started docs page", async ({ page }) => {
+    await page.goto("/app/docs/getting-started");
+    await page.getByRole("article").getByRole("link", { name: "Take the tour" }).click();
+    await expect(page).toHaveURL(/\/app\/d\//);
+    await expect(page.getByRole("dialog", { name: "Welcome to Skope" })).toBeVisible();
+  });
+
+  test("offers the tour on the home screen once, and remembers No thanks", async ({ page }) => {
+    // Other tests take the tour as the same person at the same time, so this one is served a person who has never
+    // seen it, and remembers what the page saves, rather than rely on the shared settings.
+    let saved: Record<string, unknown> | null = null;
+    await page.route("**/api/me", async route => {
+      const request = route.request();
+      if (request.method() === "PUT") {
+        saved = request.postDataJSON().settings;
+        return route.fulfill({ json: { email: "e2e-owner@example.com", name: "E2E", title: "", settings: saved } });
+      }
+      const res = await route.fetch();
+      const me = await res.json();
+      return route.fulfill({ response: res, json: { ...me, settings: saved ?? { ...me.settings, tutorial: undefined } } });
+    });
+    await page.goto("/app/");
+    const offer = page.getByRole("region", { name: "Take the tour" });
+    await expect(offer).toBeVisible();
+    await offer.getByRole("button", { name: "No thanks" }).click();
+    await expect(offer).toHaveCount(0);
+    await expect.poll(() => saved?.tutorial).toMatchObject({ dismissed: true });
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Take the tour" })).toHaveCount(0);
+  });
+
   test("makes an access token under AI access, which then reads and writes as you until it's revoked", async ({ page, request }) => {
     await page.goto("/app/");
     await page.getByRole("button", { name: /^Account:/ }).click();

@@ -582,6 +582,21 @@ test.describe("the app on a phone", () => {
     await request.delete(`/api/workspaces/${ws.id}`);
   });
 
+  test("follows the tour's first steps on a phone, with the card above the bottom bar", async ({ page }) => {
+    await page.goto("/app/?tour=start");
+    await expect(page).toHaveURL(/\/app\/d\//);
+    const tour = (title: string) => page.getByRole("dialog", { name: title });
+    await tour("Welcome to Skope").getByRole("button", { name: "Next" }).tap();
+    await expect(tour("Add a node")).toContainText("It starts in Move");
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).tap();
+    await page.getByRole("dialog", { name: "Add a node" }).getByRole("button", { name: "Service" }).first().tap();
+    await expect(tour("Name it")).toBeVisible();
+    const box = (await tour("Name it").boundingBox())!;
+    expect(box.y + box.height).toBeLessThan(page.viewportSize()!.height);
+    await tour("Name it").getByRole("button", { name: "End tour" }).tap();
+    await expect(page.locator(".tour")).toHaveCount(0);
+  });
+
   test("reads the docs: opens them from the account sheet and moves between pages with the picker", async ({ page }) => {
     await page.goto("/app/");
     await page.getByRole("button", { name: /^Account:/ }).tap();

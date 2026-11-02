@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { createApi } from '../api';
@@ -9,6 +9,7 @@
 	import AccessTokens from './AccessTokens.svelte';
 	import Icon from './Icon.svelte';
 	import ProfileSheet from './ProfileSheet.svelte';
+	import { startTour } from '../tour';
 	import Sheet from './Sheet.svelte';
 
 	/**
@@ -61,6 +62,12 @@
 		tab = which;
 		settingsOpen = true;
 	}
+	/** Starts the getting-started tour on a new practice diagram in your personal workspace. */
+	async function tutorial() {
+		open = false;
+		const id = await startTour(api, `personal:${me.email}`);
+		await goto(`${resolve('/d/[id]', { id })}?tour=1`, { invalidateAll: true });
+	}
 	async function saveProfile(profile: { name: string; title: string }) {
 		await api.updateMe(profile);
 		await invalidateAll();
@@ -112,6 +119,7 @@
 	<button type="button" role="menuitem" onclick={() => openSettings('profile')}>Profile</button>
 	<button type="button" role="menuitem" onclick={() => openSettings('appearance')}>Appearance</button>
 	<button type="button" role="menuitem" onclick={() => openSettings('ai')}>AI access</button>
+	<button type="button" role="menuitem" onclick={tutorial}>Tutorial</button>
 	<a role="menuitem" href={resolve('/docs/[[page]]', {})}>Docs</a>
 	<a role="menuitem" href="/prototype/">Open the prototype</a>
 	<a role="menuitem" href="/cdn-cgi/access/logout">Sign out</a>

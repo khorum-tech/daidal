@@ -8,6 +8,8 @@ order: 1
 
 Skope draws how your systems fit together: the services, databases, queues and people, the connections between them, and the boxes they live in. A diagram is a document you can edit by hand on the canvas, as a YAML or JSON config, or through an AI connected to Skope.
 
+Prefer to be shown? [Take the tour](/app/?tour=start): ten short steps on a practice diagram, on the real controls. You can start it again any time from **Tutorial** in the menu under your name.
+
 ## Your first diagram
 
 1. On the home screen, pick a workspace on the left (everyone starts with **Personal**) and press **+ New diagram**.

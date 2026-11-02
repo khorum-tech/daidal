@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
+	import { beforeNavigate, goto, invalidateAll, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import NodeTip from '#lib/components/NodeTip.svelte';
+	import TourCallout from '#lib/components/TourCallout.svelte';
+	import { saveTour, TOUR, tourCounts, tourOf, type TourCounts, type TourState } from '#lib/tour.ts';
 	import { exportName, toSvg } from '#lib/diagram/render.ts';
 	import { download, svgToPng } from '#lib/download.ts';
 	import ConfigPanel from '#lib/components/ConfigPanel.svelte';
@@ -962,6 +964,53 @@
 		replaying = id;
 		sheet = null;
 	};
+
+	// The getting-started tour, when this is its practice diagram and it isn't finished. Its place is read once per
+	// diagram (later saves don't reload the page's data) and kept in the account as it moves on.
+	let tour = $state<TourState | null>(null);
+	let tourStart = $state<TourCounts | null>(null);
+	let tourFor = '';
+	$effect.pre(() => {
+		const id = data.diagram.id;
+		if (id === tourFor) return;
+		tourFor = id;
+		const t = untrack(() => tourOf(data.me));
+		// Just started (?tour=1, from Tutorial or the offer on home): from the top, whatever the settings say.
+		const fresh = untrack(() => page.url.searchParams.get('tour')) === '1';
+		if (fresh) {
+			tour = { diagram: id, step: 0 };
+			// Off the address, so a reload carries on from the saved step rather than starting again.
+			const url = new URL(untrack(() => page.url.href));
+			url.searchParams.delete('tour');
+			queueMicrotask(() => replaceState(url, {}));
+		}
+		else tour = t && !t.done && t.diagram === id ? t : null;
+		tourStart = null;
+	});
+	const counts = $derived(tourCounts(working.doc, presenting));
+	function tourTo(step: number) {
+		if (!tour) return;
+		tour = { ...tour, step: Math.max(0, Math.min(step, TOUR.length - 1)) };
+		tourStart = counts;
+		saveTour(api, tour).catch(() => {});
+	}
+	function endTour() {
+		if (!tour) return;
+		saveTour(api, { ...tour, done: true }).catch(() => {});
+		tour = null;
+	}
+	// A step with a check moves on by itself once it's done.
+	$effect(() => {
+		if (!tour) return;
+		const now = counts;
+		const start = untrack(() => tourStart);
+		if (!start) {
+			tourStart = now;
+			return;
+		}
+		const step = TOUR[tour.step];
+		if (step.done?.(now, start)) untrack(() => tourTo(tour!.step + 1));
+	});
 </script>
 
 <svelte:head><title>{working.name} · Skope</title></svelte:head>
@@ -1041,7 +1090,7 @@
 		<span class="follow gone" data-testid="follow">No longer following: its lead was deleted or you left its workspace</span>
 	{/if}
 	{#if !narrow}
-		<button type="button" class="link present-link" onclick={present}>Present</button>
+		<button type="button" class="link present-link" data-tour="present" onclick={present}>Present</button>
 	{/if}
 </div>
 
@@ -1075,7 +1124,7 @@
 	{/if}
 {/snippet}
 {#snippet addButton()}
-	<button type="button" class="tool add" title="Every type, and containers" aria-expanded={narrow ? sheet === 'add' : adding} onclick={() => (narrow ? (sheet = 'add') : (adding = !adding))}>
+	<button type="button" class="tool add" data-tour="add" title="Every type, and containers" aria-expanded={narrow ? sheet === 'add' : adding} onclick={() => (narrow ? (sheet = 'add') : (adding = !adding))}>
 		<span aria-hidden="true">+</span> Add
 	</button>
 {/snippet}
@@ -1236,7 +1285,7 @@
 				{#if narrow}
 					{@render addButton()}
 				{/if}
-				<button type="button" class="tool" aria-label={working.history.undoLabel ? `Undo ${working.history.undoLabel}` : 'Nothing to undo'} title={working.history.undoLabel ? `Undo: ${working.history.undoLabel} · ⌘Z` : 'Nothing to undo'} disabled={!working.history.undoLabel} onclick={undo}>
+				<button type="button" class="tool" data-tour="undo" aria-label={working.history.undoLabel ? `Undo ${working.history.undoLabel}` : 'Nothing to undo'} title={working.history.undoLabel ? `Undo: ${working.history.undoLabel} · ⌘Z` : 'Nothing to undo'} disabled={!working.history.undoLabel} onclick={undo}>
 					<Icon name="arrowCCW" size={15} />
 				</button>
 				<button type="button" class="tool" aria-label={working.history.redoLabel ? `Redo ${working.history.redoLabel}` : 'Nothing to redo'} title={working.history.redoLabel ? `Redo: ${working.history.redoLabel} · ⇧⌘Z` : 'Nothing to redo'} disabled={!working.history.redoLabel} onclick={redo}>
@@ -1261,7 +1310,7 @@
 					<button type="button" class="tool" class:on={manyMode} aria-pressed={manyMode} aria-label="Multi-select" title="Multi-select · drag a box, or click to pick; shift-click works any time" onclick={toggleManyMode}>
 						<Icon name="marquee" size={15} />
 					</button>
-					<button type="button" class="tool" class:on={connectTool || !!connectFrom} aria-pressed={connectTool || !!connectFrom} aria-label="Connect" title="Connect two nodes · click one, then the other" onclick={toggleConnectTool}>
+					<button type="button" class="tool" class:on={connectTool || !!connectFrom} aria-pressed={connectTool || !!connectFrom} aria-label="Connect" data-tour="connect" title="Connect two nodes · click one, then the other" onclick={toggleConnectTool}>
 						<Icon name="flowArrow" size={15} />
 					</button>
 					<span class="sep" aria-hidden="true"></span>
@@ -1270,7 +1319,7 @@
 							<Icon name={icon} size={15} />
 						</button>
 					{/each}
-					<button type="button" class="tool" aria-label="Add container" title="Container" onclick={addBox}>
+					<button type="button" class="tool" data-tour="container" aria-label="Add container" title="Container" onclick={addBox}>
 						<Icon name="frameCorners" size={15} />
 					</button>
 					<span class="sep" aria-hidden="true"></span>
@@ -1324,14 +1373,14 @@
 		<!-- The node menu takes the toolbar's place while a node is selected. -->
 		<nav class="toolbar node-menu" aria-label="Selected node" data-testid="node-menu">
 			<!-- Edit leads, as View leads the bar it replaces; the ways to change the canvas follow. -->
-			<button type="button" onclick={() => (sheet = 'details')}>
+			<button type="button" data-tour="node-edit" onclick={() => (sheet = 'details')}>
 				<span class="t-label">{editable ? 'Edit' : 'Details'}</span><span class="t-value">{selectedNode.name}</span>
 			</button>
 			<button type="button" class:active={moving} aria-pressed={moving} disabled={!editable} title={editable ? '' : replayed ? 'Go back to the working copy to move nodes' : 'Only the owner can move nodes'} onclick={() => (moving = !moving)}>
 				<span class="t-label">{moving ? 'Moving' : 'Move'}</span><span class="t-value">{moving ? 'Drag anywhere · tap to stop' : 'Drag to place'}</span>
 			</button>
 			{#if editable}
-				<button type="button" class:active={connectFrom === selectedNode.id} aria-pressed={connectFrom === selectedNode.id} onclick={() => (connectFrom ? (connectFrom = null) : startConnect(selectedNode.id))}>
+				<button type="button" data-tour="connect" class:active={connectFrom === selectedNode.id} aria-pressed={connectFrom === selectedNode.id} onclick={() => (connectFrom ? (connectFrom = null) : startConnect(selectedNode.id))}>
 					<span class="t-label">{connectFrom ? 'Connecting' : 'Connect'}</span><span class="t-value">{connectFrom ? 'Tap a node or space · tap to stop' : 'to a node'}</span>
 				</button>
 			{/if}
@@ -1373,7 +1422,7 @@
 		</nav>
 	{:else}
 		<nav class="toolbar" aria-label="Diagram panels">
-			<button type="button" onclick={() => (sheet = 'views')}>
+			<button type="button" data-tour="views" onclick={() => (sheet = 'views')}>
 				<span class="t-label">View</span><span class="t-value">{view ?? (scene.views.length ? 'Everything' : 'Tags')}</span>
 			</button>
 			<button type="button" onclick={() => (sheet = 'history')}>
@@ -1429,6 +1478,11 @@
 <Sheet open={sheet === 'tags' && editable} title="Manage tags" onclose={() => (sheet = null)}>
 	<TagManager tags={scene.tags} counts={tagCounts} onchange={changeTag} onfieldend={() => working.history.endGroup()} ondelete={deleteTag} onadd={newTag} condition={appearance.condition} palette={paletteOf(working.doc)} onpalette={switchPalette} />
 </Sheet>
+
+
+{#if tour}
+	<TourCallout step={TOUR[tour.step]} index={tour.step} total={TOUR.length} {narrow} onnext={() => tourTo(tour!.step + 1)} onback={() => tourTo(tour!.step - 1)} onend={endTour} />
+{/if}
 
 <style>
 	.present-bar {
