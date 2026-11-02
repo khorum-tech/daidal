@@ -63,6 +63,28 @@ describe('config', () => {
 		expect(fails('nodes:\n  - id: a\n   bad').line).toBe(3);
 	});
 
+	it('reads connections and containers as edges and boundaries, and plain x and y as the layout', () => {
+		const text = 'nodes:\n  - id: q\n    x: 900\n    y: 420\nconnections:\n  - from: api\n    to: q\ncontainers:\n  - id: box\n    label: Box\n    x: 0\n    y: 0\n    w: 300\n    h: 200';
+		const { doc, summary } = readConfig(text, current(), 'merge');
+		expect(doc.nodes!.at(-1)).toEqual({ id: 'q', name: 'q', type: 'service', layout: { x: 900, y: 420 } });
+		expect(doc.edges!.at(-1)).toEqual({ from: 'api', to: 'q' });
+		expect(doc.boundaries!.at(-1)).toEqual({ id: 'box', label: 'Box', layout: { x: 0, y: 0, w: 300, h: 200 } });
+		expect(summary).toBe('Merged in: 1 new node, 1 new connection');
+	});
+
+	it('keeps a layout over a plain x and y, and refuses unknown or doubled sections', () => {
+		const { doc } = readConfig('nodes:\n  - id: q\n    x: 1\n    layout: { x: 5, y: 6 }', current(), 'merge');
+		expect(doc.nodes!.at(-1)!.layout).toEqual({ x: 5, y: 6 });
+		expect(fails('nodes:\n  - id: a\nlinks: []').message).toMatch(/Unknown section “links”: a config has version, diagram, tags, views, nodes, edges, boundaries/);
+		expect(fails('nodes:\n  - id: a\nconnections: []\nedges: []').message).toBe('Use connections or edges, not both');
+	});
+
+	it('merges a node that names only some fields without resetting its name or type', () => {
+		const { doc, summary } = readConfig('nodes:\n  - id: db\n    subtitle: books', current(), 'merge');
+		expect(doc.nodes!.find(n => n.id === 'db')).toEqual({ id: 'db', name: 'Orders DB', type: 'database', subtitle: 'books', layout: { x: 300, y: 0 } });
+		expect(summary).toBe('Merged in: 1 updated');
+	});
+
 	it('lets a merged connection end on a node the diagram already has', () => {
 		const { doc } = readConfig('nodes:\n  - id: q\nedges:\n  - from: api\n    to: q', current(), 'merge');
 		expect(doc.edges!.at(-1)).toEqual({ from: 'api', to: 'q' });

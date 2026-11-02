@@ -55,13 +55,52 @@ function strings(v: unknown): string[] {
 	return [asText(v)];
 }
 
-/** A node as the document keeps it: an id and a name, a slugged type, tags as a list. */
+const PLACE = ['x', 'y', 'w', 'h'] as const;
+
+/** [o] with a plain x, y, w or h (as the MCP outline and add_node write them) moved into its layout. */
+function withLayout(o: Record<string, unknown>): Record<string, unknown> {
+	const loose = PLACE.filter(k => typeof o[k] === 'number');
+	if (!loose.length) return o;
+	const out = { ...o };
+	const layout: Record<string, unknown> = { ...(o.layout && typeof o.layout === 'object' ? o.layout : {}) };
+	for (const k of loose) {
+		layout[k] ??= o[k];
+		delete out[k];
+	}
+	out.layout = layout;
+	return out;
+}
+
+/** The sections a config may have, and the other names (from the MCP outline) taken for two of them. */
+const SECTIONS = ['version', 'diagram', 'tags', 'views', 'nodes', 'edges', 'boundaries'];
+const ALIASES: Record<string, string> = { connections: 'edges', containers: 'boundaries' };
+
+/** [o] with its sections checked, and connections and containers read as edges and boundaries. */
+function sections(o: Record<string, unknown>): Record<string, unknown> {
+	const out: Record<string, unknown> = {};
+	const from: Record<string, string> = {};
+	for (const [k, v] of Object.entries(o)) {
+		const key = ALIASES[k] ?? k;
+		if (!SECTIONS.includes(key)) throw new ConfigError(`Unknown section “${k}”: a config has ${SECTIONS.join(', ')}`);
+		if (key in out) throw new ConfigError(`Use ${from[key]} or ${k}, not both`);
+		out[key] = v;
+		from[key] = k;
+	}
+	return out;
+}
+
+/** [n] with a name (its id) and a type (service) if it has none: a node a config adds, not one it updates. */
+const filled = (n: DocNode): DocNode => ({ ...n, name: n.name ?? n.id, type: n.type ?? 'service' });
+
+/** A node as the config gives it: an id, a slugged type if it names one, tags as a list. */
 function node(raw: unknown, i: number): DocNode {
 	if (!raw || typeof raw !== 'object') throw new ConfigError(`nodes[${i}] isn't a node`);
-	const n = raw as Record<string, unknown>;
+	const n = withLayout(raw as Record<string, unknown>);
 	if (n.id == null || n.id === '') throw new ConfigError(`nodes[${i}]: every node needs an id`);
 	const id = asText(n.id);
-	const out: DocNode = { ...(n as unknown as DocNode), id, name: asText(n.name ?? id), type: slug(n.type ?? 'service') };
+	const out: DocNode = { ...(n as unknown as DocNode), id };
+	if (n.name != null) out.name = asText(n.name);
+	if (n.type != null) out.type = slug(n.type);
 	const tags = strings(n.tags);
 	if (tags.length) out.tags = tags;
 	else delete out.tags;
@@ -90,7 +129,7 @@ export interface ReadConfig {
  * ConfigError, with a line for YAML, when the config can't be read or doesn't hold together.
  */
 export function readConfig(text: string, current: SkopeDoc, mode: 'replace' | 'merge'): ReadConfig {
-	const o = parse(text);
+	const o = sections(parse(text));
 	if (o.version !== undefined && o.version !== 1) throw new ConfigError(`This is version ${asText(o.version)} of the format; Skope reads version 1`);
 	const nodes = list<unknown>(o.nodes).map((n, i) => node(n, i));
 	if (!nodes.length) throw new ConfigError('No nodes found: add a “nodes:” list');
@@ -101,7 +140,7 @@ export function readConfig(text: string, current: SkopeDoc, mode: 'replace' | 'm
 	}
 	const boxes = list<DocBoundary>(o.boundaries).map((b, i) => {
 		if (b?.id == null) throw new ConfigError(`boundaries[${i}]: every container needs an id`);
-		return { ...b, id: asText(b.id) };
+		return { ...(withLayout(b as unknown as Record<string, unknown>) as unknown as DocBoundary), id: asText(b.id) };
 	});
 	const known = new Set([...ids, ...boxes.map(b => b.id), ...(mode === 'merge' ? [...(current.nodes ?? []).map(n => n.id), ...(current.boundaries ?? []).map(b => b.id)] : [])]);
 	const edges = list<DocEdge>(o.edges).map((e, i) => {
@@ -114,7 +153,7 @@ export function readConfig(text: string, current: SkopeDoc, mode: 'replace' | 'm
 	const diagram = { ...current.diagram, ...(o.diagram && typeof o.diagram === 'object' ? (o.diagram as SkopeDoc['diagram']) : {}), name: current.diagram?.name };
 	if (!diagram.name) delete diagram.name;
 	if (mode === 'replace') {
-		const doc: SkopeDoc = { version: 1, diagram, tags: tagsFor(nodes, tags), views, nodes, edges, boundaries: boxes };
+		const doc: SkopeDoc = { version: 1, diagram, tags: tagsFor(nodes, tags), views, nodes: nodes.map(filled), edges, boundaries: boxes };
 		return { doc, summary: `Replaced with ${nodes.length} ${nodes.length === 1 ? 'node' : 'nodes'}` };
 	}
 	return merge(current, { nodes, edges, boundaries: boxes, tags, views, diagram });
@@ -145,7 +184,7 @@ function merge(current: SkopeDoc, cfg: { nodes: DocNode[]; edges: DocEdge[]; bou
 		diagram: cfg.diagram,
 		tags: tagsFor(nodes.list, { ...current.tags, ...cfg.tags }),
 		views: views.list,
-		nodes: nodes.list,
+		nodes: nodes.list.map(filled),
 		edges: [...(current.edges ?? []), ...newEdges],
 		boundaries: boxes.list
 	};
