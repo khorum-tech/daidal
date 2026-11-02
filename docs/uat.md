@@ -258,6 +258,13 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | PHONE-3 | Tap into a text field in a sheet | The page doesn't zoom; the keyboard doesn't hide the field's button | P | |
 | PHONE-4 | Turn the phone sideways | The layout follows | P | |
 
+## 18. Docs
+
+| ID | Do | Expect | On | Result |
+|----|----|--------|----|--------|
+| DOCS-1 | Your initial → **Docs**; open **Getting started**, follow a link in the text, then **Next** at the bottom | The contents list marks the page open; links and Next move between pages; the tab title names the page | D P | |
+| DOCS-2 | On a phone, pick a page from the picker at the top; then open `/app/docs/nope` | The picker opens that page; a missing page says so and links to Getting started | P | |
+
 ## 20. AI over MCP
 
 | ID | Do | Expect | On | Result |

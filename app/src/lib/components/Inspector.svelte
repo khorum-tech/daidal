@@ -551,6 +551,7 @@
 	}
 	.actions {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 8px;
 		margin-top: 18px;
 	}
