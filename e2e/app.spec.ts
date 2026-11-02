@@ -241,6 +241,33 @@ test.describe("the app at /app", () => {
     await expect(page).toHaveTitle("renamed elsewhere · Skope");
   });
 
+  test("makes an access token under AI access, which then reads and writes as you until it's revoked", async ({ page, request }) => {
+    await page.goto("/app/");
+    await page.getByRole("button", { name: /^Account:/ }).click();
+    await page.getByRole("menuitem", { name: "AI access" }).click();
+    const sheet = page.getByRole("region", { name: "AI access" });
+    await expect(sheet.getByText("http://localhost:8790/mcp").first()).toBeVisible();
+    const name = `e2e ${Date.now()}`;
+    await sheet.getByLabel("Name").fill(name);
+    await sheet.getByRole("button", { name: "Create token" }).click();
+    const token = await sheet.getByLabel("Your new token").inputValue();
+    expect(token).toMatch(/^skt_/);
+    await expect(sheet.getByLabel("Claude Code command")).toHaveValue(new RegExp(`Bearer ${token}`));
+
+    const auth = { authorization: `Bearer ${token}` };
+    const made = await request.post("/api/diagrams", { headers: auth, data: { workspace: "personal:e2e-owner@example.com", name: "made with a token", doc: { version: 1 } } });
+    expect(made.status()).toBe(201);
+    const { id } = await made.json();
+    expect((await request.delete(`/api/diagrams/${id}`, { headers: auth })).status()).toBe(403);
+
+    await sheet.getByRole("button", { name: "Done" }).click();
+    await sheet.getByRole("button", { name: `Revoke ${name}…` }).click();
+    await sheet.getByRole("button", { name: `Revoke “${name}”` }).click();
+    await expect(sheet.getByText(name)).toHaveCount(0);
+    expect((await request.get("/api/workspaces", { headers: auth })).status()).toBe(401);
+    await request.delete(`/api/diagrams/${id}`);
+  });
+
   test("opens the docs from the account menu, follows links between pages, and says when a page doesn't exist", async ({ page }) => {
     await page.goto("/app/");
     await page.getByRole("button", { name: /^Account:/ }).click();
