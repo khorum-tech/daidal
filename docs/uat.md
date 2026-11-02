@@ -265,6 +265,15 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | DOCS-1 | Your initial → **Docs**; open **Getting started**, follow a link in the text, then **Next** at the bottom | The contents list marks the page open; links and Next move between pages; the tab title names the page | D P | |
 | DOCS-2 | On a phone, pick a page from the picker at the top; then open `/app/docs/nope` | The picker opens that page; a missing page says so and links to Getting started | P | |
 
+## 20. AI over MCP
+
+| ID | Do | Expect | On | Result |
+|----|----|--------|----|--------|
+| MCP-1 | Locally: `npx wrangler dev`, make a Read-and-write token under AI access, run the Claude Code command it gives, then `claude mcp list` | `skope … ✓ Connected` | D | |
+| MCP-2 | In Claude Code: “List my Skope diagrams, then add an MCP Server called Tools to <one> and connect <a node> to it” | It names your diagrams, makes the change, and the editor shows it after a reload (or offers to load the latest if open) | D | |
+| MCP-3 | With a **Read** token, ask it to change something | It says the token can only read; nothing changes | D | |
+| MCP-4 | Online (once Managed OAuth is on, see `docs/mcp.md`): add `https://<site>/mcp` as a claude.ai custom connector and sign in | It lists your workspaces as you | D | |
+
 ## Regressions
 
 Bugs that were fixed, so they stay fixed. Add one whenever a bug is fixed: what to do, and what used to go wrong.
