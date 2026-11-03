@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import { importStageData } from "./support";
 
 interface SavedNode {
@@ -1383,6 +1384,31 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("button", { name: "Ada Tester" })).toBeVisible();
     expect(await (await request.get("/api/me")).json()).toMatchObject({ name: "Ada Tester", title: "Platform engineer" });
     await request.put("/api/me", { data: { name: before.name || "e2e-owner", title: before.title } });
+  });
+
+  test("downloads everything kept about you, and asks for your email before deleting the account", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await page.locator("header .who").click();
+    await page.getByRole("menuitem", { name: "Profile" }).click();
+    const data = page.getByRole("dialog", { name: "Profile and appearance" }).getByRole("region", { name: "Your data" });
+    // The one person every test signs in as owns hundreds of workspaces by now, past the export's size limit, so the
+    // server's answer is stood in for here; worker/test/account.test.ts checks what the export holds.
+    const sample = { format: "skope-account", version: 1, profile: { email: "e2e-owner@example.com" }, backup: { format: "skope-backup", version: 1, workspaces: [] } };
+    await page.route("**/api/me/export", route => route.fulfill({ json: sample }));
+    const [file] = await Promise.all([page.waitForEvent("download"), data.getByRole("button", { name: "Download my data" }).click()]);
+    expect(file.suggestedFilename()).toMatch(/^skope-account-\d{4}-\d{2}-\d{2}\.json$/);
+    const account = JSON.parse(await readFile((await file.path())!, "utf8"));
+    expect(account).toMatchObject({ format: "skope-account", profile: { email: "e2e-owner@example.com" }, backup: { format: "skope-backup" } });
+
+    // Every test signs in as the same person, so this one stops short of deleting them (the worker tests delete).
+    await data.getByRole("button", { name: "Delete my account…" }).click();
+    const go = data.getByRole("button", { name: "Delete everything" });
+    await expect(go).toBeDisabled();
+    await data.getByLabel(/Type your email/).fill("e2e-owner@example.com");
+    await expect(go).toBeEnabled();
+    await data.getByRole("button", { name: "Keep my account" }).click();
+    await expect(data.getByRole("button", { name: "Delete my account…" })).toBeVisible();
   });
 
   test("switches to the light theme and simulates a colour-vision condition, which also thins the tag colours", async ({ page, request }) => {

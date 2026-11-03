@@ -59,6 +59,7 @@ A node an assistant adds is placed and named the way the editor would, and its t
 - Delete or move a diagram, change who's in a workspace, import or export backups, or touch your profile or tokens.
 - With a **Read** token, change anything at all. With a token limited to some workspaces, see any other.
 - Make more than 120 changes a minute through a token.
+- Pass anyone's email to the AI: owners and authors come back as "you" or "another member".
 
 If you have the diagram open while an assistant changes it, the strip above the canvas says it changed somewhere else, and offers to load the latest.
 

@@ -443,6 +443,19 @@ test.describe("the app on a phone", () => {
     await page.keyboard.press("Escape");
     await expect(page.locator('[data-node="collector"]')).toContainText("OTel Collector");
   });
+  test("reaches Your data on the profile, with its download and a delete that wants your email", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await page.locator("header .who").tap();
+    await page.getByRole("menuitem", { name: "Profile" }).tap();
+    const data = page.getByRole("dialog", { name: "Profile and appearance" }).getByRole("region", { name: "Your data" });
+    await data.getByRole("button", { name: "Delete my account…" }).scrollIntoViewIfNeeded();
+    await expect(data.getByRole("button", { name: "Download my data" })).toBeVisible();
+    await data.getByRole("button", { name: "Delete my account…" }).tap();
+    await expect(data.getByRole("button", { name: "Delete everything" })).toBeDisabled();
+    await data.getByRole("button", { name: "Keep my account" }).tap();
+  });
+
   test("changes the theme from the menu, and presents with icon-only cards", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);

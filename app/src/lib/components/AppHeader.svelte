@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { createApi } from '../api';
+	import { download } from '../download';
 	import { appearance } from '../appearance.svelte';
 	import type { Me } from '../types';
 	import type { Workspace } from '../types';
@@ -72,6 +73,15 @@
 		await api.updateMe(profile);
 		await invalidateAll();
 	}
+	async function downloadData() {
+		const data = await api.exportAccount();
+		download(`skope-account-${new Date().toISOString().slice(0, 10)}.json`, new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+	}
+	async function deleteAccount(confirm: string) {
+		await api.deleteAccount(confirm);
+		// Signed out of Access too, so this browser doesn't quietly start a new, empty account.
+		location.href = '/cdn-cgi/access/logout';
+	}
 </script>
 
 <header class="bar">
@@ -136,6 +146,8 @@
 			light={appearance.light}
 			onchange={change => appearance.set(change)}
 			onsave={saveProfile}
+			ondownload={downloadData}
+			ondelete={deleteAccount}
 			{ai}
 			bind:tab
 		/>

@@ -79,6 +79,7 @@ const WRITES: [method: string, path: RegExp][] = [
  */
 export function checkToken(grant: TokenGrant, method: string, path: string): void {
   if (path.startsWith("/api/me/tokens")) throw new HttpError(403, "access tokens cannot manage access tokens");
+  if (path === "/api/me/export") throw new HttpError(403, "access tokens cannot download your account; use the app");
   if (path.startsWith("/api/workspaces/import") || /^\/api\/workspaces\/[^/]+\/export$/.test(path)) {
     throw new HttpError(403, "access tokens cannot import or export backups; use the app");
   }

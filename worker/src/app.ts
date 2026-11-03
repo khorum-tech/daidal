@@ -2,6 +2,7 @@ import { currentEmail, type KeySource } from "./auth";
 import { ensureUser, updateUser } from "./db";
 import * as diagrams from "./diagrams";
 import type { Env } from "./env";
+import { deleteAccount, exportAccount } from "./account";
 import { secured } from "./headers";
 import { applyLimitOverrides, countSessionWrite } from "./limits";
 import { HttpError, json, readJson } from "./http";
@@ -33,6 +34,7 @@ function segments(parts: RegExpMatchArray): (string | undefined)[] {
 
 async function me(request: Request, env: Env, email: string): Promise<Response> {
   if (request.method === "GET") return json(await ensureUser(env.DB, email));
+  if (request.method === "DELETE") return deleteAccount(env.DB, email, request);
   if (request.method === "PUT") {
     const parsed = parseProfilePatch(await readJson(request, MAX_PROFILE_BODY));
     if (!parsed.ok) throw new HttpError(400, parsed.error);
@@ -210,6 +212,7 @@ async function route(request: Request, env: Env, getKeys: () => KeySource, as?: 
     const tokens = TOKENS_PATH.exec(url.pathname);
     if (tokens) return await tokensRoute(env.DB, email, request, segments(tokens)[0], now);
     if (url.pathname === "/api/me") return await me(request, env, email);
+    if (url.pathname === "/api/me/export") return request.method === "GET" ? await exportAccount(env.DB, email, now) : notAllowed();
     const workspace = WORKSPACE_PATH.exec(url.pathname);
     if (workspace) return limitList(await workspaceRoute(request, env.DB, email, workspace, now), token, !workspace[1] && request.method === "GET");
     const diagram = DIAGRAM_PATH.exec(url.pathname);

@@ -267,6 +267,11 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
 export async function exportWorkspace(db: D1Database, workspace: string, email: string): Promise<Response> {
   await requireMember(db, workspace, email);
   await checkExportSize(db, workspace);
+  return json({ format: BACKUP_FORMAT, version: 1, workspaces: [await workspaceBackup(db, workspace, email)] });
+}
+
+/** One workspace as a `skope-backup` file holds it: its diagrams, their history, who follows whom, and its types. */
+export async function workspaceBackup(db: D1Database, workspace: string, email: string): Promise<Record<string, unknown>> {
   const [ws, rows, snaps, types] = await db.batch<Record<string, string | number | null>>([
     db.prepare("SELECT id, name, owner_email FROM workspaces WHERE id = ?").bind(workspace),
     db.prepare("SELECT id, name, doc, updated_at, lead_id, synced_snapshot_id, paused, decided FROM diagrams WHERE workspace_id = ? ORDER BY updated_at, rowid").bind(workspace),
@@ -302,16 +307,10 @@ export async function exportWorkspace(db: D1Database, workspace: string, email: 
         }
       : {}),
   }));
-  return json({
-    format: BACKUP_FORMAT,
-    version: 1,
-    workspaces: [
-      {
-        name: info.name,
-        personal: info.id === personalWorkspaceId(String(info.owner_email)) && info.owner_email === email,
-        ...(types.results.length ? { types: types.results } : {}),
-        diagrams,
-      },
-    ],
-  });
+  return {
+    name: info.name,
+    personal: info.id === personalWorkspaceId(String(info.owner_email)) && info.owner_email === email,
+    ...(types.results.length ? { types: types.results } : {}),
+    diagrams,
+  };
 }

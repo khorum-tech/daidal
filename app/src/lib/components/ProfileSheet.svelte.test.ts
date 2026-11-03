@@ -56,4 +56,49 @@ describe('the profile and appearance sheet', () => {
 		await page.getByRole('checkbox', { name: /Simulate it/ }).click();
 		expect(changes.at(-1)).toEqual({ simulate: true });
 	});
+
+	it('downloads your data, and deletes the account only once your email is typed', async () => {
+		const calls: string[] = [];
+		render(ProfileSheet, {
+			me,
+			settings: DEFAULTS,
+			light: false,
+			onchange: () => {},
+			onsave: async () => {},
+			ondownload: async () => {
+				calls.push('download');
+			},
+			ondelete: async confirm => {
+				calls.push(`delete ${confirm}`);
+			}
+		});
+		await page.getByRole('button', { name: 'Download my data' }).click();
+		await page.getByRole('button', { name: 'Delete my account…' }).click();
+		const go = page.getByRole('button', { name: 'Delete everything' });
+		await expect.element(go).toBeDisabled();
+		await page.getByLabelText(/Type your email/).fill('someone@example.com');
+		await expect.element(go).toBeDisabled();
+		await page.getByLabelText(/Type your email/).fill(' ADA@example.com ');
+		await go.click();
+		expect(calls).toEqual(['download', 'delete ADA@example.com']);
+	});
+
+	it('keeps the account when you back out, and says why a delete failed', async () => {
+		render(ProfileSheet, {
+			me,
+			settings: DEFAULTS,
+			light: false,
+			onchange: () => {},
+			onsave: async () => {},
+			ondelete: async () => {
+				throw new Error('offline');
+			}
+		});
+		await page.getByRole('button', { name: 'Delete my account…' }).click();
+		await page.getByLabelText(/Type your email/).fill('ada@example.com');
+		await page.getByRole('button', { name: 'Delete everything' }).click();
+		await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't delete your account: offline");
+		await page.getByRole('button', { name: 'Keep my account' }).click();
+		await expect.element(page.getByRole('button', { name: 'Delete my account…' })).toBeVisible();
+	});
 });
