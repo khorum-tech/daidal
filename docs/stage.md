@@ -1,13 +1,16 @@
 # Stage
 
-Every push to a pull request from this repository deploys that branch to **https://skope-stage.khorum-oss.org**
-and resets its database to the invented stage diagrams in [`stage/diagrams.ts`](../stage/diagrams.ts). The
-`stage` job in [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) does it, after `test` passes.
+Pull requests from this repository take turns on **https://skope-stage.khorum-oss.org**: a deploy puts that
+branch there and resets its database to the invented stage diagrams in [`stage/diagrams.ts`](../stage/diagrams.ts).
+The `stage` job in [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) does it, after `test` passes.
 
-- **One shared stage.** A Worker `skope-stage`, a D1 `skope-stage`, one hostname. Two PRs pushed close together
-  overwrite each other; the last push wins.
+- **One shared stage, in turn.** A Worker `skope-stage`, a D1 `skope-stage`, one hostname. The **oldest open PR**
+  (lowest number, not a draft) has it, and its pushes redeploy it. A newer PR doesn't deploy; its stage comment
+  says it's waiting and which PR has stage. When the PR on stage is merged or closed, the next one in line
+  deploys by itself, as its branch stands then (merge `main` into it to bring it up to date, which redeploys it).
+  A draft never takes stage: mark it ready for review to put it in line.
 - **Only the owner signs in.** Stage has its own Access application, narrower than prod's.
-- **Stage data is throwaway.** It holds only the invented data, never a real backup, and every push resets it.
+- **Stage data is throwaway.** It holds only the invented data, never a real backup, and every deploy resets it.
 - **Fork PRs get no stage.** The job runs only for branches of this repository. Never change it to
   `pull_request_target`: that would run a stranger's code with the Cloudflare token.
 - `workers_dev` and `preview_urls` stay off, as in prod, and the `DEV_USER_EMAIL` sign-in stays localhost-only.
@@ -24,8 +27,8 @@ Until the two repository variables and the secret below are set, the `stage` job
    - Variables: `STAGE_D1_ID` (step 1) and `STAGE_ACCESS_AUD` (step 2).
    - Secret: `STAGE_OWNER_EMAIL`, the email you sign in to Access with. The stage data is owned by this address.
      It is a secret so GitHub masks it in this public repository's logs, and only the seed step gets it.
-4. **Push to any PR.** The job applies the migrations, resets the data, deploys, and posts one comment on the PR
-   with the link. Later pushes update that same comment.
+4. **Push to a PR.** If it's first in line, the job applies the migrations, resets the data, deploys, and posts one
+   comment on the PR with the link; otherwise the comment says it's waiting. Later runs update that same comment.
 
 The existing `CLOUDFLARE_API_TOKEN` already has what stage needs, since prod deploys apply remote migrations and
 deploy to a custom domain. A separate token would not protect prod (D1 and Workers permissions are account-wide);

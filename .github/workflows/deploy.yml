@@ -4,12 +4,16 @@ on:
   push:
     branches: [main]
   pull_request:
+    # closed: so stage passes to the next PR in line when the one on it is merged or closed.
+    types: [opened, synchronize, reopened, ready_for_review, closed]
 
 permissions:
   contents: read
 
 jobs:
   test:
+    # A closed PR has nothing left to test; its run only hands stage on.
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,17 +60,22 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-  # Stage: every push to a PR from this repository re-deploys https://skope-stage.khorum-oss.org and resets its
-  # data to invented stage data (stage/diagrams.ts). One shared stage, so the last push wins. Fork PRs never get it:
-  # GitHub gives them no secrets, and this job never runs their code with the Cloudflare token
-  # (never switch to pull_request_target). One-time setup: docs/stage.md.
+  # Stage: one shared site, https://skope-stage.khorum-oss.org, that goes to open PRs in turn. The oldest open PR
+  # from this repository that isn't a draft has it: its pushes re-deploy stage and reset its data to invented stage
+  # data (stage/diagrams.ts). A newer PR waits, and says so on itself; when the PR on stage is merged or closed, the
+  # next one in line deploys. Fork PRs never get it: GitHub gives them no secrets, and this job never runs their code
+  # with the Cloudflare token (never switch to pull_request_target). One-time setup: docs/stage.md.
   stage:
     needs: test
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    # needs.test is skipped on a closed PR (nothing to test), which still hands stage on; a failed test stops it.
+    if: >-
+      always() && needs.test.result != 'failure' && needs.test.result != 'cancelled' &&
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    # One deploy at a time, in order: a waiting run never cuts a deploy short.
     concurrency:
       group: stage
-      cancel-in-progress: true
+      cancel-in-progress: false
     permissions:
       contents: read
       pull-requests: write
@@ -80,63 +89,121 @@ jobs:
       - if: steps.setup.outputs.ready != 'true'
         name: Stage not set up yet
         run: echo "::notice title=Stage not set up yet::Set the STAGE_D1_ID and STAGE_ACCESS_AUD variables and the STAGE_OWNER_EMAIL secret to deploy PRs to stage (docs/stage.md)."
+      # Who has stage: the oldest open PR from this repository that isn't a draft. On a push, this PR deploys only if
+      # it is that one; on a close, the next in line deploys, but only if the closed PR was the one on stage.
       - if: steps.setup.outputs.ready == 'true'
+        id: line
+        name: Who is first in line
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          ACTION: ${{ github.event.action }}
+        run: |
+          # "number sha branch" for each open PR in line, oldest first.
+          line="$(gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
+            --jq ".[] | select(.draft | not) | select(.head.repo.full_name == \"$REPO\") | \"\(.number) \(.head.sha) \(.head.ref)\"" \
+            | grep -v "^$PR " | sort -n || true)"
+          first="$(printf '%s\n' "$line" | head -n 1)"
+          first_pr="${first%% *}"
+          if [ "$ACTION" = "closed" ]; then
+            # The closed PR had stage if no open PR is older than it.
+            if [ -n "$first" ] && [ "$first_pr" -gt "$PR" ]; then
+              read -r pr sha branch <<< "$first"
+              echo "deploy=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "deploy=false" >> "$GITHUB_OUTPUT"
+            fi
+          elif [ -n "$first" ] && [ "$first_pr" -lt "$PR" ]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "first=$first_pr" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.pull_request.draft }}" = "true" ]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "draft=true" >> "$GITHUB_OUTPUT"
+          else
+            pr="$PR"
+            sha="${{ github.event.pull_request.head.sha }}"
+            branch="${{ github.head_ref }}"
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "${pr:-}" ]; then
+            { echo "pr=$pr"; echo "sha=$sha"; echo "branch=$branch"; } >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.line.outputs.deploy == 'true'
         uses: actions/checkout@v4
-      - if: steps.setup.outputs.ready == 'true'
+        with:
+          ref: ${{ steps.line.outputs.sha }}
+      - if: steps.line.outputs.deploy == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - if: steps.setup.outputs.ready == 'true'
+      - if: steps.line.outputs.deploy == 'true'
         run: npm ci
-      - if: steps.setup.outputs.ready == 'true'
+      - if: steps.line.outputs.deploy == 'true'
         run: npm ci --ignore-scripts --prefix app
-      - if: steps.setup.outputs.ready == 'true'
+      - if: steps.line.outputs.deploy == 'true'
         name: Generate wrangler.stage.jsonc
         run: node scripts/stage-config.mjs
         env:
           STAGE_D1_ID: ${{ vars.STAGE_D1_ID }}
           STAGE_ACCESS_AUD: ${{ vars.STAGE_ACCESS_AUD }}
-      - if: steps.setup.outputs.ready == 'true'
+      - if: steps.line.outputs.deploy == 'true'
         name: Apply migrations to the stage database
         run: npx wrangler d1 migrations apply skope-stage --remote -c wrangler.stage.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - if: steps.setup.outputs.ready == 'true'
+      - if: steps.line.outputs.deploy == 'true'
         name: Generate seed.sql
         run: npm run stage-seed
         env:
           STAGE_OWNER_EMAIL: ${{ secrets.STAGE_OWNER_EMAIL }}
-      - if: steps.setup.outputs.ready == 'true'
+      - if: steps.line.outputs.deploy == 'true'
         name: Reset the stage database to the stage data
         run: npx wrangler d1 execute skope-stage --remote --file seed.sql -c wrangler.stage.jsonc --yes
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - if: steps.setup.outputs.ready == 'true'
+      - if: steps.line.outputs.deploy == 'true'
         name: Deploy the stage Worker
         run: npx wrangler deploy -c wrangler.stage.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - if: steps.setup.outputs.ready == 'true'
-        name: Link stage on the PR
+      # One comment per PR, kept up to date: live on stage, or waiting behind the PR that has it.
+      - if: steps.setup.outputs.ready == 'true' && (steps.line.outputs.deploy == 'true' || github.event.action != 'closed')
+        name: Say on the PR where stage stands
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
-          BRANCH: ${{ github.head_ref }}
-          SHA: ${{ github.event.pull_request.head.sha }}
+          DEPLOYED: ${{ steps.line.outputs.deploy }}
+          LIVE_PR: ${{ steps.line.outputs.pr }}
+          LIVE_SHA: ${{ steps.line.outputs.sha }}
+          LIVE_BRANCH: ${{ steps.line.outputs.branch }}
+          FIRST: ${{ steps.line.outputs.first }}
+          DRAFT: ${{ steps.line.outputs.draft }}
+          THIS_PR: ${{ github.event.pull_request.number }}
         run: |
           marker='<!-- skope-stage -->'
-          body="$marker
-          **Stage:** \`$BRANCH\` at \`${SHA:0:7}\` is live at https://skope-stage.khorum-oss.org (the app, with the stage data: https://skope-stage.khorum-oss.org/app/)
+          if [ "$DEPLOYED" = "true" ]; then
+            target="$LIVE_PR"
+            body="$marker
+          **Stage:** \`$LIVE_BRANCH\` at \`${LIVE_SHA:0:7}\` is live at https://skope-stage.khorum-oss.org (the app, with the stage data: https://skope-stage.khorum-oss.org/app/)
 
-          Stage data is invented and **resets on every push** to any PR, so nothing entered there is kept. Stage is shared: it shows whichever PR pushed last."
-          id="$(gh api --paginate "repos/$REPO/issues/$PR/comments" --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id" | head -n 1)"
+          This PR has stage until it is merged or closed; newer PRs wait their turn. Stage data is invented and **resets on every push** to this PR, so nothing entered there is kept."
+          elif [ "$DRAFT" = "true" ]; then
+            target="$THIS_PR"
+            body="$marker
+          **Stage:** not deployed: this PR is a draft. Mark it ready for review to take its place in line for stage."
+          else
+            target="$THIS_PR"
+            body="$marker
+          **Stage:** waiting. Stage shows #$FIRST, the oldest open PR; this one deploys there when #$FIRST is merged or closed (or on its next push after that)."
+          fi
+          id="$(gh api --paginate "repos/$REPO/issues/$target/comments" --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id" | head -n 1)"
           if [ -n "$id" ]; then
             gh api -X PATCH "repos/$REPO/issues/comments/$id" -f body="$body" > /dev/null
           else
-            gh api "repos/$REPO/issues/$PR/comments" -f body="$body" > /dev/null
+            gh api "repos/$REPO/issues/$target/comments" -f body="$body" > /dev/null
           fi
