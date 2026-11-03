@@ -208,6 +208,16 @@ describe("diagrams", () => {
     expect(res).toEqual({ status: 400, body: { error } });
   });
 
+  it("refuses a tag colour that isn't a colour, which would reach every member's styles and exported SVG", async () => {
+    const email = "d-colour@example.com";
+    const bad = { ...doc(), tags: { a: { label: "A", color: "red;position:fixed;inset:0" } } };
+    expect((await call.post(email, "/api/diagrams", { workspace: `personal:${email}`, doc: bad })).body).toEqual({
+      error: "doc: tag “a” has a colour Skope can't use; give it as #rrggbb",
+    });
+    const good = { ...doc(), tags: { a: { label: "A", color: "#a1b2c3" } } };
+    expect((await call.post(email, "/api/diagrams", { workspace: `personal:${email}`, doc: good })).status).toBe(201);
+  });
+
   it("refuses a save without a rev, and a body that is not sent as JSON", async () => {
     const { body: d } = await call.post("d-norev@example.com", "/api/diagrams", { workspace: "personal:d-norev@example.com", doc: doc() });
     expect((await call.put("d-norev@example.com", `/api/diagrams/${d.id}`, { name: "x" })).body).toEqual({ error: "rev must be the revision you loaded" });

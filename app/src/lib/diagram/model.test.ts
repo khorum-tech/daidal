@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE } from '../fixtures/docs';
 import { catalogue } from './icons';
-import { bounds, ICON_CARD, iconScene, isHidden, NODE_H, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName } from './model';
+import { bounds, ICON_CARD, iconScene, isColor, isHidden, NODE_H, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName } from './model';
 
 describe('typeName', () => {
 	it("turns a slug back into the prototype's own type name", () => {
@@ -120,5 +120,17 @@ describe('a node’s icon', () => {
 	it('is its own when it has one from the library, else its type’s', () => {
 		expect(toScene(doc({ type: 'database', icon: 'vault' })).nodes[0]).toMatchObject({ icon: 'vault', ownIcon: 'vault' });
 		expect(toScene(doc({ type: 'database', icon: 'trash' })).nodes[0]).toMatchObject({ icon: 'database', ownIcon: null });
+	});
+});
+
+describe('isColor', () => {
+	it('takes hex, rgb() and hsl() with plain numbers, and nothing that could carry CSS or markup', () => {
+		for (const ok of ['#abc', '#A1B2C3', '#a1b2c3d4', 'rgb(1, 2, 3)', 'rgba(1 2 3 / 50%)', 'hsl(200, 50%, 40%)']) expect(isColor(ok), ok).toBe(true);
+		for (const bad of ['red', 'red;position:fixed', 'url(https://evil/x)', '"/><script>', '#12', 'rgb(1,2,3);x:y', 12, undefined]) expect(isColor(bad), String(bad)).toBe(false);
+	});
+
+	it('gives a tag with a colour Skope can’t use the plain grey on the canvas', () => {
+		const scene = toScene({ version: 1, tags: { a: { label: 'A', color: 'red;inset:0' } }, nodes: [] });
+		expect(scene.tags[0].color).toBe('#9397ab');
 	});
 });

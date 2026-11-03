@@ -1,6 +1,7 @@
 // Put together what the Worker serves: the SvelteKit build under /app (its base path), which is also where the site
-// root sends people, and the prototype from web/ under /prototype, kept for now.
-import { cpSync, existsSync, rmSync } from "node:fs";
+// root sends people, and `_headers`, the security headers Cloudflare puts on every static file it serves.
+import { cpSync, existsSync, rmSync, writeFileSync } from "node:fs";
+import { SECURITY_HEADERS } from "../worker/src/headers.ts";
 
 const out = "dist";
 if (!existsSync("app/build/index.html")) {
@@ -9,5 +10,6 @@ if (!existsSync("app/build/index.html")) {
 }
 rmSync(out, { recursive: true, force: true });
 cpSync("app/build", `${out}/app`, { recursive: true });
-cpSync("web", `${out}/prototype`, { recursive: true });
-console.log(`assembled ${out}/ (app at /app, which / redirects to; prototype at /prototype)`);
+const lines = Object.entries(SECURITY_HEADERS).map(([k, v]) => `  ${k}: ${v}`);
+writeFileSync(`${out}/_headers`, `/*\n${lines.join("\n")}\n`);
+console.log(`assembled ${out}/ (app at /app, which / redirects to; security headers in _headers)`);

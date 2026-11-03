@@ -2,6 +2,7 @@ import { currentEmail, type KeySource } from "./auth";
 import { ensureUser, updateUser } from "./db";
 import * as diagrams from "./diagrams";
 import type { Env } from "./env";
+import { secured } from "./headers";
 import { HttpError, json, readJson } from "./http";
 import { exportWorkspace, importWorkspaces } from "./importer";
 import { parseProfilePatch } from "./profile";
@@ -90,8 +91,7 @@ function diagramRoute(request: Request, db: D1Database, email: string, url: URL,
 /**
  * Static files come first; a request reaches the Worker only when no file matches. The site root goes to the app.
  * Under /app that is one of the SvelteKit app's routes, so it gets the app's page, unless it looks like a file (an
- * extension, or the app's `_app/` build folder), which stays a 404. The prototype is under /prototype, served as
- * is; anything else is a 404.
+ * extension, or the app's `_app/` build folder), which stays a 404. Anything else is a 404.
  */
 async function siteFile(request: Request, env: Env, url: URL): Promise<Response> {
   if (url.pathname === "/" || url.pathname === "/index.html") return Response.redirect(new URL(`/app/${url.search}`, url).href, 302);
@@ -102,6 +102,10 @@ async function siteFile(request: Request, env: Env, url: URL): Promise<Response>
   // "/app/" rather than "/app/index.html": the assets binding answers the latter with a redirect to the former.
   return env.ASSETS.fetch(new Request(new URL("/app/", url), request));
 }
+
+/** What went wrong, for the log: the error's kind and message only, never its data (which can hold an email). */
+const errorName = (e: unknown) =>
+  e instanceof Error ? `${e.name}: ${e.message.split(" ").map(word => (word.includes("@") ? "<email>" : word)).join(" ")}` : typeof e;
 
 /** A 401 an MCP client understands: it needs to sign in, or a bearer token. */
 function unauthorized(message: string): Response {
@@ -138,14 +142,15 @@ async function mcpEndpoint(request: Request, env: Env, getKeys: () => KeySource)
   try {
     return await mcpRoute(request, api);
   } catch (e) {
-    console.error("MCP request failed:", e);
+    console.error("MCP request failed:", errorName(e));
     return json({ jsonrpc: "2.0", id: null, error: { code: -32603, message: "internal error" } }, 500);
   }
 }
 
 /** What a token may do, checked before its request runs: the route, the workspace, and its writes this minute. */
 async function guardToken(db: D1Database, token: TokenGrant, request: Request, url: URL, now: number): Promise<void> {
-  checkToken(token, request.method, url.pathname);
+  // The routes match decoded segments, so the policy does too: `/%65xport` is the export route.
+  checkToken(token, request.method, decodedPath(url.pathname));
   await checkWorkspaces(db, token, request, url);
   if (request.method !== "GET" && request.method !== "HEAD") await countWrite(db, token, now);
 }
@@ -167,6 +172,16 @@ async function actorOf(request: Request, env: Env, getKeys: () => KeySource, now
   return email ? { email, token: null } : null;
 }
 
+/** [path] with each segment percent-decoded; one that can't be decoded is a 404. */
+function decodedPath(path: string): string {
+  try {
+    return path.split("/").map(decodeURIComponent).join("/");
+  } catch {
+    throw new HttpError(404, "not found");
+  }
+}
+
+/** Every response, with the site's security headers (worker/src/headers.ts). */
 export async function handleRequest(
   request: Request,
   env: Env,
@@ -174,6 +189,10 @@ export async function handleRequest(
   /** Who is asking, already decided: the MCP server's own calls into the API, as the client it signed in. */
   as?: Actor,
 ): Promise<Response> {
+  return secured(await route(request, env, getKeys, as));
+}
+
+async function route(request: Request, env: Env, getKeys: () => KeySource, as?: Actor): Promise<Response> {
   const url = new URL(request.url);
   if (url.pathname === "/mcp") return mcpEndpoint(request, env, getKeys);
   if (!url.pathname.startsWith("/api/")) return siteFile(request, env, url);
@@ -195,7 +214,7 @@ export async function handleRequest(
     return json({ error: "not found" }, 404);
   } catch (e) {
     if (e instanceof HttpError) return json({ error: e.message, ...e.body }, e.status);
-    console.error("API request failed:", e);
+    console.error("API request failed:", errorName(e));
     return json({ error: "internal error" }, 500);
   }
 }

@@ -1,4 +1,9 @@
 <script lang="ts">
+	// Inter from the app's own files, so no page load asks Google Fonts for anything.
+	import '@fontsource/inter/400.css';
+	import '@fontsource/inter/500.css';
+	import '@fontsource/inter/600.css';
+	import '@fontsource/inter/700.css';
 	import '#lib/styles/nocturne.css';
 	import '#lib/styles/app.css';
 	import { appearance } from '#lib/appearance.svelte.ts';

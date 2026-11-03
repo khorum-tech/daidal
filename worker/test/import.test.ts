@@ -58,6 +58,18 @@ describe("POST /api/workspaces/import", () => {
     expect(mine.decided).toEqual({ [`${history[1].id}:na:gw`]: "skipped", "other:x": "accepted" });
   });
 
+  it("never takes a time from the file that is later than the import, or a snapshot later than its diagram", async () => {
+    const email = "i-future@example.com";
+    const file = backup([{ name: "Later", diagrams: [{ id: "d", doc: doc("x"), updated: "2999-01-01T00:00:00.000Z", snapshots: [{ id: "s", label: "s", doc: doc("x"), at: "2999-06-01T00:00:00.000Z" }] }] }]);
+    const before = Date.now();
+    const res = await call.post(email, "/api/workspaces/import", file);
+    const [d] = (await call.get(email, `/api/diagrams?workspace=${res.body.workspaces[0].id}`)).body;
+    expect(d.updatedAt).toBeGreaterThanOrEqual(before);
+    expect(d.updatedAt).toBeLessThanOrEqual(Date.now());
+    const [snap] = (await call.get(email, `/api/diagrams/${d.id}/snapshots`)).body;
+    expect(snap.createdAt).toBeLessThanOrEqual(d.updatedAt);
+  });
+
   it("gives everything new ids, so the same file imports twice side by side", async () => {
     const first = await call.post("i-twice@example.com", "/api/workspaces/import", twoWorkspaces());
     const second = await call.post("i-twice@example.com", "/api/workspaces/import", twoWorkspaces());

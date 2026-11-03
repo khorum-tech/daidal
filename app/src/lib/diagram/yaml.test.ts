@@ -40,3 +40,10 @@ describe('yaml', () => {
 		expect(err!.line).toBe(3);
 	});
 });
+
+describe('yaml keys', () => {
+	it('refuses keys that would reach an object’s prototype', () => {
+		for (const text of ['__proto__:\n  x: 1', 'a:\n  constructor: 1', 'a: { prototype: 1 }']) expect(() => parseYaml(text), text).toThrow(YamlError);
+		expect(Object.getPrototypeOf(parseYaml('a: 1'))).toBe(Object.prototype);
+	});
+});

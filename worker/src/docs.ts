@@ -1,3 +1,4 @@
+import { isColor } from "../../app/src/lib/diagram/model";
 import { HttpError, isPlainObject } from "./http";
 
 /**
@@ -15,6 +16,13 @@ const encoder = new TextEncoder();
 export function docText(value: unknown, what = "doc"): string {
   if (!isPlainObject(value)) throw new HttpError(400, `${what} must be a JSON object`);
   if (value.version !== 1) throw new HttpError(400, `${what} must be a version 1 Skope document`);
+  if (isPlainObject(value.tags)) {
+    for (const [key, tag] of Object.entries(value.tags)) {
+      if (isPlainObject(tag) && tag.color !== undefined && !isColor(tag.color)) {
+        throw new HttpError(400, `${what}: tag “${key}” has a colour Skope can't use; give it as #rrggbb`);
+      }
+    }
+  }
   const text = JSON.stringify(value);
   if (encoder.encode(text).length > MAX_DOC_BYTES) throw new HttpError(400, `${what} must be 1 MB or less`);
   return text;

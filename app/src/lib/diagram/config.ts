@@ -1,6 +1,6 @@
 import type { DocBoundary, DocEdge, DocNode, DocTag, SkopeDoc } from '../types';
 import { NEW_TAG_GROUP, TAG_COLORS } from './edit';
-import { slug } from './model';
+import { isColor, slug } from './model';
 import { parseYaml, yamlLines, YamlError } from './yaml';
 
 /**
@@ -107,6 +107,13 @@ function node(raw: unknown, i: number): DocNode {
 	return out;
 }
 
+/** Refuses a tag colour that isn't a colour: it would go into styles and exported SVG. */
+function checkColours(tags: Record<string, DocTag>): void {
+	for (const [key, tag] of Object.entries(tags)) {
+		if (tag?.color !== undefined && !isColor(tag.color)) throw new ConfigError(`tags.${key}: “${asText(tag.color)}” isn't a colour; give it as #rrggbb`);
+	}
+}
+
 /** Tags the nodes use that the config and the diagram don't define, made up as the prototype makes them. */
 function tagsFor(nodes: DocNode[], tags: Record<string, DocTag>): Record<string, DocTag> {
 	const out = { ...tags };
@@ -149,6 +156,7 @@ export function readConfig(text: string, current: SkopeDoc, mode: 'replace' | 'm
 		return { ...e, from: asText(e.from), to: asText(e.to) };
 	});
 	const tags = (o.tags && typeof o.tags === 'object' && !Array.isArray(o.tags) ? o.tags : {}) as Record<string, DocTag>;
+	checkColours(tags);
 	const views = list<{ name: string; tags: string[] }>(o.views).filter(v => v?.name).map(v => ({ ...v, name: asText(v.name), tags: strings(v.tags) }));
 	const diagram = { ...current.diagram, ...(o.diagram && typeof o.diagram === 'object' ? (o.diagram as SkopeDoc['diagram']) : {}), name: current.diagram?.name };
 	if (!diagram.name) delete diagram.name;

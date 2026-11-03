@@ -81,7 +81,9 @@ Do stage first (`skope-stage.khorum-oss.org`), try the clients there, then prod 
 curl -si -X POST https://<site>/mcp | head -5
 ```
 
-- Working: `401` with a `WWW-Authenticate: Bearer realm="skope"` header.
+- Working: `401` with a `WWW-Authenticate: Bearer realm="OAuth", …, resource_metadata="https://<site>/.well-known/…"`
+  header. That 401 comes from Cloudflare Access, before the Worker: a request without a sign-in never reaches Skope.
+  (Locally, with no Access, the Worker answers `realm="skope"` itself.)
 - A `302` to `…cloudflareaccess.com/cdn-cgi/access/login/…` means Managed OAuth isn't in effect; Claude Code then
   reports "Unexpected content type: text/html".
 - `https://<site>/.well-known/oauth-authorization-server` returns JSON once it's on.
