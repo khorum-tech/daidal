@@ -52,7 +52,7 @@ Journal DB and Balance Cache, which doesn't move its contents).
 
 | ID | Do | Expect | On | Result |
 |----|----|--------|----|--------|
-| HOME-0 | Open https://skope-stage.khorum-oss.org/ (the bare site), then https://skope-stage.khorum-oss.org/prototype | The bare site lands on the app at `/app/`; `/prototype` opens the old prototype, with whatever it kept in this browser | D P | |
+| HOME-0 | Open https://skope-stage.khorum-oss.org/ (the bare site), then https://skope-stage.khorum-oss.org/prototype | The bare site lands on the app at `/app/`; `/prototype` is a 404 (the prototype is retired) | D P | |
 | HOME-1 | Open https://skope-stage.khorum-oss.org/app/ in a fresh private window | Cloudflare Access asks you to sign in; after it, the home page shows your **Personal** workspace | D P | |
 | HOME-2 | Look at the workspace list | Your workspaces (Personal, Platform team) and the shared one (Payments, "Shared by priya@example.com") | D P | |
 | HOME-3 | Open **Platform team** | Three cards, each with a thumbnail of its layout, its kind, "9 nodes · 9 connections" (or its own counts), tag colour dots and when it was updated | D P | |

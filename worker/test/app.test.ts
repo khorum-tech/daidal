@@ -20,8 +20,18 @@ function request(path: string, token?: string) {
 describe("handleRequest", () => {
   it("passes non-API paths to the static assets", async () => {
     const assets = { fetch: async () => new Response("the bundle") } as unknown as Fetcher;
-    const res = await handleRequest(request("/prototype/index.html"), { ...env, ASSETS: assets }, signer.getKeys);
+    const res = await handleRequest(request("/app/index.html"), { ...env, ASSETS: assets }, signer.getKeys);
     expect(await res.text()).toBe("the bundle");
+  });
+
+  it("puts the security headers on every response: files, the API, and errors", async () => {
+    const assets = { fetch: async () => new Response("the bundle") } as unknown as Fetcher;
+    for (const path of ["/app/x", "/api/me", "/api/nope", "/"]) {
+      const res = await handleRequest(request(path), { ...env, ASSETS: assets }, signer.getKeys);
+      expect(res.headers.get("x-frame-options"), path).toBe("DENY");
+      expect(res.headers.get("x-content-type-options"), path).toBe("nosniff");
+      expect(res.headers.get("content-security-policy"), path).toContain("frame-ancestors 'none'");
+    }
   });
 
   it("rejects a token signed by a different key", async () => {

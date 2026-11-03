@@ -104,7 +104,7 @@ function nodeMarkup(scene: Scene, shown: (id: string) => number | null): string 
 			}
 			const dash = op < 1 ? ' stroke-dasharray="4 3"' : '';
 			const icon = ICON_PATHS[n.icon] ?? ICON_PATHS.cube;
-			const dot = n.tags[0] && tagColor.get(n.tags[0]) ? `<circle cx="${n.x + n.w - 16}" cy="${n.y + 18}" r="3.5" fill="${tagColor.get(n.tags[0])}"/>` : '';
+			const dot = n.tags[0] && tagColor.get(n.tags[0]) ? `<circle cx="${n.x + n.w - 16}" cy="${n.y + 18}" r="3.5" fill="${esc(tagColor.get(n.tags[0])!)}"/>` : '';
 			const sub = n.sub.trim() ? `<text x="${n.x + 13}" y="${n.y + 66}" font-size="11.5" fill="${C.muted}">${esc(fit(n.sub, n.w - 26, 11.5))}</text>` : '';
 			return [
 				g(

@@ -161,7 +161,7 @@ async function createToken(db: D1Database, email: string, request: Request, now:
   let workspaces: string[] | null = null;
   if (body.workspaces != null) {
     const list = body.workspaces;
-    if (!Array.isArray(list) || list.length === 0 || list.length > 200 || !list.every(w => typeof w === "string")) {
+    if (!Array.isArray(list) || list.length === 0 || list.length > 50 || !list.every(w => typeof w === "string")) {
       throw new HttpError(400, "workspaces must be a list of workspace ids, or left out for all");
     }
     workspaces = [...new Set(list as string[])];

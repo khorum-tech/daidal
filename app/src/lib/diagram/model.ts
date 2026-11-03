@@ -187,12 +187,20 @@ function boundary(b: DocBoundary, i: number): SceneBoundary {
 	};
 }
 
+/**
+ * Whether [v] is a colour a tag may have: hex, or rgb()/hsl() with plain numbers. A tag's colour goes into style
+ * attributes and exported SVG, so anything else (a `;`, a `url(…)`, a quote) is refused, on the server too.
+ */
+export function isColor(v: unknown): v is string {
+	return typeof v === 'string' && (/^#[0-9a-f]{3,8}$/i.test(v) || /^(rgb|hsl)a?\([\d.,%\s/]+\)$/i.test(v));
+}
+
 /** [doc] as the canvas draws it, its types read against [cats] (a workspace's catalogue; the built-ins unless given). */
 export function toScene(doc: SkopeDoc, cats: TypeCats = TYPE_CATS): Scene {
 	const tags = Object.entries(doc.tags ?? {}).map(([key, t]) => ({
 		key,
 		label: t.label ?? key,
-		color: t.color ?? '#9397ab',
+		color: isColor(t.color) ? t.color : '#9397ab',
 		group: t.group || 'Ungrouped'
 	}));
 	const tagKeys = new Set(tags.map(t => t.key));

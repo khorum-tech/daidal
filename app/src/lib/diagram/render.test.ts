@@ -31,3 +31,14 @@ describe('toSvg', () => {
 		expect(exportName('  ', 'svg')).toBe('diagram.svg');
 	});
 });
+
+describe('toSvg and tag colours', () => {
+	it('never writes a tag colour into the SVG as markup', () => {
+		const doc = { version: 1 as const, tags: { a: { label: 'A', color: '#abcdef' } }, nodes: [{ id: 'n', name: 'N', type: 'service', tags: ['a'], layout: { x: 0, y: 0 } }] };
+		const scene = toScene(doc);
+		expect(toSvg(scene, { on: tagsOn(scene, null) }).svg).toContain('fill="#abcdef"');
+		// toScene already turns a bad colour grey; the SVG escapes it as well, in case a scene comes from elsewhere.
+		scene.tags[0].color = '"/><script>alert(1)</script>';
+		expect(toSvg(scene, { on: tagsOn(scene, null) }).svg).not.toContain('<script>');
+	});
+});

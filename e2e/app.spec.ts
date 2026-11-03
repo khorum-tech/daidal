@@ -187,20 +187,47 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("heading", { name: "Not found" })).toBeVisible();
   });
 
-  test("sends the site root to the app, and keeps the prototype at /prototype", async ({ page, request }) => {
+  test("sends the site root to the app, and no longer serves the prototype", async ({ page, request }) => {
     const root = await request.get("/", { maxRedirects: 0 });
     expect(root.status()).toBe(302);
     expect(root.headers().location).toMatch(/\/app\/$/);
-    const prototype = await request.get("/prototype/");
-    expect(prototype.status()).toBe(200);
-    expect(await prototype.text()).toContain("Loading Skope");
+    expect((await request.get("/prototype/")).status()).toBe(404);
 
     const { team } = await importStageData(request);
     await page.goto(`/?ws=${encodeURIComponent(team)}`);
     await expect(page).toHaveURL(/\/app\/\?ws=/);
     await expect(page.getByRole("heading", { name: "Platform team" })).toBeVisible();
     await page.locator("header .who").click();
-    await expect(page.getByRole("menuitem", { name: "Open the prototype" })).toHaveAttribute("href", "/prototype/");
+    await expect(page.getByRole("menuitem", { name: "Docs" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /prototype/i })).toHaveCount(0);
+  });
+
+  test("sends the security headers, and the app runs under its Content-Security-Policy", async ({ page, request }) => {
+    // A static file, an app route the Worker answers with the app's page, and the API.
+    for (const path of ["/app/", "/app/d/anything", "/api/me"]) {
+      const headers = (await request.get(path)).headers();
+      expect(headers["x-frame-options"], path).toBe("DENY");
+      expect(headers["x-content-type-options"], path).toBe("nosniff");
+      expect(headers["content-security-policy"], path).toContain("frame-ancestors 'none'");
+      expect(headers["referrer-policy"], path).toBe("same-origin");
+    }
+    expect(await (await request.get("/app/")).text()).toMatch(/<meta http-equiv="content-security-policy" content="default-src 'self';[^"]*script-src 'self' 'sha256-/);
+
+    const blocked: string[] = [];
+    page.on("console", m => {
+      if (/Content.Security.Policy/i.test(m.text())) blocked.push(m.text());
+    });
+    const { diagrams } = await importStageData(request);
+    await page.goto("/app/");
+    await expect(page.getByRole("heading").first()).toBeVisible();
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    await expect(page.getByTestId("save-status")).toContainText("Saved");
+    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await page.keyboard.press("Escape");
+    await page.goto("/app/docs/getting-started");
+    await expect(page.getByRole("heading", { name: "Getting started", level: 1 })).toBeVisible();
+    await expect(page.locator("img").first()).toBeVisible();
+    expect(blocked).toEqual([]);
   });
 
   test("moves a node with the mouse and saves it", async ({ page, request }) => {

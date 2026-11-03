@@ -11,8 +11,25 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			// A single-page app the Worker serves under /app, beside the prototype at the site root.
+			// A single-page app the Worker serves under /app; the site root redirects there.
 			adapter: adapter({ fallback: 'index.html' }),
+			// The page's Content-Security-Policy, as a meta tag with the hash of SvelteKit's one inline script. Styles
+			// may be inline (Svelte sets style attributes); images may be data: or blob: (icons, PNG export); nothing
+			// loads from anywhere else. The Worker adds frame-ancestors and the other headers (worker/src/headers.ts).
+			csp: {
+				mode: 'hash',
+				directives: {
+					'default-src': ['self'],
+					'script-src': ['self'],
+					'style-src': ['self', 'unsafe-inline'],
+					'img-src': ['self', 'data:', 'blob:'],
+					'font-src': ['self'],
+					'connect-src': ['self'],
+					'object-src': ['none'],
+					'base-uri': ['none'],
+					'form-action': ['self']
+				}
+			},
 			// Under Vitest the base would move the browser test runner's own scripts and stop them loading.
 			paths: { base: process.env.VITEST ? '' : '/app' }
 		})

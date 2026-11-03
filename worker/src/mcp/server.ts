@@ -11,6 +11,8 @@ const PROTOCOL_VERSIONS = ["2025-03-26", "2025-06-18", "2025-11-25"];
 const LATEST = PROTOCOL_VERSIONS.at(-1)!;
 /** A config or document can be up to 1 MB; a little more for the JSON-RPC around it. */
 const MAX_BODY = 1024 * 1024 + 64 * 1024;
+/** The most messages one JSON-RPC batch may carry; clients send one at a time, so this is only a ceiling. */
+const MAX_BATCH = 20;
 
 export const INSTRUCTIONS = [
   "Skope holds architecture diagrams: nodes (services, databases, queues, people, AI agents…), connections between them, containers that group them, tags that colour-code them and views that show a slice of them. Diagrams live in workspaces.",
@@ -94,7 +96,13 @@ export async function mcpRoute(request: Request, api: Api): Promise<Response> {
     return json(failure(null, -32700, "the body is not JSON"), 400);
   }
   if (Array.isArray(body)) {
-    const answers = (await Promise.all(body.map(m => handle(m as Message, api)))).filter(a => a !== null);
+    if (body.length > MAX_BATCH) return json(failure(null, -32600, `a batch can hold at most ${MAX_BATCH} messages`), 400);
+    // One at a time, so a batch can't fan out into many saves to the same diagram at once.
+    const answers: object[] = [];
+    for (const m of body) {
+      const answer = await handle(m as Message, api);
+      if (answer !== null) answers.push(answer);
+    }
     return answers.length ? json(answers) : new Response(null, { status: 202 });
   }
   const answer = await handle(body as Message, api);

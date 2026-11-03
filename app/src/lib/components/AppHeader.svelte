@@ -92,7 +92,7 @@
 			{/each}
 		</nav>
 	{/if}
-	<span class="readonly tag tag-outline" title="Everything the prototype did is here; the old prototype stays at /prototype for now">Preview</span>
+	<span class="readonly tag tag-outline" title="Skope is new: tell us what's missing">Preview</span>
 	<div class="user" bind:this={userEl}>
 		<button type="button" class="who" aria-expanded={open} aria-haspopup={narrow ? 'dialog' : 'menu'} aria-label="Account: {me.name || me.email}" onclick={() => (open = !open)}>
 			<span class="avatar" aria-hidden="true">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>
@@ -121,7 +121,6 @@
 	<button type="button" role="menuitem" onclick={() => openSettings('ai')}>AI access</button>
 	<button type="button" role="menuitem" onclick={tutorial}>Tutorial</button>
 	<a role="menuitem" href={resolve('/docs/[[page]]', {})}>Docs</a>
-	<a role="menuitem" href="/prototype/">Open the prototype</a>
 	<a role="menuitem" href="/cdn-cgi/access/logout">Sign out</a>
 {/snippet}
 

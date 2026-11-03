@@ -82,6 +82,12 @@ interface Line {
 	t: string;
 }
 const KEY = /^([A-Za-z0-9_.$-]+)\s*:(.*)$/;
+/** Keys that would reach an object's prototype rather than the object; a config never needs them, so they're refused. */
+const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);
+const safeKey = (key: string, n: number): string => {
+	if (FORBIDDEN.has(key)) throw new YamlError(`“${key}” can't be used as a key`, n);
+	return key;
+};
 
 const wrapped = (s: string, open: string, close: string) => s.length >= 2 && s.startsWith(open) && s.endsWith(close);
 
@@ -97,7 +103,7 @@ function flow(s: string, n: number): Value | undefined {
 	for (const pair of b ? b.split(',') : []) {
 		const i = pair.indexOf(':');
 		if (i < 0) throw new YamlError('Expected “key: value” inside { }', n);
-		o[pair.slice(0, i).trim()] = scalar(pair.slice(i + 1), n);
+		o[safeKey(pair.slice(0, i).trim(), n)] = scalar(pair.slice(i + 1), n);
 	}
 	return o;
 }
@@ -142,6 +148,7 @@ export function parseYaml(text: string): Value {
 		return L[p].t.startsWith('-') ? list(L[p].ind) : map(L[p].ind);
 	};
 	const assign = (obj: Record<string, Value>, key: string, rest: string, n: number, ind: number) => {
+		safeKey(key, n);
 		const r = rest.trim();
 		if (r === '') {
 			obj[key] = nested(ind) ?? '';

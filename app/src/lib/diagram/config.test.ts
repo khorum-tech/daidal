@@ -61,6 +61,7 @@ describe('config', () => {
 		expect(fails('version: 2\nnodes:\n  - id: a').message).toMatch(/version 2/);
 		expect(fails('{ "nodes": ').message).toMatch(/isn't valid JSON/);
 		expect(fails('nodes:\n  - id: a\n   bad').line).toBe(3);
+		expect(fails('tags:\n  a: { label: A, color: "red;position:fixed" }\nnodes:\n  - id: a').message).toMatch(/tags\.a: “red;position:fixed” isn't a colour/);
 	});
 
 	it('reads connections and containers as edges and boundaries, and plain x and y as the layout', () => {

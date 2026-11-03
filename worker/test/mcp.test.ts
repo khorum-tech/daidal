@@ -68,6 +68,10 @@ describe("the MCP server", () => {
     expect((await raw({ method: "GET", auth })).status).toBe(405);
     const batch = await raw({ method: "POST", auth, body: JSON.stringify([{ jsonrpc: "2.0", id: 1, method: "ping" }, { jsonrpc: "2.0", method: "notifications/initialized" }]) });
     expect(await batch.json()).toEqual([{ jsonrpc: "2.0", id: 1, result: {} }]);
+    const many = Array.from({ length: 21 }, (_, i) => ({ jsonrpc: "2.0", id: i, method: "ping" }));
+    const tooMany = await raw({ method: "POST", auth, body: JSON.stringify(many) });
+    expect(tooMany.status).toBe(400);
+    expect(((await tooMany.json()) as { error: { message: string } }).error.message).toBe("a batch can hold at most 20 messages");
   });
 
   it("refuses a body over its size", async () => {

@@ -64,9 +64,13 @@ interface PlannedFollow {
   decided: string;
 }
 
-const time = (value: unknown, fallback: number) => {
+/**
+ * A time from the file, never later than [latest]: a diagram can't have been saved after the import, nor a snapshot
+ * taken after its diagram's last save, so a file can't pin itself to the top of lists with a date in the future.
+ */
+const time = (value: unknown, latest: number) => {
   const parsed = typeof value === "string" ? Date.parse(value) : NaN;
-  return Number.isNaN(parsed) ? fallback : parsed;
+  return Number.isNaN(parsed) ? latest : Math.min(parsed, latest);
 };
 
 const list = (value: unknown, what: string): Row[] => {

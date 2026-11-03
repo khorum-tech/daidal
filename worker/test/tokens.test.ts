@@ -70,6 +70,8 @@ describe("access tokens", () => {
     expect((await withToken(token, "POST", "/api/me/tokens", { name: "x", scope: "write" })).status).toBe(403);
     expect((await withToken(token, "GET", "/api/workspaces/personal:tk-own@example.com/export")).status).toBe(403);
     expect((await withToken(token, "POST", "/api/workspaces/import", { format: "skope-backup" })).status).toBe(403);
+    // The routes decode each segment, so the policy has to as well.
+    expect((await withToken(token, "GET", "/api/workspaces/personal:tk-own@example.com/%65xport")).status).toBe(403);
   });
 
   it("reads with read scope, and writes nothing", async () => {
