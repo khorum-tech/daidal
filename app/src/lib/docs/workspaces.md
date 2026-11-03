@@ -16,7 +16,8 @@ A workspace holds diagrams and the people who can see them. Everyone has a **Per
 - Members see every diagram in it and can copy them. A diagram is changed only by its owner, the person who made it.
 - A member can **leave** a workspace; what they made there passes to its owner.
 - A diagram's owner can **move** it to another workspace of theirs from its sheet, with its history.
+- Limits, far above everyday use: 100 people in a workspace, 50 workspaces and 1000 diagrams of your own.
 
 ## Backups
 
-**Export a backup** (in Manage) downloads the workspace as one file: its diagrams, their snapshots, which follows which, and its types (not its members). **Import a backup…** on the home screen turns each workspace in a file into a new one of yours.
+**Export a backup** (in Manage) downloads the workspace as one file: its diagrams, their snapshots, which follows which, and its types (not its members). **Import a backup…** on the home screen turns each workspace in a file into a new one of yours. A workspace over 64 MB with its history is too big for one file: move some diagrams to another workspace and export each.

@@ -2,6 +2,7 @@ import { ensureUserStatements } from "./db";
 import { decidedText, docName, docText, MAX_DOC_BYTES, nameOf } from "./docs";
 import { HttpError, isPlainObject, json, noContent, readJson } from "./http";
 import { summaryText } from "./summary";
+import { checkDiagramRoom, checkHistoryRoom } from "./limits";
 import { requireMember } from "./workspaces";
 
 // A document plus the few fields around it; the document limit is checked on its own.
@@ -147,6 +148,7 @@ export async function createDiagram(db: D1Database, email: string, request: Requ
   const workspace = typeof body.workspace === "string" ? body.workspace : "";
   if (!workspace) throw new HttpError(400, "workspace is required");
   await requireMember(db, workspace, email);
+  await checkDiagramRoom(db, email);
 
   let doc: string;
   let name: string;
@@ -278,6 +280,7 @@ export async function createSnapshot(db: D1Database, id: string, email: string, 
   if (!isPlainObject(body)) throw new HttpError(400, "body must be a JSON object");
   const label = nameOf(body.label, "label");
   const doc = docText(body.doc);
+  await checkHistoryRoom(db, id, 1, new TextEncoder().encode(doc).length);
   const snapshot = crypto.randomUUID();
   await db
     .prepare("INSERT INTO snapshots (id, diagram_id, label, author_email, doc, created_at) VALUES (?, ?, ?, ?, ?, ?)")

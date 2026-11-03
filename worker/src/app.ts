@@ -3,6 +3,7 @@ import { ensureUser, updateUser } from "./db";
 import * as diagrams from "./diagrams";
 import type { Env } from "./env";
 import { secured } from "./headers";
+import { applyLimitOverrides, countSessionWrite } from "./limits";
 import { HttpError, json, readJson } from "./http";
 import { exportWorkspace, importWorkspaces } from "./importer";
 import { parseProfilePatch } from "./profile";
@@ -197,12 +198,14 @@ async function route(request: Request, env: Env, getKeys: () => KeySource, as?: 
   if (url.pathname === "/mcp") return mcpEndpoint(request, env, getKeys);
   if (!url.pathname.startsWith("/api/")) return siteFile(request, env, url);
 
+  applyLimitOverrides(env.SKOPE_LIMITS);
   try {
     const now = Date.now();
     const actor = await actorOf(request, env, getKeys, now, as);
     if (!actor) return json({ error: "not signed in" }, 401);
     const { email, token } = actor;
     if (token) await guardToken(env.DB, token, request, url, now);
+    else if (request.method !== "GET" && request.method !== "HEAD") await countSessionWrite(env.DB, email, now);
 
     const tokens = TOKENS_PATH.exec(url.pathname);
     if (tokens) return await tokensRoute(env.DB, email, request, segments(tokens)[0], now);

@@ -16,6 +16,7 @@ A snapshot is a named copy of the diagram at a moment: before a big change, at a
 
 - **+ Take a snapshot** in the History panel, with a description.
 - Pick a snapshot to **replay** it on the canvas; the working copy is untouched.
+- A diagram keeps up to 200 snapshots (and 20 MB of them). When its history is full, copy the diagram (below): the copy starts a fresh history.
 
 ![The History panel: the working copy, then snapshots with who took them and when](/app/docs-images/history.png)
 
@@ -31,4 +32,4 @@ A follower lists, for each new snapshot, what changed: nodes, connections and co
 
 ## Saving
 
-Everything saves as you go. If someone else saved the diagram since you opened it, the strip above the canvas says so and offers to load theirs.
+Everything saves as you go. If someone else saved the diagram since you opened it, the strip above the canvas says so and offers to load theirs. After a very large burst of changes (over 300 in a minute), saving waits a few seconds and carries on by itself.

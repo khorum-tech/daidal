@@ -13,15 +13,18 @@ export class Saver {
 	rev: number;
 	#save: (rev: number, doc: SkopeDoc) => Promise<{ rev: number }>;
 	#delay: number;
+	#retry: number;
 	#doc: SkopeDoc | null = null;
 	#timer: ReturnType<typeof setTimeout> | undefined;
 	#busy = false;
 	#again = false;
 
-	constructor(save: (rev: number, doc: SkopeDoc) => Promise<{ rev: number }>, rev: number, delay = 600) {
+	/** [retry]: how long to wait after the server says to slow down (429) before trying the same save again. */
+	constructor(save: (rev: number, doc: SkopeDoc) => Promise<{ rev: number }>, rev: number, delay = 600, retry = 5000) {
 		this.#save = save;
 		this.rev = rev;
 		this.#delay = delay;
+		this.#retry = retry;
 	}
 
 	/** A new version of the document to save, soon. */
@@ -54,7 +57,13 @@ export class Saver {
 			}
 		} catch (e) {
 			this.#again = false;
-			this.state = e instanceof ApiError && e.status === 409 ? 'conflict' : 'error';
+			if (e instanceof ApiError && e.status === 429) {
+				// Too many changes this minute: nothing is wrong with this one, so keep it and try again shortly.
+				this.state = 'pending';
+				this.#timer = setTimeout(() => void this.flush(), this.#retry);
+			} else {
+				this.state = e instanceof ApiError && e.status === 409 ? 'conflict' : 'error';
+			}
 		} finally {
 			this.#busy = false;
 		}

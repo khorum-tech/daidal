@@ -4,6 +4,7 @@ import { HttpError, isPlainObject, json, readJson } from "./http";
 import { slug } from "../../app/src/lib/diagram/model";
 import { summaryText } from "./summary";
 import { customTypeOf, MAX_TYPES } from "./types";
+import { checkDiagramRoom, checkExportSize, checkWorkspaceRoom, historyFits } from "./limits";
 import { requireMember } from "./workspaces";
 
 /**
@@ -103,6 +104,23 @@ function chunked(db: D1Database, sql: string, leading: unknown[], rows: object[]
   }
   flush();
   return statements;
+}
+
+/** The same limits as one change at a time (limits.ts), for everything the file brings, before anything is written. */
+async function checkImportRoom(db: D1Database, email: string, diagrams: PlannedDiagram[], snapshots: PlannedSnapshot[], workspaces: number): Promise<void> {
+  const history = new Map<string, { n: number; bytes: number }>();
+  for (const s of snapshots) {
+    const h = history.get(s.diagram_id) ?? { n: 0, bytes: 0 };
+    h.n += 1;
+    h.bytes += encoder.encode(s.doc).length;
+    history.set(s.diagram_id, h);
+  }
+  for (const d of diagrams) {
+    const h = history.get(d.id);
+    if (h) historyFits(h.n, h.bytes, `The history of "${d.name}" in the file`);
+  }
+  await checkDiagramRoom(db, email, diagrams.length);
+  if (workspaces) await checkWorkspaceRoom(db, email, personalWorkspaceId(email), workspaces);
 }
 
 export async function importWorkspaces(db: D1Database, email: string, request: Request, now: number): Promise<Response> {
@@ -239,6 +257,7 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
     ),
   );
   if (statements.length > MAX_STATEMENTS) throw new HttpError(400, "the file is too large to import in one request; import one workspace at a time");
+  await checkImportRoom(db, email, diagrams, snapshots, summary.filter(w => !w.personal).length);
 
   await db.batch(statements);
   return json({ workspaces: summary }, 201);
@@ -247,6 +266,7 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
 /** `GET /api/workspaces/:id/export`: the workspace as a `skope-backup` that import reads back. */
 export async function exportWorkspace(db: D1Database, workspace: string, email: string): Promise<Response> {
   await requireMember(db, workspace, email);
+  await checkExportSize(db, workspace);
   const [ws, rows, snaps, types] = await db.batch<Record<string, string | number | null>>([
     db.prepare("SELECT id, name, owner_email FROM workspaces WHERE id = ?").bind(workspace),
     db.prepare("SELECT id, name, doc, updated_at, lead_id, synced_snapshot_id, paused, decided FROM diagrams WHERE workspace_id = ? ORDER BY updated_at, rowid").bind(workspace),

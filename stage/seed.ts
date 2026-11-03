@@ -15,7 +15,7 @@ import { importWorkspaces } from "../worker/src/importer";
 import { DEV, OWNER_PROFILE, PRIYA, TEAMMATES, ownerBackup, priyaBackup } from "./diagrams";
 
 /** Every app table, children first, so deleting in this order never trips a foreign key. `d1_migrations` stays. */
-export const APP_TABLES = ["access_tokens", "workspace_types", "snapshots", "diagrams", "workspace_members", "workspaces", "users"] as const;
+export const APP_TABLES = ["rate_windows", "access_tokens", "workspace_types", "snapshots", "diagrams", "workspace_members", "workspaces", "users"] as const;
 
 /** D1 refuses SQL statements longer than 100 KB; stay well under. */
 const MAX_STATEMENT_BYTES = 90_000;
@@ -84,11 +84,14 @@ export function lines({ sql, params }: Recorded): string[] {
   return [rows.slice(0, half), rows.slice(half)].flatMap(part => lines({ sql, params: [...lead, JSON.stringify(part)] }));
 }
 
-/** Just enough of D1 for the importer: it prepares, binds and batches, and this writes those down. */
+/**
+ * Just enough of D1 for the importer: it prepares, binds and batches, and this writes those down. Its few reads (the
+ * limit checks) find nothing, as the seed starts from an empty database.
+ */
 class RecordingD1 {
   readonly statements: Recorded[] = [];
   prepare(sql: string) {
-    const statement = { sql, params: [] as Value[], bind: (...params: Value[]) => ({ ...statement, params }) };
+    const statement = { sql, params: [] as Value[], first: async () => null, bind: (...params: Value[]) => ({ ...statement, params }) };
     return statement;
   }
   async batch(statements: Recorded[]) {

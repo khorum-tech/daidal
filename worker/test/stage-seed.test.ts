@@ -76,7 +76,7 @@ describe("stage seed", () => {
     const first = await counts();
     await seed();
     expect(await counts()).toEqual(first);
-    expect(first).toEqual({ access_tokens: 0, workspace_types: 0, snapshots: 6, diagrams: 7, workspace_members: 3 + 3 + 2, workspaces: 5, users: 3 });
+    expect(first).toEqual({ rate_windows: 0, access_tokens: 0, workspace_types: 0, snapshots: 6, diagrams: 7, workspace_members: 3 + 3 + 2, workspaces: 5, users: 3 });
   });
 
   it("signs the owner and teammates in to their seeded profiles", async () => {
