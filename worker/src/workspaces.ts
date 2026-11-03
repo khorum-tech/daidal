@@ -1,6 +1,7 @@
 import { ensureUserStatements, personalWorkspaceId } from "./db";
 import { emailOf, nameOf } from "./docs";
 import { HttpError, isPlainObject, json, noContent, readJson } from "./http";
+import { checkMemberRoom, checkWorkspaceRoom } from "./limits";
 import { type CustomType, typesStatement } from "./types";
 
 const MAX_BODY = 16 * 1024;
@@ -92,6 +93,7 @@ export async function listWorkspaces(db: D1Database, email: string, now: number)
 
 export async function createWorkspace(db: D1Database, email: string, request: Request, now: number): Promise<Response> {
   const name = nameFrom(await readJson(request, MAX_BODY));
+  await checkWorkspaceRoom(db, email, personalWorkspaceId(email));
   const id = crypto.randomUUID();
   await db.batch([
     ...ensureUserStatements(db, email, now),
@@ -121,6 +123,8 @@ export async function addMember(db: D1Database, workspace: string, email: string
   await requireOwner(db, workspace, email);
   const body = await readJson(request, MAX_BODY);
   const member = emailOf(isPlainObject(body) ? body.email : undefined);
+  const already = await db.prepare("SELECT 1 FROM workspace_members WHERE workspace_id = ? AND email = ?").bind(workspace, member).first();
+  if (!already) await checkMemberRoom(db, workspace);
   await db
     .prepare("INSERT OR IGNORE INTO workspace_members (workspace_id, email, added_at) VALUES (?, ?, ?)")
     .bind(workspace, member, now)

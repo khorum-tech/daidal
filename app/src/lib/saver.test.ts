@@ -74,4 +74,22 @@ describe('Saver', () => {
 		await vi.runAllTimersAsync();
 		expect([s.state, s.unsaved]).toEqual(['saved', false]);
 	});
+
+	it('waits and tries the same save again when the server says to slow down', async () => {
+		const { calls, save } = controlled();
+		const s = new Saver(save, 3, 10, 1000);
+		s.queue(doc(1));
+		await vi.advanceTimersByTimeAsync(10);
+		calls[0].reject(new ApiError(429, 'Too many changes at once; wait a moment and try again.'));
+		await vi.advanceTimersByTimeAsync(0);
+		expect(s.state).toBe('pending');
+		expect(s.unsaved).toBe(true);
+		await vi.advanceTimersByTimeAsync(999);
+		expect(calls).toHaveLength(1);
+		await vi.advanceTimersByTimeAsync(1);
+		expect(calls.map(c => [c.rev, c.doc.diagram?.name])).toEqual([[3, 'v1'], [3, 'v1']]);
+		calls[1].resolve(4);
+		await vi.runAllTimersAsync();
+		expect(s.state).toBe('saved');
+	});
 });

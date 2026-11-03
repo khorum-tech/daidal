@@ -41,6 +41,25 @@ online clients sign in through Access (Managed OAuth, `docs/mcp.md`).
   sessionStorage. No token, email or diagram is kept beyond that.
 - The old prototype (`/prototype`) is retired: it ran older code on the same site, with the same sign-in.
 
+## Limits
+
+So that one person, or one runaway script, can't fill the database or make a shared workspace too big to load
+(`worker/src/limits.ts`; each refusal says what to do):
+
+| What | Limit |
+|------|-------|
+| Snapshots in one diagram's history | 200, and 20 MB in all (copy the diagram to start a fresh history) |
+| Diagrams one person owns | 1000 |
+| Workspaces one person owns | 50, besides the personal one |
+| People in one workspace | 100 |
+| A workspace export | 64 MB (move diagrams to another workspace) |
+| Changes through a browser or OAuth sign-in | 300 a minute (autosave waits and carries on) |
+| Changes through a personal access token | 120 a minute |
+| One document | 1 MB; an import file 10 MB; an MCP request about 1 MB and 20 messages |
+
+Import counts what a file brings against the same limits before writing anything. The end-to-end tests raise the per-person limits for their
+local server with the `SKOPE_LIMITS` variable (`playwright.config.ts`); never set it on stage or prod.
+
 ## What Skope keeps about people
 
 - Your email (from Access), your name and title if you set them, and your settings (appearance, tour progress).
