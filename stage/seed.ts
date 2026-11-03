@@ -91,7 +91,7 @@ export function lines({ sql, params }: Recorded): string[] {
 class RecordingD1 {
   readonly statements: Recorded[] = [];
   prepare(sql: string) {
-    const statement = { sql, params: [] as Value[], first: async () => null, bind: (...params: Value[]) => ({ ...statement, params }) };
+    const statement = { sql, params: [] as Value[], first: () => Promise.resolve(null), bind: (...params: Value[]) => ({ ...statement, params }) };
     return statement;
   }
   async batch(statements: Recorded[]) {
