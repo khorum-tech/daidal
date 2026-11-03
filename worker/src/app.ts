@@ -104,7 +104,8 @@ async function siteFile(request: Request, env: Env, url: URL): Promise<Response>
 }
 
 /** What went wrong, for the log: the error's kind and message only, never its data (which can hold an email). */
-const errorName = (e: unknown) => (e instanceof Error ? `${e.name}: ${e.message.replace(/[^\s@]+@[^\s@]+/g, "<email>")}` : typeof e);
+const errorName = (e: unknown) =>
+  e instanceof Error ? `${e.name}: ${e.message.split(" ").map(word => (word.includes("@") ? "<email>" : word)).join(" ")}` : typeof e;
 
 /** A 401 an MCP client understands: it needs to sign in, or a bearer token. */
 function unauthorized(message: string): Response {

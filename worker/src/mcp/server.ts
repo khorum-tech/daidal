@@ -84,6 +84,13 @@ async function handle(message: Message, api: Api): Promise<object | null> {
   }
 }
 
+/** A JSON-RPC batch: at most [MAX_BATCH] messages, answered together; notifications get no answer. */
+async function batch(body: unknown[], api: Api): Promise<Response> {
+  if (body.length > MAX_BATCH) return json(failure(null, -32600, `a batch can hold at most ${MAX_BATCH} messages`), 400);
+  const answers = (await Promise.all(body.map(m => handle(m as Message, api)))).filter(a => a !== null);
+  return answers.length ? json(answers) : new Response(null, { status: 202 });
+}
+
 export async function mcpRoute(request: Request, api: Api): Promise<Response> {
   if (request.method !== "POST") {
     return new Response(JSON.stringify({ error: "this MCP server answers POST only (no event stream)" }), { status: 405, headers: { allow: "POST", "content-type": "application/json" } });
@@ -95,16 +102,7 @@ export async function mcpRoute(request: Request, api: Api): Promise<Response> {
     if (e instanceof HttpError && e.status !== 400) return json({ error: e.message }, e.status);
     return json(failure(null, -32700, "the body is not JSON"), 400);
   }
-  if (Array.isArray(body)) {
-    if (body.length > MAX_BATCH) return json(failure(null, -32600, `a batch can hold at most ${MAX_BATCH} messages`), 400);
-    // One at a time, so a batch can't fan out into many saves to the same diagram at once.
-    const answers: object[] = [];
-    for (const m of body) {
-      const answer = await handle(m as Message, api);
-      if (answer !== null) answers.push(answer);
-    }
-    return answers.length ? json(answers) : new Response(null, { status: 202 });
-  }
+  if (Array.isArray(body)) return batch(body, api);
   const answer = await handle(body as Message, api);
   return answer ? json(answer) : new Response(null, { status: 202 });
 }
