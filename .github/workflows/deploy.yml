@@ -16,8 +16,10 @@ jobs:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -31,25 +33,32 @@ jobs:
       - run: npm test
       - run: npm run e2e
       - run: npm run build-storybook --prefix app
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
 
+  # Prod. Its Cloudflare token lives in the `production` environment, which only `main` may use (Settings →
+  # Environments), so no pull request's code ever runs with it. Stage has its own token (STAGE_CLOUDFLARE_*).
   deploy:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: production
     concurrency: deploy
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      # No install scripts where a Cloudflare token is about: a dependency can't run code before wrangler does
+      # (wrangler, workerd and esbuild work without them).
+      - run: npm ci --ignore-scripts
       - run: npm ci --ignore-scripts --prefix app
       - run: npx wrangler d1 migrations apply skope --remote
         env:
@@ -85,10 +94,10 @@ jobs:
       - id: setup
         name: Check stage is set up
         run: |
-          echo "ready=${{ vars.STAGE_D1_ID != '' && vars.STAGE_ACCESS_AUD != '' && secrets.STAGE_OWNER_EMAIL != '' }}" >> "$GITHUB_OUTPUT"
+          echo "ready=${{ vars.STAGE_D1_ID != '' && vars.STAGE_ACCESS_AUD != '' && secrets.STAGE_OWNER_EMAIL != '' && secrets.STAGE_CLOUDFLARE_API_TOKEN != '' && secrets.STAGE_CLOUDFLARE_ACCOUNT_ID != '' }}" >> "$GITHUB_OUTPUT"
       - if: steps.setup.outputs.ready != 'true'
         name: Stage not set up yet
-        run: echo "::notice title=Stage not set up yet::Set the STAGE_D1_ID and STAGE_ACCESS_AUD variables and the STAGE_OWNER_EMAIL secret to deploy PRs to stage (docs/stage.md)."
+        run: echo "::notice title=Stage not set up yet::Set the STAGE_D1_ID and STAGE_ACCESS_AUD variables and the STAGE_OWNER_EMAIL, STAGE_CLOUDFLARE_API_TOKEN and STAGE_CLOUDFLARE_ACCOUNT_ID secrets to deploy PRs to stage (docs/stage.md)."
       # Who has stage: the oldest open PR from this repository that isn't a draft. On a push, this PR deploys only if
       # it is that one; on a close, the next in line deploys, but only if the closed PR was the one on stage.
       - if: steps.setup.outputs.ready == 'true'
@@ -135,16 +144,18 @@ jobs:
             { echo "pr=$pr"; echo "sha=$sha"; echo "branch=$branch"; } >> "$GITHUB_OUTPUT"
           fi
       - if: steps.line.outputs.deploy == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ steps.line.outputs.sha }}
+          # Pull-request code runs from here on; it gets no saved GitHub token.
+          persist-credentials: false
       - if: steps.line.outputs.deploy == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
       - if: steps.line.outputs.deploy == 'true'
-        run: npm ci
+        run: npm ci --ignore-scripts
       - if: steps.line.outputs.deploy == 'true'
         run: npm ci --ignore-scripts --prefix app
       - if: steps.line.outputs.deploy == 'true'
@@ -157,8 +168,8 @@ jobs:
         name: Apply migrations to the stage database
         run: npx wrangler d1 migrations apply skope-stage --remote -c wrangler.stage.jsonc
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.STAGE_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID }}
       - if: steps.line.outputs.deploy == 'true'
         name: Generate seed.sql
         run: npm run stage-seed
@@ -168,14 +179,14 @@ jobs:
         name: Reset the stage database to the stage data
         run: npx wrangler d1 execute skope-stage --remote --file seed.sql -c wrangler.stage.jsonc --yes
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.STAGE_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID }}
       - if: steps.line.outputs.deploy == 'true'
         name: Deploy the stage Worker
         run: npx wrangler deploy -c wrangler.stage.jsonc
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.STAGE_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID }}
       # One comment per PR, kept up to date: live on stage, or waiting behind the PR that has it.
       - if: steps.setup.outputs.ready == 'true' && (steps.line.outputs.deploy == 'true' || github.event.action != 'closed')
         name: Say on the PR where stage stands

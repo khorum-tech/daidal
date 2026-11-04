@@ -27,13 +27,28 @@ Until the two repository variables and the secret below are set, the `stage` job
    - Variables: `STAGE_D1_ID` (step 1) and `STAGE_ACCESS_AUD` (step 2).
    - Secret: `STAGE_OWNER_EMAIL`, the email you sign in to Access with. The stage data is owned by this address.
      It is a secret so GitHub masks it in this public repository's logs, and only the seed step gets it.
+   - Secrets: `STAGE_CLOUDFLARE_API_TOKEN` and `STAGE_CLOUDFLARE_ACCOUNT_ID`, stage's own Cloudflare token and the
+     account it works in (see *Tokens* below). Stage never uses prod's token.
 4. **Push to a PR.** If it's first in line, the job applies the migrations, resets the data, deploys, and posts one
    comment on the PR with the link; otherwise the comment says it's waiting. Later runs update that same comment.
 
-The existing `CLOUDFLARE_API_TOKEN` already has what stage needs, since prod deploys apply remote migrations and
-deploy to a custom domain. A separate token would not protect prod (D1 and Workers permissions are account-wide);
-what does is `scripts/stage-config.mjs`, which refuses to run if the stage database id or AUD equals prod's, or if
-`wrangler.jsonc` gains a key it does not know.
+## Tokens
+
+Stage runs pull-request code, so it must not hold prod's keys:
+
+- **Prod's token** (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`) lives in the GitHub environment `production`,
+  which only `main` may use (*Settings → Environments → production → Deployment branches: `main`*). The prod
+  `deploy` job runs there; no pull request's code can reach it.
+- **Stage's token** (`STAGE_CLOUDFLARE_API_TOKEN`, `STAGE_CLOUDFLARE_ACCOUNT_ID`) is a repository secret, used only
+  by the `stage` job. It needs *Workers Scripts: Edit*, *D1: Edit* and *Zone → Workers Routes: Edit* (for the custom
+  domain).
+- Cloudflare can't limit a token to one Worker or one database, so a stage token in the **same account** as prod
+  could still reach prod. The real separation is a **separate Cloudflare account for stage** (its own D1, Worker and
+  Access app; `skope-stage.khorum-oss.org` can stay on the zone through a custom hostname, or move to a domain in
+  that account). Until then, `scripts/stage-config.mjs` still refuses to run if the stage database id or AUD
+  equals prod's, or if `wrangler.jsonc` gains a key it does not know.
+- Deploy jobs install with `--ignore-scripts`, so no dependency runs code while a token is in reach, and checkouts
+  don't save the GitHub token.
 
 ## Seeding locally
 
