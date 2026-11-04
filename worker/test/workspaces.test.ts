@@ -34,6 +34,16 @@ describe("workspaces", () => {
     expect(friend.body.find((w: { id: string }) => w.id === ws.id)).toMatchObject({ name: "Team", members: ["ws-owner@example.com", "friend@example.com"] });
   });
 
+  it("shows the member list only to the owner; a member sees the owner and themselves", async () => {
+    const { body: ws } = await call.post("ws-list-owner@example.com", "/api/workspaces", { name: "Private" });
+    for (const m of ["ws-list-a@example.com", "ws-list-b@example.com"]) await call.post("ws-list-owner@example.com", `/api/workspaces/${ws.id}/members`, { email: m });
+    const asOwner = (await call.get("ws-list-owner@example.com", "/api/workspaces")).body.find((w: { id: string }) => w.id === ws.id);
+    expect(asOwner.members).toEqual(["ws-list-owner@example.com", "ws-list-a@example.com", "ws-list-b@example.com"]);
+    const asMember = (await call.get("ws-list-a@example.com", "/api/workspaces")).body.find((w: { id: string }) => w.id === ws.id);
+    expect(asMember.members).toEqual(["ws-list-owner@example.com", "ws-list-a@example.com"]);
+    expect(JSON.stringify(asMember)).not.toContain("ws-list-b@example.com");
+  });
+
   it("lets only the owner rename, delete or change members", async () => {
     const { body: ws } = await call.post("ws-boss@example.com", "/api/workspaces", { name: "Boss" });
     await call.post("ws-boss@example.com", `/api/workspaces/${ws.id}/members`, { email: "ws-helper@example.com" });

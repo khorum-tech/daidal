@@ -84,7 +84,8 @@ export async function listWorkspaces(db: D1Database, email: string, now: number)
         name: w.name,
         ownerEmail: w.owner_email,
         personal: w.id === personalWorkspaceId(w.owner_email),
-        members: byWorkspace.get(w.id) ?? [],
+        // Only a workspace's owner sees who else is in it; a member sees the owner and themselves.
+        members: w.owner_email === email ? (byWorkspace.get(w.id) ?? []) : [...new Set([w.owner_email, email])],
         types: typesOf.get(w.id) ?? [],
       }),
     ),

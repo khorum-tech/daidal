@@ -78,6 +78,7 @@ Journal DB and Balance Cache, which doesn't move its contents).
 | WS-8 ⚠ | In one of the UAT workspaces, **Delete workspace…**, then **Delete for good** | It asks first, then it's gone and you're taken home | D P | |
 | WS-9 ⚠ | In **Payments**, **Members**, then **Leave this workspace…**, then **Leave the workspace** | It warns that what you made there stays with Priya, then you're taken home and Payments is gone from the list | D P | |
 | WS-10 | In **Manage** on a workspace, **Types** → **+ Add a type**: `Billing Agent`, category `AI`, the **Robot** icon. Open a diagram in it and **+ Add** | **Billing Agent** is under AI in the type picker, drawn with the robot; a member sees it too; a type named `Database` redraws the built-in one in this workspace only | D P | |
+| WS-11 | As a member (not the owner) of **Payments**, open **Manage** → **Members** | Only the owner and you are listed, with a note that only the owner sees everyone | D P | |
 
 ## 3. Starting a diagram
 
@@ -229,6 +230,8 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | APP-7 | Put everything back: **Full colour**, **Dark**, icon cards off | Back to normal | D P | |
 | APP-8 | Your initial → **AI access**: name a token, **Read**, **Only some workspaces** → Payments, **Create token** | The secret shows once with **Copy**; the list shows it as Read, reaching Payments, never used | D P | |
 | APP-9 | **Revoke…** on that token, then confirm | It leaves the list; a script using it gets "not valid or was revoked" | D P | |
+| APP-10 | **Profile** → **Your data** → **Download my data** | A `skope-account-<date>.json` downloads: your profile, every workspace you own (as a backup), the workspaces you're in, your tokens' names | D P | |
+| APP-11 ⚠ | On a throwaway account only: **Delete my account…**, type your email, **Delete everything** | **Delete everything** stays off until the email matches; afterwards you're signed out, your workspaces are gone, and your snapshots elsewhere say "former member" | D | |
 
 ## 15. Diagrams as a whole
 

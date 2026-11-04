@@ -16,6 +16,8 @@
 		light,
 		onchange,
 		onsave,
+		ondownload,
+		ondelete,
 		ai,
 		tab = $bindable('profile')
 	}: {
@@ -25,6 +27,10 @@
 		light: boolean;
 		onchange: (change: Partial<Settings>) => void;
 		onsave: (profile: { name: string; title: string }) => Promise<void>;
+		/** Downloads everything Skope keeps about you; without it the Your data section has no download. */
+		ondownload?: () => Promise<void>;
+		/** Deletes the account, given the typed confirmation; without it there's no delete. */
+		ondelete?: (confirm: string) => Promise<void>;
 		/** The AI access tab's content (access tokens); without it there's no such tab. */
 		ai?: Snippet;
 		tab?: 'profile' | 'appearance' | 'ai';
@@ -40,6 +46,25 @@
 		title = me.title;
 	});
 	const changed = $derived(name.trim() !== me.name || title.trim() !== me.title);
+
+	// Your data: a download, and deleting the account once you've typed your email.
+	let dataBusy = $state(false);
+	let dataFailed = $state('');
+	let deleting = $state(false);
+	let typed = $state('');
+	const confirmed = $derived(typed.trim().toLowerCase() === me.email);
+
+	async function run(action: () => Promise<void>, what: string) {
+		dataBusy = true;
+		dataFailed = '';
+		try {
+			await action();
+		} catch (err) {
+			dataFailed = `Couldn't ${what}: ${err instanceof Error ? err.message : 'unknown error'}`;
+		} finally {
+			dataBusy = false;
+		}
+	}
 
 	async function save(e: SubmitEvent) {
 		e.preventDefault();
@@ -96,6 +121,40 @@
 			</div>
 			{#if failed}<p class="error" role="alert">{failed}</p>{/if}
 		</form>
+		{#if ondownload || ondelete}
+			<section class="section your-data" aria-label="Your data">
+				<h3>Your data</h3>
+				{#if ondownload}
+					<p class="note">One file with your profile, every workspace you own with its diagrams and history (it imports as a backup), the workspaces you're in, and your access tokens' names.</p>
+					<div class="row">
+						<button type="button" class="btn btn-secondary" disabled={dataBusy} onclick={() => run(ondownload, 'download your data')}>Download my data</button>
+					</div>
+				{/if}
+				{#if ondelete}
+					{#if !deleting}
+						<div class="row">
+							<button type="button" class="btn btn-secondary danger" onclick={() => (deleting = true)}>Delete my account…</button>
+						</div>
+					{:else}
+						<div class="confirm" role="group" aria-label="Delete my account">
+							<p>
+								This deletes your account for good: your personal workspace and every workspace you own, with their diagrams and history, and
+								your access tokens. Diagrams you made in other people's workspaces stay there, now theirs. Download your data first if you want a copy.
+							</p>
+							<label class="field">
+								<span>Type your email ({me.email}) to confirm</span>
+								<input class="input" autocomplete="off" bind:value={typed} />
+							</label>
+							<div class="row">
+								<button type="button" class="btn btn-ghost" onclick={() => ((deleting = false), (typed = ''))}>Keep my account</button>
+								<button type="button" class="btn btn-secondary danger" disabled={!confirmed || dataBusy} onclick={() => run(() => ondelete(typed.trim()), 'delete your account')}>Delete everything</button>
+							</div>
+						</div>
+					{/if}
+				{/if}
+				{#if dataFailed}<p class="error" role="alert">{dataFailed}</p>{/if}
+			</section>
+		{/if}
 	{:else if tab === 'ai' && ai}
 		<section class="section" aria-label="AI access">{@render ai()}</section>
 	{:else}
@@ -291,6 +350,20 @@
 		height: 16px;
 		margin: 0;
 		flex: none;
+	}
+	.your-data {
+		padding-top: 12px;
+		border-top: 1px solid var(--color-divider);
+	}
+	.confirm p {
+		margin: 0 0 8px;
+		font-size: 12.5px;
+		line-height: 1.5;
+		color: var(--color-neutral-300);
+	}
+	.danger {
+		color: var(--color-danger, #e5767b);
+		border-color: currentColor;
 	}
 	.error {
 		margin: 0;

@@ -89,6 +89,20 @@ const same = (a: unknown, b: string) => str(a).trim().toLowerCase() === b.trim()
 const choices = (items: { name?: string; label?: string; id: string }[], none = "none") =>
   items.map(i => `${i.name ?? i.label ?? i.id} (${i.id})`).join(", ") || none;
 
+/** The signed-in person's email: only to tell "you" from "another member", never to hand on. */
+async function myEmail(api: Api): Promise<string> {
+  return String(((await api("GET", "/api/me")) as Row).email ?? "");
+}
+
+/**
+ * Who, as a tool answers it: "you", or "another member" (or "former member"). Emails stay out of tool output, since
+ * whatever a tool returns goes to the AI client's model provider.
+ */
+const whoIs = (email: unknown, me: string) => {
+  if (email === me) return "you";
+  return email === "former member" ? "former member" : "another member";
+};
+
 async function workspaces(api: Api): Promise<Workspace[]> {
   return (await api("GET", "/api/workspaces")) as Workspace[];
 }
@@ -228,13 +242,13 @@ function readText(text: string, current: SkopeDoc, mode: "replace" | "merge") {
 
 // ---- outlines ----
 
-function outline(d: Diagram, workspace?: string): Row {
+function outline(d: Diagram, me: string, workspace?: string): Row {
   const doc = d.doc;
   return {
     id: d.id,
     name: d.name,
     ...(workspace ? { workspace } : { workspaceId: d.workspaceId }),
-    owner: d.ownerEmail,
+    owner: whoIs(d.ownerEmail, me),
     kind: doc.diagram?.kind ?? "",
     nodes: toScene(doc).nodes.map(n => ({
       id: n.id,
@@ -300,11 +314,20 @@ export const TOOLS: Tool[] = [
   {
     name: "list_workspaces",
     title: "List workspaces",
-    description: "Your workspaces: id, name, whether it's your personal one, its members and its own node types.",
+    description: "Your workspaces: id, name, whether it's your personal one, who owns it (you or another member), how many members it has (if it's yours) and its own node types.",
     readOnly: true,
     inputSchema: schema({}),
     run: async (_args, api) => ({
-      workspaces: (await workspaces(api)).map(w => ({ id: w.id, name: w.name, personal: w.personal, owner: w.ownerEmail, members: w.members.length, types: w.types.map(t => t.name) })),
+      workspaces: await Promise.all([workspaces(api), myEmail(api)]).then(([all, me]) =>
+        all.map(w => ({
+          id: w.id,
+          name: w.name,
+          personal: w.personal,
+          owner: whoIs(w.ownerEmail, me),
+          ...(w.ownerEmail === me ? { members: w.members.length } : {}),
+          types: w.types.map(t => t.name),
+        })),
+      ),
     }),
   },
   {
@@ -337,13 +360,13 @@ export const TOOLS: Tool[] = [
       const params = new URLSearchParams({ workspace: w.id, limit: String(Math.min(200, Math.max(1, num(args.limit) ?? 50))) });
       if (str(args.query).trim()) params.set("q", str(args.query).trim());
       if (num(args.offset)) params.set("offset", String(num(args.offset)));
-      const rows = (await api("GET", `/api/diagrams?${params}`)) as Row[];
+      const [rows, me] = await Promise.all([api("GET", `/api/diagrams?${params}`) as Promise<Row[]>, myEmail(api)]);
       return {
         workspace: w.name,
         diagrams: rows.map(d => ({
           id: d.id,
           name: d.name,
-          owner: d.ownerEmail,
+          owner: whoIs(d.ownerEmail, me),
           kind: d.summary?.kind ?? "",
           nodes: d.summary?.nodes ?? 0,
           connections: d.summary?.edges ?? 0,
@@ -364,7 +387,7 @@ export const TOOLS: Tool[] = [
       const d = await diagramOf(api, args.diagram);
       const format = str(args.format) || "outline";
       if (format === "yaml" || format === "json") return { id: d.id, name: d.name, rev: d.rev, format, config: configText(d.doc, format) };
-      return outline(d);
+      return outline(d, await myEmail(api));
     },
   },
   {
@@ -375,8 +398,8 @@ export const TOOLS: Tool[] = [
     inputSchema: schema({ diagram: DIAGRAM }, ["diagram"]),
     run: async (args, api) => {
       const d = await diagramOf(api, args.diagram);
-      const snaps = (await api("GET", `/api/diagrams/${q(d.id)}/snapshots`)) as Row[];
-      return { diagram: d.id, snapshots: snaps.map(s => ({ id: s.id, label: s.label, by: s.authorEmail, at: new Date(s.createdAt).toISOString() })) };
+      const [snaps, me] = await Promise.all([api("GET", `/api/diagrams/${q(d.id)}/snapshots`) as Promise<Row[]>, myEmail(api)]);
+      return { diagram: d.id, snapshots: snaps.map(s => ({ id: s.id, label: s.label, by: whoIs(s.authorEmail, me), at: new Date(s.createdAt).toISOString() })) };
     },
   },
   {

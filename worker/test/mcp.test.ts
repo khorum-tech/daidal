@@ -189,7 +189,7 @@ describe("the MCP server", () => {
     expect(fromTemplate.nodes).toBeGreaterThan(0);
     const snap = await tool("take_snapshot", { diagram: fromConfig.diagram, label: "before the AI" });
     expect(snap.label).toBe("before the AI");
-    expect((await tool("list_snapshots", { diagram: fromConfig.diagram })).snapshots).toEqual([expect.objectContaining({ label: "before the AI", by: email })]);
+    expect((await tool("list_snapshots", { diagram: fromConfig.diagram })).snapshots).toEqual([expect.objectContaining({ label: "before the AI", by: "you" })]);
   });
 
   it("can't write with a read token, nor change a diagram its person doesn't own", async () => {
@@ -203,6 +203,31 @@ describe("the MCP server", () => {
     const member = await client("mcp-member@example.com");
     expect((await member.tool("get_diagram", { diagram: d.id })).name).toBe("theirs");
     expect((await member.tool("add_node", { diagram: d.id, name: "X" })).error).toContain("owner");
+  });
+
+  it("never hands anyone's email to the AI: owners and authors are you or another member", async () => {
+    const owner = "mcp-private-owner@example.com";
+    const member = "mcp-private-member@example.com";
+    const { body: ws } = await call.post(owner, "/api/workspaces", { name: "Quiet" });
+    await call.post(owner, `/api/workspaces/${ws.id}/members`, { email: member });
+    await call.post(owner, `/api/workspaces/${ws.id}/members`, { email: "mcp-private-third@example.com" });
+    const { body: d } = await call.post(owner, "/api/diagrams", { workspace: ws.id, doc: doc("quiet") });
+    await call.post(owner, `/api/diagrams/${d.id}/snapshots`, { label: "v1", doc: doc("quiet") });
+
+    const { tool } = await client(member);
+    const outputs = [
+      await tool("list_workspaces"),
+      await tool("list_diagrams", { workspace: ws.id }),
+      await tool("get_diagram", { diagram: d.id }),
+      await tool("list_snapshots", { diagram: d.id }),
+    ];
+    expect(JSON.stringify(outputs)).not.toMatch(/mcp-private-(owner|third)@/);
+    expect(outputs[0].workspaces.find((w: { id: string }) => w.id === ws.id)).toEqual({ id: ws.id, name: "Quiet", personal: false, owner: "another member", types: [] });
+    expect(outputs[1].diagrams[0].owner).toBe("another member");
+    expect(outputs[2].owner).toBe("another member");
+    expect(outputs[3].snapshots[0].by).toBe("another member");
+    const mine = (await client(owner)).tool;
+    expect((await mine("list_workspaces")).workspaces.find((w: { id: string }) => w.id === ws.id)).toMatchObject({ owner: "you", members: 3 });
   });
 
   it("re-applies its change once when someone saved in between, and gives up after that", async () => {

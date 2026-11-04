@@ -42,6 +42,11 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		updateMe: (profile: { name: string; title: string }) => send<Me>('/api/me', 'PUT', profile),
 		/** Replaces the signed-in person's settings (all of them: read, change and send back the whole object). */
 		saveSettings: (settings: Record<string, unknown>) => send<Me>('/api/me', 'PUT', { settings }),
+		/** Everything kept about the signed-in person, as one file (`skope-account`). */
+		exportAccount: () => get<Record<string, unknown>>('/api/me/export'),
+		/** Deletes the signed-in person's account; [confirm] must be their email. */
+		deleteAccount: (confirm: string) =>
+			call<void>('/api/me', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirm }) }),
 		workspaces: () => get<Workspace[]>('/api/workspaces'),
 		/** A workspace's diagrams, newest first, as cards; [search] keeps those whose name or a node's name has it. */
 		diagrams: (workspace: string, page: { search?: string; limit?: number; offset?: number } = {}) => {

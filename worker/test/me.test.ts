@@ -49,7 +49,7 @@ describe("GET /api/me", () => {
   });
 
   it("rejects other methods", async () => {
-    expect((await call("methods@example.com", "/api/me", { method: "DELETE" })).status).toBe(405);
+    expect((await call("methods@example.com", "/api/me", { method: "PATCH" })).status).toBe(405);
   });
 });
 

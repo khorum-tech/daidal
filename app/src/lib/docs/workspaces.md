@@ -14,6 +14,7 @@ A workspace holds diagrams and the people who can see them. Everyone has a **Per
 - **+ New workspace** on the home screen makes one; you're its owner.
 - **Manage** by its name: rename it, add people by email (they can be added before they first sign in), remove them, export a backup, add [types](/app/docs/types-and-icons), or delete it with all its diagrams.
 - Members see every diagram in it and can copy them. A diagram is changed only by its owner, the person who made it.
+- Only a workspace's owner sees everyone in it; a member sees the owner and themselves. People are added by email, without being asked first, so add only people who expect it.
 - A member can **leave** a workspace; what they made there passes to its owner.
 - A diagram's owner can **move** it to another workspace of theirs from its sheet, with its history.
 - Limits, far above everyday use: 100 people in a workspace, 50 workspaces and 1000 diagrams of your own.

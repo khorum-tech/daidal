@@ -63,9 +63,17 @@ local server with the `SKOPE_LIMITS` variable (`playwright.config.ts`); never se
 ## What Skope keeps about people
 
 - Your email (from Access), your name and title if you set them, and your settings (appearance, tour progress).
-- Workspace membership; who owns each diagram; who took each snapshot.
+- Workspace membership; who owns each diagram; who took each snapshot. Only a workspace's owner sees its member
+  list (members see the owner and themselves); members see who owns a diagram and took a snapshot, as they need to.
+  The MCP tools give the AI none of these emails: owners and authors come back as "you" or "another member".
 - Your access tokens' names, scopes and when they were last used (never the token itself).
 - No analytics, no third-party requests, no AI calls of its own (an AI client's model runs on the client's side).
+
+**Your data**: Profile → **Download my data** (`GET /api/me/export`) gives one file with everything above that is
+yours, its workspaces in the backup format. **Delete my account** (`DELETE /api/me`, confirmed with your email)
+deletes your user, tokens, personal workspace, the workspaces you own (with their diagrams and history) and your
+memberships; diagrams you made in someone else's workspace pass to its owner, and your snapshots there say "former
+member". Access tokens can do neither.
 
 Personal workspace ids contain the owner's email (`personal:<email>`), so it appears in URLs and Cloudflare's request
 logs. Errors are logged without emails.
