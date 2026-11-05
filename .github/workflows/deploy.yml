@@ -60,11 +60,18 @@ jobs:
       # (wrangler, workerd and esbuild work without them).
       - run: npm ci --ignore-scripts
       - run: npm ci --ignore-scripts --prefix app
-      - run: npx wrangler d1 migrations apply skope --remote
+      # wrangler.jsonc holds only placeholders; prod's database id and AUD come from the production environment,
+      # as secrets or variables (either works).
+      - name: Generate wrangler.prod.jsonc
+        run: node scripts/prod-config.mjs
+        env:
+          PROD_D1_ID: ${{ secrets.PROD_D1_ID || vars.PROD_D1_ID }}
+          PROD_ACCESS_AUD: ${{ secrets.PROD_ACCESS_AUD || vars.PROD_ACCESS_AUD }}
+      - run: npx wrangler d1 migrations apply skope --remote -c wrangler.prod.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - run: npx wrangler deploy
+      - run: npx wrangler deploy -c wrangler.prod.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -94,10 +101,10 @@ jobs:
       - id: setup
         name: Check stage is set up
         run: |
-          echo "ready=${{ vars.STAGE_D1_ID != '' && vars.STAGE_ACCESS_AUD != '' && secrets.STAGE_OWNER_EMAIL != '' && secrets.STAGE_CLOUDFLARE_API_TOKEN != '' && secrets.STAGE_CLOUDFLARE_ACCOUNT_ID != '' }}" >> "$GITHUB_OUTPUT"
+          echo "ready=${{ (secrets.STAGE_D1_ID != '' || vars.STAGE_D1_ID != '') && (secrets.STAGE_ACCESS_AUD != '' || vars.STAGE_ACCESS_AUD != '') && secrets.STAGE_OWNER_EMAIL != '' && secrets.STAGE_CLOUDFLARE_API_TOKEN != '' && secrets.STAGE_CLOUDFLARE_ACCOUNT_ID != '' }}" >> "$GITHUB_OUTPUT"
       - if: steps.setup.outputs.ready != 'true'
         name: Stage not set up yet
-        run: echo "::notice title=Stage not set up yet::Set the STAGE_D1_ID and STAGE_ACCESS_AUD variables and the STAGE_OWNER_EMAIL, STAGE_CLOUDFLARE_API_TOKEN and STAGE_CLOUDFLARE_ACCOUNT_ID secrets to deploy PRs to stage (docs/stage.md)."
+        run: echo "::notice title=Stage not set up yet::Set STAGE_D1_ID and STAGE_ACCESS_AUD (secrets or variables) and the STAGE_OWNER_EMAIL, STAGE_CLOUDFLARE_API_TOKEN and STAGE_CLOUDFLARE_ACCOUNT_ID secrets to deploy PRs to stage (docs/stage.md)."
       # Who has stage: the oldest open PR from this repository that isn't a draft. On a push, this PR deploys only if
       # it is that one; on a close, the next in line deploys, but only if the closed PR was the one on stage.
       - if: steps.setup.outputs.ready == 'true'
@@ -162,8 +169,8 @@ jobs:
         name: Generate wrangler.stage.jsonc
         run: node scripts/stage-config.mjs
         env:
-          STAGE_D1_ID: ${{ vars.STAGE_D1_ID }}
-          STAGE_ACCESS_AUD: ${{ vars.STAGE_ACCESS_AUD }}
+          STAGE_D1_ID: ${{ secrets.STAGE_D1_ID || vars.STAGE_D1_ID }}
+          STAGE_ACCESS_AUD: ${{ secrets.STAGE_ACCESS_AUD || vars.STAGE_ACCESS_AUD }}
       - if: steps.line.outputs.deploy == 'true'
         name: Apply migrations to the stage database
         run: npx wrangler d1 migrations apply skope-stage --remote -c wrangler.stage.jsonc

@@ -23,14 +23,32 @@ Until the two repository variables and the secret below are set, the `stage` job
 2. **Create the Access application.** In Cloudflare Zero Trust, go to *Access → Applications → Add an application
    → Self-hosted*. Set the domain to `skope-stage.khorum-oss.org`, and add one **Allow** policy that includes only
    your own sign-in email. Save it, open it again and copy its **Application Audience (AUD) tag**.
-3. **Set the GitHub Actions variables and secret.** In *Settings → Secrets and variables → Actions*:
-   - Variables: `STAGE_D1_ID` (step 1) and `STAGE_ACCESS_AUD` (step 2).
-   - Secret: `STAGE_OWNER_EMAIL`, the email you sign in to Access with. The stage data is owned by this address.
+3. **Set the GitHub Actions settings.** In *Settings → Secrets and variables → Actions*, as **repository**
+   settings (stage can't read the `production` environment):
+   - `STAGE_D1_ID` (step 1) and `STAGE_ACCESS_AUD` (step 2): secrets or variables, either works.
+   - Secret `STAGE_OWNER_EMAIL`, the email you sign in to Access with. The stage data is owned by this address.
      It is a secret so GitHub masks it in this public repository's logs, and only the seed step gets it.
-   - Secrets: `STAGE_CLOUDFLARE_API_TOKEN` and `STAGE_CLOUDFLARE_ACCOUNT_ID`, stage's own Cloudflare token and the
+   - Secrets `STAGE_CLOUDFLARE_API_TOKEN` and `STAGE_CLOUDFLARE_ACCOUNT_ID`, stage's own Cloudflare token and the
      account it works in (see *Tokens* below). Stage never uses prod's token.
 4. **Push to a PR.** If it's first in line, the job applies the migrations, resets the data, deploys, and posts one
    comment on the PR with the link; otherwise the comment says it's waiting. Later runs update that same comment.
+
+## Prod's settings
+
+`wrangler.jsonc` holds placeholders for the database id and the Access AUD (it serves `wrangler dev` and the
+tests, which need neither), so nothing account-specific is in the repository. The prod deploy fills them in with
+`scripts/prod-config.mjs`, which writes `wrangler.prod.jsonc` (never committed). In the `production` environment
+(*Settings → Environments → production*):
+
+| Name | What | Where to find it |
+|------|------|------------------|
+| `PROD_D1_ID` (secret or variable) | prod's database id | Cloudflare → Storage & databases → D1 → **`skope`** → Database ID |
+| `PROD_ACCESS_AUD` (secret or variable) | prod's Access AUD tag | Zero Trust → Access → Applications → **skope.khorum-oss.org** → AUD tag |
+| `CLOUDFLARE_API_TOKEN` (secret) | prod's Cloudflare token | see *Tokens* |
+| `CLOUDFLARE_ACCOUNT_ID` (secret) | the account | the dashboard URL, or a zone's Overview → API |
+
+Until `PROD_D1_ID` and `PROD_ACCESS_AUD` are set, the prod deploy stops at "Generate wrangler.prod.jsonc" with a
+message naming what's missing, before touching Cloudflare.
 
 ## Tokens
 
