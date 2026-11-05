@@ -17,7 +17,10 @@ export function prodConfig(base, env) {
   const missing = ["PROD_D1_ID", "PROD_ACCESS_AUD"].filter(name => !String(env[name] ?? "").trim());
   if (missing.length) throw new Error(`prod-config: set ${missing.join(" and ")} (the production environment's secrets or variables; see docs/stage.md)`);
   const unknown = Object.keys(base).filter(key => !KNOWN_KEYS.has(key));
-  if (unknown.length) throw new Error(`prod-config: wrangler.jsonc has ${unknown.map(k => `"${k}"`).join(", ")}, which the config scripts do not know`);
+  if (unknown.length) {
+    const names = unknown.map(k => JSON.stringify(k)).join(", ");
+    throw new Error(`prod-config: wrangler.jsonc has ${names}, which the config scripts do not know`);
+  }
   const databases = Array.isArray(base.d1_databases) ? base.d1_databases : [];
   if (databases.length !== 1) throw new Error("prod-config: expected exactly one D1 database in wrangler.jsonc");
   const d1Id = env.PROD_D1_ID.trim();
