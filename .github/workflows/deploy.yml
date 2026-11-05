@@ -70,11 +70,11 @@ jobs:
       - run: ./node_modules/.bin/wrangler d1 migrations apply skope --remote -c wrangler.prod.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
       - run: ./node_modules/.bin/wrangler deploy -c wrangler.prod.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
 
   # Stage: one shared site, https://skope-stage.khorum-oss.org, that goes to open PRs in turn. The oldest open PR
   # from this repository that isn't a draft has it: its pushes re-deploy stage and reset its data to invented stage
@@ -108,7 +108,7 @@ jobs:
           HAS_ACCESS_AUD: ${{ secrets.STAGE_ACCESS_AUD != '' || vars.STAGE_ACCESS_AUD != '' }}
           HAS_OWNER_EMAIL: ${{ secrets.STAGE_OWNER_EMAIL != '' }}
           HAS_CLOUDFLARE_API_TOKEN: ${{ secrets.STAGE_CLOUDFLARE_API_TOKEN != '' }}
-          HAS_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID != '' }}
+          HAS_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID != '' || vars.STAGE_CLOUDFLARE_ACCOUNT_ID != '' }}
         run: |
           missing=""
           for name in D1_ID ACCESS_AUD OWNER_EMAIL CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
@@ -119,7 +119,7 @@ jobs:
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Stage not set up yet::Missing from the stage environment and repository settings:$missing. STAGE_D1_ID and STAGE_ACCESS_AUD may be secrets or variables; the rest are secrets (docs/stage.md)."
+            echo "::notice title=Stage not set up yet::Missing from the stage environment and repository settings:$missing. STAGE_D1_ID, STAGE_ACCESS_AUD and STAGE_CLOUDFLARE_ACCOUNT_ID may be secrets or variables; the rest are secrets (docs/stage.md)."
           fi
       # Who has stage: the oldest open PR from this repository that isn't a draft. On a push, this PR deploys only if
       # it is that one; on a close, the next in line deploys, but only if the closed PR was the one on stage.
@@ -192,7 +192,7 @@ jobs:
         run: ./node_modules/.bin/wrangler d1 migrations apply skope-stage --remote -c wrangler.stage.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.STAGE_CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID || vars.STAGE_CLOUDFLARE_ACCOUNT_ID }}
       - if: steps.line.outputs.deploy == 'true'
         name: Generate seed.sql
         run: npm run stage-seed
@@ -203,13 +203,13 @@ jobs:
         run: ./node_modules/.bin/wrangler d1 execute skope-stage --remote --file seed.sql -c wrangler.stage.jsonc --yes
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.STAGE_CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID || vars.STAGE_CLOUDFLARE_ACCOUNT_ID }}
       - if: steps.line.outputs.deploy == 'true'
         name: Deploy the stage Worker
         run: ./node_modules/.bin/wrangler deploy -c wrangler.stage.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.STAGE_CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID || vars.STAGE_CLOUDFLARE_ACCOUNT_ID }}
       # One comment per PR, kept up to date: live on stage, or waiting behind the PR that has it.
       - if: steps.setup.outputs.ready == 'true' && (steps.line.outputs.deploy == 'true' || github.event.action != 'closed')
         name: Say on the PR where stage stands

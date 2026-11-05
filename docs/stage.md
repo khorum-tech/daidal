@@ -29,8 +29,8 @@ Until the two repository variables and the secret below are set, the `stage` job
    - `STAGE_D1_ID` (step 1) and `STAGE_ACCESS_AUD` (step 2): secrets or variables, either works.
    - Secret `STAGE_OWNER_EMAIL`, the email you sign in to Access with. The stage data is owned by this address.
      It is a secret so GitHub masks it in this public repository's logs, and only the seed step gets it.
-   - Secrets `STAGE_CLOUDFLARE_API_TOKEN` and `STAGE_CLOUDFLARE_ACCOUNT_ID`, stage's own Cloudflare token and the
-     account it works in (see *Tokens* below). Stage never uses prod's token.
+   - Secret `STAGE_CLOUDFLARE_API_TOKEN`, stage's own Cloudflare token (see *Tokens* below), and
+     `STAGE_CLOUDFLARE_ACCOUNT_ID`, the account it works in (a secret or a variable). Stage never uses prod's token.
 4. **Push to a PR.** If it's first in line, the job applies the migrations, resets the data, deploys, and posts one
    comment on the PR with the link; otherwise the comment says it's waiting. Later runs update that same comment.
 
@@ -46,7 +46,7 @@ tests, which need neither), so nothing account-specific is in the repository. Th
 | `PROD_D1_ID` (secret or variable) | prod's database id | Cloudflare → Storage & databases → D1 → **`skope`** → Database ID |
 | `PROD_ACCESS_AUD` (secret or variable) | prod's Access AUD tag | Zero Trust → Access → Applications → **skope.khorum-oss.org** → AUD tag |
 | `CLOUDFLARE_API_TOKEN` (secret) | prod's Cloudflare token | see *Tokens* |
-| `CLOUDFLARE_ACCOUNT_ID` (secret) | the account | the dashboard URL, or a zone's Overview → API |
+| `CLOUDFLARE_ACCOUNT_ID` (secret or variable) | the account | the dashboard URL, or a zone's Overview → API |
 
 Until `PROD_D1_ID` and `PROD_ACCESS_AUD` are set, the prod deploy stops at "Generate wrangler.prod.jsonc" with a
 message naming what's missing, before touching Cloudflare.
