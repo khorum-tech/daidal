@@ -23,8 +23,9 @@ Until the two repository variables and the secret below are set, the `stage` job
 2. **Create the Access application.** In Cloudflare Zero Trust, go to *Access → Applications → Add an application
    → Self-hosted*. Set the domain to `skope-stage.khorum-oss.org`, and add one **Allow** policy that includes only
    your own sign-in email. Save it, open it again and copy its **Application Audience (AUD) tag**.
-3. **Set the GitHub Actions settings.** In *Settings → Secrets and variables → Actions*, as **repository**
-   settings (stage can't read the `production` environment):
+3. **Set the GitHub Actions settings.** In *Settings → Environments → New environment*, make one named `stage`.
+   Leave *Deployment branches* open to all branches (every PR branch deploys) and add no required reviewers. Put
+   these in it (repository-level settings work too; the `production` environment's are never visible to stage):
    - `STAGE_D1_ID` (step 1) and `STAGE_ACCESS_AUD` (step 2): secrets or variables, either works.
    - Secret `STAGE_OWNER_EMAIL`, the email you sign in to Access with. The stage data is owned by this address.
      It is a secret so GitHub masks it in this public repository's logs, and only the seed step gets it.
@@ -57,8 +58,8 @@ Stage runs pull-request code, so it must not hold prod's keys:
 - **Prod's token** (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`) lives in the GitHub environment `production`,
   which only `main` may use (*Settings → Environments → production → Deployment branches: `main`*). The prod
   `deploy` job runs there; no pull request's code can reach it.
-- **Stage's token** (`STAGE_CLOUDFLARE_API_TOKEN`, `STAGE_CLOUDFLARE_ACCOUNT_ID`) is a repository secret, used only
-  by the `stage` job. It needs *Workers Scripts: Edit*, *D1: Edit* and *Zone → Workers Routes: Edit* (for the custom
+- **Stage's token** (`STAGE_CLOUDFLARE_API_TOKEN`, `STAGE_CLOUDFLARE_ACCOUNT_ID`) lives in the GitHub environment
+  `stage`, used only by the `stage` job. It needs *Workers Scripts: Edit*, *D1: Edit* and *Zone → Workers Routes: Edit* (for the custom
   domain).
 - Cloudflare can't limit a token to one Worker or one database, so a stage token in the **same account** as prod
   could still reach prod. The real separation is a **separate Cloudflare account for stage** (its own D1, Worker and

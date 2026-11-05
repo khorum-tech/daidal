@@ -88,6 +88,8 @@ jobs:
       always() && needs.test.result != 'failure' && needs.test.result != 'cancelled' &&
       github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    # Stage's settings live in the `stage` environment (repository-level ones are read too); it must allow PR branches.
+    environment: stage
     # One deploy at a time, in order: a waiting run never cuts a deploy short.
     concurrency:
       group: stage
@@ -117,7 +119,7 @@ jobs:
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Stage not set up yet::Missing as repository settings:$missing. STAGE_D1_ID and STAGE_ACCESS_AUD may be secrets or variables; the rest are secrets (docs/stage.md)."
+            echo "::notice title=Stage not set up yet::Missing from the stage environment and repository settings:$missing. STAGE_D1_ID and STAGE_ACCESS_AUD may be secrets or variables; the rest are secrets (docs/stage.md)."
           fi
       # Who has stage: the oldest open PR from this repository that isn't a draft. On a push, this PR deploys only if
       # it is that one; on a close, the next in line deploys, but only if the closed PR was the one on stage.
