@@ -100,11 +100,25 @@ jobs:
       # the step that needs it. Readiness is computed from expressions, so no value is ever echoed.
       - id: setup
         name: Check stage is set up
+        # Each flag is true or false only; no value reaches the log.
+        env:
+          HAS_D1_ID: ${{ secrets.STAGE_D1_ID != '' || vars.STAGE_D1_ID != '' }}
+          HAS_ACCESS_AUD: ${{ secrets.STAGE_ACCESS_AUD != '' || vars.STAGE_ACCESS_AUD != '' }}
+          HAS_OWNER_EMAIL: ${{ secrets.STAGE_OWNER_EMAIL != '' }}
+          HAS_CLOUDFLARE_API_TOKEN: ${{ secrets.STAGE_CLOUDFLARE_API_TOKEN != '' }}
+          HAS_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID != '' }}
         run: |
-          echo "ready=${{ (secrets.STAGE_D1_ID != '' || vars.STAGE_D1_ID != '') && (secrets.STAGE_ACCESS_AUD != '' || vars.STAGE_ACCESS_AUD != '') && secrets.STAGE_OWNER_EMAIL != '' && secrets.STAGE_CLOUDFLARE_API_TOKEN != '' && secrets.STAGE_CLOUDFLARE_ACCOUNT_ID != '' }}" >> "$GITHUB_OUTPUT"
-      - if: steps.setup.outputs.ready != 'true'
-        name: Stage not set up yet
-        run: echo "::notice title=Stage not set up yet::Set STAGE_D1_ID and STAGE_ACCESS_AUD (secrets or variables) and the STAGE_OWNER_EMAIL, STAGE_CLOUDFLARE_API_TOKEN and STAGE_CLOUDFLARE_ACCOUNT_ID secrets to deploy PRs to stage (docs/stage.md)."
+          missing=""
+          for name in D1_ID ACCESS_AUD OWNER_EMAIL CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            flag="HAS_$name"
+            [ "${!flag}" = "true" ] || missing="$missing STAGE_$name"
+          done
+          if [ -z "$missing" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Stage not set up yet::Missing as repository settings:$missing. STAGE_D1_ID and STAGE_ACCESS_AUD may be secrets or variables; the rest are secrets (docs/stage.md)."
+          fi
       # Who has stage: the oldest open PR from this repository that isn't a draft. On a push, this PR deploys only if
       # it is that one; on a close, the next in line deploys, but only if the closed PR was the one on stage.
       - if: steps.setup.outputs.ready == 'true'
