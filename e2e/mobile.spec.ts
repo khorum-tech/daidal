@@ -90,6 +90,17 @@ test.describe("the app on a phone", () => {
     await expect(page.getByRole("button", { name: "Database: Balance Cache" })).toHaveCount(0);
   });
 
+  test("draws a C4 diagram in C4 notation, and a tap still picks a card", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    const postings = page.getByRole("button", { name: "Service: Postings Service" });
+    await expect(postings).toContainText("[Container: Kotlin · Ktor]");
+    await expect(page.getByRole("button", { name: "Database: Journal DB" })).toHaveAttribute("data-role", "store");
+    await postings.tap();
+    await expect(postings).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("node-menu")).toContainText("Postings Service");
+  });
+
   test("pinches the canvas without zooming the page, and fits back", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);

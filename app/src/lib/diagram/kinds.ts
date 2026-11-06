@@ -78,3 +78,38 @@ export function kindOf(raw: unknown): Kind {
 export function commonTypes(kind: Kind, available: (type: string) => boolean): string[] {
 	return kind.common.filter(available);
 }
+
+/** What a node is in C4 notation, which decides its card's fill and shape. */
+export type C4Role = 'person' | 'system' | 'container' | 'component' | 'external' | 'store';
+
+const PEOPLE = new Set(['Actor']);
+const EXTERNAL = new Set(['External', 'Third-party API', 'Identity Provider', 'Payment Provider']);
+const STORES = new Set(['Database', 'Cache', 'Object Storage', 'Storage', 'Data Warehouse', 'Search Index']);
+const LEVEL_ROLE: Record<number, C4Role> = { 1: 'system', 2: 'container', 3: 'component' };
+
+/**
+ * [type]'s role in a diagram of [kind], or null where cards keep their usual look: outside C4, and at the Code level,
+ * where classes and tables read better as plain cards.
+ */
+export function c4Role(kind: Kind, type: string): C4Role | null {
+	const base = kind.level ? LEVEL_ROLE[kind.level] : undefined;
+	if (!base) return null;
+	if (PEOPLE.has(type)) return 'person';
+	if (EXTERNAL.has(type)) return 'external';
+	if (STORES.has(type) && kind.level !== 1) return 'store';
+	return base;
+}
+
+/** The C4 element line under a card's name: "[Container: Kotlin]", "[Person]", "[External System]". */
+export function c4Line(role: C4Role, kind: Kind, tech: string): string {
+	const what: Record<C4Role, string> = {
+		person: 'Person',
+		system: 'Software System',
+		external: 'External System',
+		container: 'Container',
+		component: 'Component',
+		store: kind.level === 3 ? 'Component' : 'Container'
+	};
+	const t = tech.trim();
+	return role === 'person' || role === 'system' || role === 'external' || !t ? `[${what[role]}]` : `[${what[role]}: ${t}]`;
+}

@@ -38,3 +38,29 @@ describe('diagram kinds', () => {
 		});
 	});
 });
+
+describe('C4 notation', () => {
+	it('gives each type its role at the C4 levels it draws at, and none elsewhere', async () => {
+		const { c4Role } = await import('./kinds');
+		expect(c4Role(kindOf('c4-context'), 'Actor')).toBe('person');
+		expect(c4Role(kindOf('c4-context'), 'System')).toBe('system');
+		expect(c4Role(kindOf('c4-context'), 'Payment Provider')).toBe('external');
+		// A database at the context level is still a system there.
+		expect(c4Role(kindOf('c4-context'), 'Database')).toBe('system');
+		expect(c4Role(kindOf('c4-container'), 'Database')).toBe('store');
+		expect(c4Role(kindOf('c4-container'), 'Service')).toBe('container');
+		expect(c4Role(kindOf('c4-component'), 'Component')).toBe('component');
+		for (const k of ['freeform', 'deployment', 'c4-code']) expect(c4Role(kindOf(k), 'Service'), k).toBeNull();
+	});
+
+	it('writes the element line, with the subtitle as the technology', async () => {
+		const { c4Line } = await import('./kinds');
+		expect(c4Line('container', kindOf('c4-container'), 'Kotlin · Ktor')).toBe('[Container: Kotlin · Ktor]');
+		expect(c4Line('container', kindOf('c4-container'), '  ')).toBe('[Container]');
+		expect(c4Line('store', kindOf('c4-container'), 'PostgreSQL')).toBe('[Container: PostgreSQL]');
+		expect(c4Line('store', kindOf('c4-component'), 'Redis')).toBe('[Component: Redis]');
+		expect(c4Line('person', kindOf('c4-context'), 'Reconcile')).toBe('[Person]');
+		expect(c4Line('external', kindOf('c4-context'), 'Files')).toBe('[External System]');
+		expect(c4Line('system', kindOf('c4-context'), 'Ledger')).toBe('[Software System]');
+	});
+});

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { noteLines, type SceneNode, type SceneTag } from '../diagram/model';
+	import { c4Desc, c4Kind, c4Name, noteLines, type SceneNode, type SceneTag } from '../diagram/model';
 	import { FLAGS } from '../diagram/icons';
 	import Icon from './Icon.svelte';
 
@@ -48,6 +48,8 @@
 	class="node"
 	class:text={node.isText}
 	class:note={node.isNote}
+	class:c4={!!node.c4 && !iconOnly}
+	data-role={node.c4?.role}
 	class:ghost={ghosted}
 	class:selected
 	class:dragging
@@ -73,6 +75,18 @@
 	{:else if node.isNote}
 		<span class="note-name">{node.name}</span>
 		{#each noteLines(node.desc, node.w) as line, i (i)}<span class="note-line">{line}</span>{/each}
+	{:else if node.c4 && !iconOnly}
+		<!-- C4 notation: the name, its element line ("[Container: Kotlin]"), and its notes as a short description. -->
+		{#if first}<span class="c4-edge" title={tagTitle} style:background={first.color}></span>{/if}
+		{#if node.c4.role === 'person'}<span class="c4-head" aria-hidden="true"></span>{/if}
+		{#if node.zooms.length}
+			<span class="zoom-mark c4-zoom" title="Zooms into {node.zooms.length === 1 ? 'a diagram' : `${node.zooms.length} diagrams`}"><Icon name="magnifyingGlassPlus" size={12} label="Zooms in" /></span>
+		{/if}
+		{#each c4Name(node.name, node.w) as line, i (i)}<span class="c4-name">{line}</span>{/each}
+		{#each c4Kind(node.c4.line, node.w) as line, i (i)}<span class="c4-kind">{line}</span>{/each}
+		{#if node.desc.trim()}
+			<span class="c4-desc">{#each c4Desc(node.desc, node.w) as line, i (i)}<span>{line}</span>{/each}</span>
+		{/if}
 	{:else if iconOnly}
 		<span class="big-icon"><Icon name={node.icon} size={46} /></span>
 		<span class="icon-name">{node.name}</span>
@@ -167,6 +181,83 @@
 		line-height: 17px;
 		min-height: 17px;
 		color: var(--color-neutral-300);
+		white-space: pre;
+	}
+	/* C4 notation. The fill says what a thing is: people and systems strongest, then containers, then components;
+	   what's outside the system is grey. A person has a head above the box, a store a cylinder's rim. Sizes match
+	   C4 in model.ts, which the export uses too. */
+	.node.c4 {
+		align-items: center;
+		text-align: center;
+		padding: 12px;
+		border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-neutral-800));
+		background: color-mix(in srgb, var(--color-accent) var(--c4-fill), var(--color-surface));
+		--c4-fill: 22%;
+	}
+	.node.c4[data-role='person'],
+	.node.c4[data-role='system'] {
+		--c4-fill: 34%;
+	}
+	.node.c4[data-role='component'] {
+		--c4-fill: 12%;
+	}
+	.node.c4[data-role='external'] {
+		background: color-mix(in srgb, var(--color-neutral-500) 22%, var(--color-surface));
+		border-color: var(--color-neutral-700);
+	}
+	.node.c4[data-role='person'] {
+		padding-top: 34px;
+		border-radius: 22px;
+	}
+	.node.c4[data-role='store'] {
+		padding-top: 22px;
+		border-radius: 50% / 14px;
+	}
+	.c4-head {
+		position: absolute;
+		top: -14px;
+		left: 50%;
+		width: 34px;
+		height: 34px;
+		margin-left: -17px;
+		border-radius: 50%;
+		background: inherit;
+		border: inherit;
+		box-sizing: border-box;
+	}
+	.c4-zoom {
+		position: absolute;
+		top: 8px;
+		right: 8px;
+	}
+	.c4-edge {
+		position: absolute;
+		left: 0;
+		top: 10px;
+		bottom: 10px;
+		width: 3px;
+		border-radius: 0 2px 2px 0;
+	}
+	.c4-name {
+		font-family: var(--font-heading);
+		font-weight: 600;
+		font-size: 14px;
+		line-height: 18px;
+		white-space: pre;
+	}
+	.c4-kind {
+		font-size: 11px;
+		line-height: 15px;
+		color: var(--color-neutral-300);
+		white-space: pre;
+	}
+	.c4-desc {
+		display: flex;
+		flex-direction: column;
+		margin-top: 6px;
+		font-size: 11.5px;
+		line-height: 15px;
+		color: var(--color-text);
 		white-space: pre;
 	}
 	.text-name {
