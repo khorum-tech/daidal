@@ -272,7 +272,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 
 | ID | Do | Expect | On | Result |
 |----|----|--------|----|--------|
-| TOUR-1 | As someone who's never seen it, open the home screen | A **New to Skope?** offer; **No thanks** hides it for good (reload to check) | D P | |
+| TOUR-1 | As someone who's never seen it (a fresh account, or prod; stage's owner has it turned down), open the home screen | A **New to Skope?** offer; **No thanks** hides it for good (reload to check) | D P | |
 | TOUR-2 | Your initial → **Tutorial** | A practice diagram “Getting started” opens with the tour's card; each step rings the control it's about and moves on once you've done it (add, name, connect, container, tag, view, present) | D P | |
 | TOUR-3 | Mid-tour, reload; then **End tour** | The tour carries on from the same step; after End tour it doesn't come back | D P | |
 

@@ -786,7 +786,7 @@
 				class="rename"
 				class:text={renamingNode.isText}
 				style:left="{renamingNode.x + (renamingNode.isText ? 4 : 8)}px"
-				style:top="{renamingNode.isText ? renamingNode.y + renamingNode.h / 2 - 16 : renamingNode.y + 30}px"
+				style:top="{renamingNode.isText ? renamingNode.y + renamingNode.h / 2 - 16 : renamingNode.y + (renamingNode.isNote ? 4 : 30)}px"
 				style:width="{renamingNode.w - (renamingNode.isText ? 8 : 16)}px"
 				value={renamingNode.name}
 				maxlength="100"

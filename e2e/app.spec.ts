@@ -1334,6 +1334,37 @@ test.describe("the app at /app", () => {
     expect(parsed.texts).not.toContain("Journal DB"); // switched off by On call, and left out
     await expect(page.getByTestId("save-status")).toContainText("Downloaded ledger-platform-On-call.svg");
   });
+  test("shows a note as a sticky note that grows with its text, and exports it the same way", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Config" }).click();
+    const config = page.getByRole("region", { name: "Config" });
+    await config.getByLabel("Merge it in").check();
+    // A layout written as a flow map inside a flow map.
+    await config.getByLabel("Config text").fill("nodes:\n  - { id: why, name: Why append-only?, type: note, notes: Auditors replay the journal., layout: { x: 920, y: 560, w: 220 } }");
+    await config.getByRole("button", { name: "Apply" }).click();
+    await expect(config.getByRole("status")).toContainText("Merged in: 1 new node");
+
+    const note = page.getByRole("button", { name: "Note: Why append-only?" });
+    await expect(note).toHaveCSS("left", "920px");
+    await expect(note).toContainText("Auditors replay the journal.");
+    await expect(note.locator(".type")).toHaveCount(0); // no icon or type label
+    const before = (await note.boundingBox())!.height;
+
+    await note.click();
+    await page.getByRole("region", { name: "Selected node" }).getByLabel("Notes").fill("Auditors replay the journal to rebuild any balance. Corrections are new postings, so nothing is ever rewritten, and every change can be traced back to who made it.");
+    await expect(note).toContainText("nothing is ever rewritten");
+    await expect.poll(async () => (await note.boundingBox())!.height).toBeGreaterThan(before);
+
+    await page.getByRole("button", { name: "ledger-platform" }).click();
+    const sheet = page.getByRole("dialog", { name: "Diagram" });
+    const [svg] = await Promise.all([page.waitForEvent("download"), sheet.getByRole("button", { name: "Download SVG" }).click()]);
+    const text = await import("node:fs/promises").then(fs => svg.path().then(p => fs.readFile(p, "utf8")));
+    const lines = await page.evaluate(src => [...new DOMParser().parseFromString(src, "image/svg+xml").querySelectorAll("text")].map(t => t.textContent ?? ""), text);
+    expect(lines).toContain("Why append-only?");
+    expect(lines.join(" ")).toContain("nothing is ever rewritten");
+  });
   test("edits the diagram as YAML from the toolbar, undoes it, merges in a JSON file, and downloads the config", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];

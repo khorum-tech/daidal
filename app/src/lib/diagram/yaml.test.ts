@@ -47,3 +47,17 @@ describe('yaml keys', () => {
 		expect(Object.getPrototypeOf(parseYaml('a: 1'))).toBe(Object.prototype);
 	});
 });
+
+describe('yaml flow collections', () => {
+	it('reads maps and lists nested inside flow maps and lists', () => {
+		expect(parseYaml('nodes:\n  - { id: a, layout: { x: 60, y: 80 } }')).toEqual({ nodes: [{ id: 'a', layout: { x: 60, y: 80 } }] });
+		expect(parseYaml('a: [{ x: 1, y: 2 }, { x: 3 }]')).toEqual({ a: [{ x: 1, y: 2 }, { x: 3 }] });
+		expect(parseYaml('a: { tags: [core, edge], n: 1 }')).toEqual({ a: { tags: ['core', 'edge'], n: 1 } });
+		expect(parseYaml('a: [[1, 2], []]')).toEqual({ a: [[1, 2], []] });
+	});
+
+	it('keeps commas inside quotes as part of the value', () => {
+		expect(parseYaml('a: { label: "reads, writes", to: b }')).toEqual({ a: { label: 'reads, writes', to: 'b' } });
+		expect(parseYaml("a: ['x, y', z]")).toEqual({ a: ['x, y', 'z'] });
+	});
+});

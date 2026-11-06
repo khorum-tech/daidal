@@ -73,6 +73,11 @@ describe('config', () => {
 		expect(summary).toBe('Merged in: 1 new node, 1 new connection');
 	});
 
+	it('places a node whose layout is a flow map inside a flow map', () => {
+		const { doc } = readConfig('nodes:\n  - { id: q, name: Queue, type: queue, layout: { x: 60, y: 80 } }', current(), 'merge');
+		expect(doc.nodes!.at(-1)).toEqual({ id: 'q', name: 'Queue', type: 'queue', layout: { x: 60, y: 80 } });
+	});
+
 	it('keeps a layout over a plain x and y, and refuses unknown or doubled sections', () => {
 		const { doc } = readConfig('nodes:\n  - id: q\n    x: 1\n    layout: { x: 5, y: 6 }', current(), 'merge');
 		expect(doc.nodes!.at(-1)!.layout).toEqual({ x: 5, y: 6 });

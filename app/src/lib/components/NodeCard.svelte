@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { SceneNode, SceneTag } from '../diagram/model';
+	import { noteLines, type SceneNode, type SceneTag } from '../diagram/model';
 	import { FLAGS } from '../diagram/icons';
 	import Icon from './Icon.svelte';
 
@@ -47,11 +47,12 @@
 	type="button"
 	class="node"
 	class:text={node.isText}
+	class:note={node.isNote}
 	class:ghost={ghosted}
 	class:selected
 	class:dragging
 	class:connecting
-	class:icon-only={iconOnly && !node.isText}
+	class:icon-only={iconOnly && !node.isText && !node.isNote}
 	data-node={node.id}
 	style:left="{node.x}px"
 	style:top="{node.y}px"
@@ -69,6 +70,9 @@
 >
 	{#if node.isText}
 		<span class="text-name">{node.name}</span>
+	{:else if node.isNote}
+		<span class="note-name">{node.name}</span>
+		{#each noteLines(node.desc, node.w) as line, i (i)}<span class="note-line">{line}</span>{/each}
 	{:else if iconOnly}
 		<span class="big-icon"><Icon name={node.icon} size={46} /></span>
 		<span class="icon-name">{node.name}</span>
@@ -139,6 +143,28 @@
 	.node.text.selected {
 		border: 1px solid var(--color-accent);
 		background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+	}
+	/* A sticky note: a warm tint, the name as a small heading and the notes below; the lines are the ones the export
+	   draws (noteLines), so the card and the file agree. */
+	.node.note {
+		padding: 12px;
+		background: color-mix(in srgb, #e3c46a 18%, var(--color-surface));
+		border-color: color-mix(in srgb, #e3c46a 38%, var(--color-neutral-800));
+	}
+	.note-name {
+		font-family: var(--font-heading);
+		font-weight: 600;
+		font-size: 13px;
+		line-height: 18px;
+		overflow-wrap: anywhere;
+		margin-bottom: 4px;
+	}
+	.note-line {
+		font-size: 12px;
+		line-height: 17px;
+		min-height: 17px;
+		color: var(--color-neutral-300);
+		white-space: pre;
 	}
 	.text-name {
 		font-family: var(--font-heading);

@@ -42,3 +42,21 @@ describe('toSvg and tag colours', () => {
 		expect(toSvg(scene, { on: tagsOn(scene, null) }).svg).not.toContain('<script>');
 	});
 });
+
+describe('toSvg and sticky notes', () => {
+	it('draws a note as a tinted card with its heading and every line of its notes, escaped', () => {
+		const scene = toScene({
+			version: 1,
+			nodes: [{ id: 'n', name: 'Why <Postgres>', type: 'note', notes: 'Ledger needs transactions & joins.\nRevisit in Q3.', layout: { x: 0, y: 0, w: 220 } }]
+		});
+		const { svg } = toSvg(scene, { on: tagsOn(scene, null) });
+		expect(svg).toContain('Why &lt;Postgres&gt;');
+		// Wrapped to the card's width.
+		expect(svg).toContain('>Ledger needs transactions &amp;<');
+		expect(svg).toContain('>joins.<');
+		expect(svg).toContain('Revisit in Q3.');
+		expect(svg).toContain('fill="#3a3730"');
+		// No type label or icon on a note.
+		expect(svg).not.toContain('>NOTE<');
+	});
+});

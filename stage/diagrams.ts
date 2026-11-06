@@ -15,7 +15,9 @@ export const PRIYA = { email: "priya@example.com", name: "Priya Okafor", title: 
 export const DEV = { email: "dev@example.com", name: "Dev Marsh", title: "SRE", settings: {} };
 export const TEAMMATES = [PRIYA, DEV];
 /** The stage owner's profile; their email comes from STAGE_OWNER_EMAIL. */
-export const OWNER_PROFILE = { name: "Rowan Ellery", title: "Platform lead", settings: { theme: "dark" } };
+// The tour is marked turned down, so stage doesn't offer it again after every deploy resets the data; the account
+// menu's Tutorial still starts it.
+export const OWNER_PROFILE = { name: "Rowan Ellery", title: "Platform lead", settings: { theme: "dark", tutorial: { step: 0, dismissed: true } } };
 
 type Json = Record<string, unknown>;
 
