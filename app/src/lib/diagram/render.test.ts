@@ -60,3 +60,24 @@ describe('toSvg and sticky notes', () => {
 		expect(svg).not.toContain('>NOTE<');
 	});
 });
+
+describe('toSvg and C4 cards', () => {
+	it('draws a C4 card with its name, element line and description, escaped, and a person with a head', () => {
+		const scene = toScene({
+			version: 1,
+			diagram: { kind: 'c4-container' },
+			nodes: [
+				{ id: 'api', name: 'Postings <API>', type: 'service', subtitle: 'Kotlin & Ktor', notes: 'Posts entries.', layout: { x: 0, y: 0 } },
+				{ id: 'who', name: 'Staff', type: 'actor', layout: { x: 300, y: 0 } }
+			]
+		});
+		const { svg } = toSvg(scene, { on: tagsOn(scene, null) });
+		expect(svg).toContain('>Postings &lt;API&gt;<');
+		expect(svg).toContain('>[Container: Kotlin &amp; Ktor]<');
+		expect(svg).toContain('>Posts entries.<');
+		expect(svg).toContain('>[Person]<');
+		expect(svg).toMatch(/<circle cx="395"/);
+		// No type label in C4 notation.
+		expect(svg).not.toContain('>SERVICE<');
+	});
+});
