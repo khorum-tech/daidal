@@ -84,8 +84,8 @@
 		{/if}
 		{#each c4Name(node.name, node.w) as line, i (i)}<span class="c4-name">{line}</span>{/each}
 		{#each c4Kind(node.c4.line, node.w) as line, i (i)}<span class="c4-kind">{line}</span>{/each}
-		{#if node.desc.trim()}
-			<span class="c4-desc">{#each c4Desc(node.desc, node.w) as line, i (i)}<span>{line}</span>{/each}</span>
+		{#if node.c4.desc.trim()}
+			<span class="c4-desc">{#each c4Desc(node.c4.desc, node.w) as line, i (i)}<span>{line}</span>{/each}</span>
 		{/if}
 	{:else if iconOnly}
 		<span class="big-icon"><Icon name={node.icon} size={46} /></span>
