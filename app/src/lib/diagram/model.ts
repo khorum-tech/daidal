@@ -45,6 +45,8 @@ export interface SceneNode {
 	w: number;
 	h: number;
 	isText: boolean;
+	/** A sticky note: its name as a heading and its notes written out beneath, with no icon or type. */
+	isNote: boolean;
 }
 
 export interface SceneEdge {
@@ -126,6 +128,44 @@ export function parseAnchor(value: unknown): Anchor | null {
 	return { side: s, t: Math.max(0, Math.min(1, Number.isNaN(t) ? 0.5 : t)) };
 }
 
+/** How a sticky note is laid out, in pixels: shared by the canvas card and the SVG export so they agree. */
+export const NOTE = { pad: 12, headSize: 13, headLine: 18, gap: 4, size: 12, line: 17 } as const;
+
+/** One paragraph's words broken into lines of at most [max] characters; a word longer than that is split. */
+function wrapParagraph(para: string, max: number): string[] {
+	const lines: string[] = [];
+	let line = '';
+	const chunks = (word: string) => Array.from({ length: Math.ceil(word.length / max) }, (_, i) => word.slice(i * max, (i + 1) * max));
+	const pieces = para.split(/\s+/).flatMap(chunks);
+	for (const piece of pieces) {
+		if (line && line.length + 1 + piece.length <= max) line += ` ${piece}`;
+		else {
+			if (line) lines.push(line);
+			line = piece;
+		}
+	}
+	lines.push(line);
+	return lines;
+}
+
+/** [text] broken into lines that fit [w] pixels at [size]: at spaces where it can, mid-word where a word is too long. */
+export function wrapText(text: string, w: number, size: number): string[] {
+	const max = Math.max(1, Math.floor(w / (size * 0.56)));
+	const lines = text.replaceAll('\r', '').split('\n').flatMap(para => wrapParagraph(para, max));
+	while (lines.length && lines.at(-1) === '') lines.pop();
+	return lines;
+}
+
+/** The lines of a note's text at width [w]. */
+export const noteLines = (notes: string, w: number) => wrapText(notes, w - 2 * NOTE.pad, NOTE.size);
+
+/** The height a note needs to show its heading and every line of its text at width [w]. */
+export function noteHeight(name: string, notes: string, w: number): number {
+	const head = wrapText(name, w - 2 * NOTE.pad, NOTE.headSize).length * NOTE.headLine;
+	const body = noteLines(notes, w).length;
+	return Math.ceil(2 * NOTE.pad + head + (body ? NOTE.gap + body * NOTE.line : 0));
+}
+
 const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
 
 function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats): SceneNode {
@@ -146,8 +186,9 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats): Scen
 		x: num(lay.x, 0),
 		y: num(lay.y, 0),
 		w: num(lay.w, NODE_W),
-		h: num(lay.h, NODE_H),
-		isText: type === 'Text'
+		h: type === 'Note' ? Math.max(num(lay.h, NODE_H), noteHeight(String(n.name ?? n.id), n.notes ?? '', num(lay.w, NODE_W))) : num(lay.h, NODE_H),
+		isText: type === 'Text',
+		isNote: type === 'Note'
 	};
 }
 
@@ -254,12 +295,12 @@ export const ICON_CARD = 104;
 
 /**
  * The scene with each card shrunk to an icon-sized square on its own centre, so connections land near the icon.
- * Free text stays as it is. Only what is drawn changes; the document keeps its sizes.
+ * Free text and notes stay as they are. Only what is drawn changes; the document keeps its sizes.
  */
 export function iconScene(scene: Scene): Scene {
 	const S = ICON_CARD;
 	return {
 		...scene,
-		nodes: scene.nodes.map(n => (n.isText ? n : { ...n, x: Math.round(n.x + (n.w - S) / 2), y: Math.round(n.y + (n.h - S) / 2), w: S, h: S }))
+		nodes: scene.nodes.map(n => (n.isText || n.isNote ? n : { ...n, x: Math.round(n.x + (n.w - S) / 2), y: Math.round(n.y + (n.h - S) / 2), w: S, h: S }))
 	};
 }

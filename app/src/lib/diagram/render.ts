@@ -1,6 +1,6 @@
 import { edgePath, type Box } from './geometry';
 import { ICON_PATHS } from './icons';
-import { bounds, isHidden, type Scene } from './model';
+import { bounds, isHidden, NOTE, noteLines, wrapText, type Scene, type SceneNode } from './model';
 
 /**
  * A diagram as a standalone SVG image, drawn from the scene the way the canvas draws it: containers, connections
@@ -24,7 +24,9 @@ const C = {
 	border: '#3f424d',
 	muted: '#9397ab',
 	faint: '#75798c',
-	line: '#595d6c'
+	line: '#595d6c',
+	note: '#3a3730',
+	noteBorder: '#6b5f3e'
 };
 const FONT = 'Inter, system-ui, -apple-system, Segoe UI, sans-serif';
 const PAD = 40;
@@ -92,6 +94,21 @@ function edgeMarkup(scene: Scene, shown: (id: string) => number | null, edgeStyl
 		.join('');
 }
 
+/** A sticky note: a tinted card, the name as a heading and every line of the notes beneath it. */
+function noteMarkup(n: SceneNode, dash: string): string {
+	const x = n.x + NOTE.pad;
+	let y = n.y + NOTE.pad;
+	const text = (line: string, size: number, lineH: number, extra: string) => {
+		const t = `<text x="${x}" y="${y + lineH / 2}" dominant-baseline="middle" font-size="${size}"${extra}>${esc(line)}</text>`;
+		y += lineH;
+		return t;
+	};
+	const head = wrapText(n.name, n.w - 2 * NOTE.pad, NOTE.headSize).map(l => text(l, NOTE.headSize, NOTE.headLine, ` font-weight="600" fill="${C.text}"`));
+	if (n.desc.trim()) y += NOTE.gap;
+	const body = noteLines(n.desc, n.w).map(l => text(l, NOTE.size, NOTE.line, ` fill="${C.muted}" xml:space="preserve"`));
+	return `<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="10" fill="${C.note}" stroke="${C.noteBorder}"${dash}/>` + head.join('') + body.join('');
+}
+
 function nodeMarkup(scene: Scene, shown: (id: string) => number | null): string {
 	const tagColor = new Map(scene.tags.map(t => [t.key, t.color]));
 	return scene.nodes
@@ -103,6 +120,7 @@ function nodeMarkup(scene: Scene, shown: (id: string) => number | null): string 
 				return [g(`<text x="${n.x + 10}" y="${n.y + n.h / 2}" dominant-baseline="middle" font-size="17" font-weight="500" fill="${C.text}">${esc(fit(n.name, n.w - 20, 17))}</text>`)];
 			}
 			const dash = op < 1 ? ' stroke-dasharray="4 3"' : '';
+			if (n.isNote) return [g(noteMarkup(n, dash))];
 			const icon = ICON_PATHS[n.icon] ?? ICON_PATHS.cube;
 			const dot = n.tags[0] && tagColor.get(n.tags[0]) ? `<circle cx="${n.x + n.w - 16}" cy="${n.y + 18}" r="3.5" fill="${esc(tagColor.get(n.tags[0])!)}"/>` : '';
 			const sub = n.sub.trim() ? `<text x="${n.x + 13}" y="${n.y + 66}" font-size="11.5" fill="${C.muted}">${esc(fit(n.sub, n.w - 26, 11.5))}</text>` : '';

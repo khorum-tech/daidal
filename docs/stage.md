@@ -8,7 +8,8 @@ The `stage` job in [`.github/workflows/deploy.yml`](../.github/workflows/deploy.
   (lowest number, not a draft) has it, and its pushes redeploy it. A newer PR doesn't deploy; its stage comment
   says it's waiting and which PR has stage. When the PR on stage is merged or closed, the next one in line
   deploys by itself, as its branch stands then (merge `main` into it to bring it up to date, which redeploys it).
-  A draft never takes stage: mark it ready for review to put it in line.
+  A draft never takes stage: mark it ready for review to put it in line. Nor does a bot's PR (Dependabot's): its
+  runs get none of stage's secrets, so it would hold stage without deploying.
 - **Only the owner signs in.** Stage has its own Access application, narrower than prod's.
 - **Stage data is throwaway.** It holds only the invented data, never a real backup, and every deploy resets it.
 - **Fork PRs get no stage.** The job runs only for branches of this repository. Never change it to

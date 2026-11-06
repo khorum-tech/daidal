@@ -12,6 +12,7 @@ A node is one thing in your system: a web app, a service, a database, a queue, a
 
 - **+ Add** in the toolbar opens the type picker: the common types first, then every type by category, with a search box. The new node lands in free space near the middle of the view.
 - The toolbar's one-click buttons add a service, database, queue, actor, note, free text or container straight away.
+- A **note** is a sticky note: its name is the heading and its notes are written out beneath, with no icon or type. It grows taller to fit what you write; drag its corner to make it wider. Exports draw it the same way.
 
 ![The type picker: common types first, then every type by category, with a search box](/app/docs-images/add-node.png)
 

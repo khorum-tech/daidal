@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE } from '../fixtures/docs';
 import { catalogue } from './icons';
-import { bounds, ICON_CARD, iconScene, isColor, isHidden, NODE_H, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName } from './model';
+import { bounds, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
 
 describe('typeName', () => {
 	it("turns a slug back into the prototype's own type name", () => {
@@ -132,5 +132,31 @@ describe('isColor', () => {
 	it('gives a tag with a colour Skope can’t use the plain grey on the canvas', () => {
 		const scene = toScene({ version: 1, tags: { a: { label: 'A', color: 'red;inset:0' } }, nodes: [] });
 		expect(scene.tags[0].color).toBe('#9397ab');
+	});
+});
+
+describe('sticky notes', () => {
+	const doc = (notes: string, w = 200) => ({
+		version: 1 as const,
+		nodes: [{ id: 'n', name: 'Decision', type: 'note', notes, layout: { x: 0, y: 0, w } }]
+	});
+
+	it('wraps text at spaces, keeps blank lines between paragraphs, and breaks a word too long for a line', () => {
+		expect(wrapText('one two three four', 60, 12)).toEqual(['one two', 'three', 'four']);
+		expect(wrapText('a\n\nb', 100, 12)).toEqual(['a', '', 'b']);
+		expect(wrapText('abcdefghijkl', 40, 12)).toEqual(['abcde', 'fghij', 'kl']);
+		expect(wrapText('', 100, 12)).toEqual([]);
+	});
+
+	it('is a note with no icon in icon-only mode, and grows to fit its text', () => {
+		const short = toScene(doc('Ship it.')).nodes[0];
+		expect(short).toMatchObject({ isNote: true, isText: false, h: NODE_H });
+		const long = toScene(doc('We chose Postgres over Mongo because the ledger needs transactions. '.repeat(4))).nodes[0];
+		expect(long.h).toBe(noteHeight(long.name, long.desc, long.w));
+		expect(long.h).toBeGreaterThan(NODE_H);
+		// Narrower means more lines, so taller.
+		expect(toScene(doc(long.desc, 150)).nodes[0].h).toBeGreaterThan(long.h);
+		expect(iconScene(toScene(doc('x'))).nodes[0]).toEqual(toScene(doc('x')).nodes[0]);
+		expect(noteLines(long.desc, long.w).length).toBeGreaterThan(4);
 	});
 });

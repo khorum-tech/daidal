@@ -91,16 +91,42 @@ const safeKey = (key: string, n: number): string => {
 
 const wrapped = (s: string, open: string, close: string) => s.length >= 2 && s.startsWith(open) && s.endsWith(close);
 
-/** A flow list ("[a, b]") or map ("{ x: 1 }"), or undefined if [s] is neither. */
+/**
+ * Splits the inside of a flow list or map at its own commas: those inside nested [ ] or { }, or inside quotes,
+ * belong to the part they're in.
+ */
+function splitTop(body: string): string[] {
+	const parts: string[] = [];
+	let depth = 0;
+	let quote = '';
+	let start = 0;
+	for (let i = 0; i < body.length; i++) {
+		const c = body[i];
+		if (quote) {
+			if (c === '\\' && quote === '"') i++;
+			else if (c === quote) quote = '';
+		} else if (c === '"' || c === "'") quote = c;
+		else if (c === '[' || c === '{') depth++;
+		else if (c === ']' || c === '}') depth--;
+		else if (c === ',' && depth === 0) {
+			parts.push(body.slice(start, i));
+			start = i + 1;
+		}
+	}
+	parts.push(body.slice(start));
+	return parts;
+}
+
+/** A flow list ("[a, b]") or map ("{ x: 1 }"), nested ones included, or undefined if [s] is neither. */
 function flow(s: string, n: number): Value | undefined {
 	if (wrapped(s, '[', ']')) {
 		const b = s.slice(1, -1).trim();
-		return b === '' ? [] : b.split(',').map(x => scalar(x, n));
+		return b === '' ? [] : splitTop(b).map(x => scalar(x, n));
 	}
 	if (!wrapped(s, '{', '}')) return undefined;
 	const o: Record<string, Value> = {};
 	const b = s.slice(1, -1).trim();
-	for (const pair of b ? b.split(',') : []) {
+	for (const pair of b ? splitTop(b) : []) {
 		const i = pair.indexOf(':');
 		if (i < 0) throw new YamlError('Expected “key: value” inside { }', n);
 		o[safeKey(pair.slice(0, i).trim(), n)] = scalar(pair.slice(i + 1), n);

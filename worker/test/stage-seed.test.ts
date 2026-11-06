@@ -82,6 +82,8 @@ describe("stage seed", () => {
   it("signs the owner and teammates in to their seeded profiles", async () => {
     await seed();
     expect((await call.get(OWNER, "/api/me")).body).toEqual({ email: OWNER, ...OWNER_PROFILE });
+    // Stage doesn't offer the tour after each reset.
+    expect(OWNER_PROFILE.settings.tutorial).toEqual({ step: 0, dismissed: true });
     expect((await call.get(PRIYA.email, "/api/me")).body).toMatchObject({ name: PRIYA.name, title: PRIYA.title });
     expect((await call.get(DEV.email, "/api/me")).body).toMatchObject({ name: DEV.name, title: DEV.title });
   });
