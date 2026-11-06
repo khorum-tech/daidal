@@ -134,8 +134,9 @@ function c4Markup(n: SceneNode, dash: string, edge: string | undefined): string 
 	const mark = edge ? `<rect x="${n.x}" y="${n.y + 10}" width="3" height="${Math.max(0, n.h - 20)}" fill="${esc(edge)}"/>` : '';
 	const name = c4Name(n.name, n.w).map(l => text(l, C4.nameSize, C4.nameLine, ` font-weight="600" fill="${C.text}"`));
 	const kind = c4Kind(n.c4!.line, n.w).map(l => text(l, C4.kindSize, C4.kindLine, ` fill="${C.muted}"`));
-	if (n.desc.trim()) y += C4.gap;
-	const desc = n.desc.trim() ? c4Desc(n.desc, n.w).map(l => text(l, C4.descSize, C4.descLine, ` fill="${C.text}"`)) : [];
+	const about = n.c4!.desc;
+	if (about.trim()) y += C4.gap;
+	const desc = about.trim() ? c4Desc(about, n.w).map(l => text(l, C4.descSize, C4.descLine, ` fill="${C.text}"`)) : [];
 	return shape + head + mark + name.join('') + kind.join('') + desc.join('');
 }
 

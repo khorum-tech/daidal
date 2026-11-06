@@ -48,8 +48,11 @@ export interface SceneNode {
 	isText: boolean;
 	/** A sticky note: its name as a heading and its notes written out beneath, with no icon or type. */
 	isNote: boolean;
-	/** In a C4 diagram (Context, Container, Component): its role and C4 element line; otherwise null. */
-	c4: { role: C4Role; line: string } | null;
+	/**
+	 * In a C4 diagram (Context, Container, Component): its role, C4 element line, and the description under them (its
+	 * notes; for a person or system, whose line has no technology, its subtitle when it has no notes). Otherwise null.
+	 */
+	c4: { role: C4Role; line: string; desc: string } | null;
 }
 
 export interface SceneEdge {
@@ -204,7 +207,8 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind:
 	const type = typeName(n.type, cats);
 	const ownIcon = isNodeIcon(n.icon) ? n.icon : null;
 	const role = type === 'Note' || type === 'Text' ? null : c4Role(kind, type);
-	const c4 = role ? { role, line: c4Line(role, kind, n.subtitle ?? '') } : null;
+	const techless = role === 'person' || role === 'system' || role === 'external';
+	const c4 = role ? { role, line: c4Line(role, kind, n.subtitle ?? ''), desc: n.notes?.trim() ? n.notes : techless ? (n.subtitle ?? '') : '' } : null;
 	const w = num(lay.w, NODE_W);
 	const h = num(lay.h, NODE_H);
 	return {
@@ -222,7 +226,7 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind:
 		y: num(lay.y, 0),
 		w,
 		h: c4
-			? Math.max(h, c4Height(c4.role, String(n.name ?? n.id), c4.line, n.notes ?? '', w))
+			? Math.max(h, c4Height(c4.role, String(n.name ?? n.id), c4.line, c4.desc, w))
 			: type === 'Note'
 				? Math.max(h, noteHeight(String(n.name ?? n.id), n.notes ?? '', w))
 				: h,
