@@ -26,7 +26,7 @@ Until the two repository variables and the secret below are set, the `stage` job
    your own sign-in email. Save it, open it again and copy its **Application Audience (AUD) tag**.
 3. **Set the GitHub Actions settings.** In *Settings → Environments → New environment*, make one named `stage`.
    Leave *Deployment branches* open to all branches (every PR branch deploys) and add no required reviewers. Put
-   these in it (repository-level settings work too; the `production` environment's are never visible to stage):
+   these in it (repository-level settings work too; the `Prod` environment's are never visible to stage):
    - `STAGE_D1_ID` (step 1) and `STAGE_ACCESS_AUD` (step 2): secrets or variables, either works.
    - Secret `STAGE_OWNER_EMAIL`, the email you sign in to Access with. The stage data is owned by this address.
      It is a secret so GitHub masks it in this public repository's logs, and only the seed step gets it.
@@ -39,8 +39,8 @@ Until the two repository variables and the secret below are set, the `stage` job
 
 `wrangler.jsonc` holds placeholders for the database id and the Access AUD (it serves `wrangler dev` and the
 tests, which need neither), so nothing account-specific is in the repository. The prod deploy fills them in with
-`scripts/prod-config.mjs`, which writes `wrangler.prod.jsonc` (never committed). In the `production` environment
-(*Settings → Environments → production*):
+`scripts/prod-config.mjs`, which writes `wrangler.prod.jsonc` (never committed). In the `Prod` environment
+(*Settings → Environments → Prod*):
 
 | Name | What | Where to find it |
 |------|------|------------------|
@@ -56,8 +56,8 @@ message naming what's missing, before touching Cloudflare.
 
 Stage runs pull-request code, so it must not hold prod's keys:
 
-- **Prod's token** (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`) lives in the GitHub environment `production`,
-  which only `main` may use (*Settings → Environments → production → Deployment branches: `main`*). The prod
+- **Prod's token** (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`) lives in the GitHub environment `Prod`,
+  which only `main` may use (*Settings → Environments → Prod → Deployment branches: `main`*). The prod
   `deploy` job runs there; no pull request's code can reach it.
 - **Stage's token** (`STAGE_CLOUDFLARE_API_TOKEN`, `STAGE_CLOUDFLARE_ACCOUNT_ID`) lives in the GitHub environment
   `stage`, used only by the `stage` job. It needs *Workers Scripts: Edit*, *D1: Edit* and *Zone → Workers Routes: Edit* (for the custom

@@ -87,6 +87,6 @@ Check these when setting up a site, and after any change in Cloudflare:
 - **Managed OAuth** (for MCP): short access-token lifetime (5–15 minutes); allowed redirect URIs as narrow as you can
   (`https://claude.ai/*` for claude.ai connectors).
 - **Zone:** HSTS on (SSL/TLS → Edge Certificates).
-- **GitHub:** prod's Cloudflare token is in the `production` environment, limited to `main`; stage has its own
+- **GitHub:** prod's Cloudflare token is in the `Prod` environment, limited to `main`; stage has its own
   (`STAGE_CLOUDFLARE_*`), ideally in a separate Cloudflare account (`docs/stage.md` → *Tokens*). Actions are pinned
   by commit and kept current by Dependabot (`.github/dependabot.yml`).
