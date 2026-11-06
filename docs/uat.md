@@ -242,6 +242,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | DIA-3 | Open **payment-flow** in Payments | Read-only: "Owned by priya@example.com"; no toolbar; you can copy it | D P | |
 | DIA-4 ⚠ | **Move** a diagram to Personal from its sheet | The breadcrumb shows Personal; it's gone from the old workspace; its history and follows came with it | D P | |
 | DIA-5 ⚠ | **Delete diagram…**, then **Delete for good** | It asks, then it's gone; copies that follow it keep what they have | D P | |
+| DIA-6 | Open **ledger-platform** (C4 Container); then set its **Kind** to Freeform | C4 cards: name, `[Container: …]`, the notes; Journal DB and Balance Cache as cylinders. Freeform brings the usual cards back; Undo, the C4 ones | D P | |
 
 ## 16. Saving
 

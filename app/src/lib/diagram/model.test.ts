@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE } from '../fixtures/docs';
 import { catalogue } from './icons';
-import { bounds, docLinks, zoomsOf, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
+import { bounds, C4, c4Desc, c4Height, docLinks, zoomsOf, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
 
 describe('typeName', () => {
 	it("turns a slug back into the prototype's own type name", () => {
@@ -179,5 +179,35 @@ describe('links to other diagrams', () => {
 	it('puts them back together in the document shape', () => {
 		const scene = toScene({ version: 1, nodes: [n] }).nodes[0];
 		expect(docLinks(scene.links, scene.zooms)).toEqual([{ label: 'Runbook', url: 'example.com/run' }, { diagram: 'd2', view: 'Ops' }, { label: 'Parts', diagram: 'd3' }]);
+	});
+});
+
+describe('C4 cards', () => {
+	const doc = (kind: string, notes = '') => ({
+		version: 1 as const,
+		diagram: { kind },
+		nodes: [
+			{ id: 'api', name: 'Postings', type: 'service', subtitle: 'Kotlin', notes, layout: { x: 0, y: 0, w: 190 } },
+			{ id: 'n', name: 'A note', type: 'note' }
+		]
+	});
+
+	it('draws C4 cards only in Context, Container and Component diagrams, and never for notes', () => {
+		expect(toScene(doc('c4-container')).nodes[0].c4).toEqual({ role: 'container', line: '[Container: Kotlin]' });
+		expect(toScene(doc('c4-container')).nodes[1].c4).toBeNull();
+		for (const k of ['freeform', 'c4-code', 'deployment', 'C4 nonsense']) expect(toScene(doc(k)).nodes[0].c4, k).toBeNull();
+		// The older "C4" reads as C4 Container.
+		expect(toScene(doc('C4')).nodes[0].c4?.role).toBe('container');
+	});
+
+	it('grows to fit its description, which stops after three lines', () => {
+		const short = toScene(doc('c4-container')).nodes[0];
+		expect(short.h).toBe(NODE_H);
+		const long = toScene(doc('c4-container', 'Double-entry postings. Rejects any batch that does not balance, and logs why. '.repeat(3))).nodes[0];
+		expect(long.h).toBe(c4Height('container', 'Postings', '[Container: Kotlin]', long.desc, 190));
+		expect(long.h).toBeGreaterThan(NODE_H);
+		const lines = c4Desc(long.desc, 190);
+		expect(lines).toHaveLength(C4.maxDesc);
+		expect(lines.at(-1)).toMatch(/…$/);
 	});
 });
