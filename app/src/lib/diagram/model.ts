@@ -131,29 +131,26 @@ export function parseAnchor(value: unknown): Anchor | null {
 /** How a sticky note is laid out, in pixels: shared by the canvas card and the SVG export so they agree. */
 export const NOTE = { pad: 12, headSize: 13, headLine: 18, gap: 4, size: 12, line: 17 } as const;
 
+/** One paragraph's words broken into lines of at most [max] characters; a word longer than that is split. */
+function wrapParagraph(para: string, max: number): string[] {
+	const lines: string[] = [];
+	let line = '';
+	const pieces = para.split(/\s+/).flatMap(word => word.match(new RegExp(`.{1,${max}}`, 'g')) ?? []);
+	for (const piece of pieces) {
+		if (line && line.length + 1 + piece.length <= max) line += ` ${piece}`;
+		else {
+			if (line) lines.push(line);
+			line = piece;
+		}
+	}
+	lines.push(line);
+	return lines;
+}
+
 /** [text] broken into lines that fit [w] pixels at [size]: at spaces where it can, mid-word where a word is too long. */
 export function wrapText(text: string, w: number, size: number): string[] {
 	const max = Math.max(1, Math.floor(w / (size * 0.56)));
-	const lines: string[] = [];
-	for (const para of text.replaceAll('\r', '').split('\n')) {
-		let line = '';
-		for (let word of para.split(/\s+/).filter(Boolean)) {
-			while (word.length > max) {
-				if (line) lines.push(line);
-				lines.push(word.slice(0, max));
-				word = word.slice(max);
-				line = '';
-			}
-			if (!word) continue;
-			if (!line) line = word;
-			else if (line.length + 1 + word.length <= max) line += ` ${word}`;
-			else {
-				lines.push(line);
-				line = word;
-			}
-		}
-		lines.push(line);
-	}
+	const lines = text.replaceAll('\r', '').split('\n').flatMap(para => wrapParagraph(para, max));
 	while (lines.length && lines.at(-1) === '') lines.pop();
 	return lines;
 }
