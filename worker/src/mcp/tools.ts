@@ -165,16 +165,15 @@ function strangers(before: SkopeDoc, next: SkopeDoc, cats: TypeCats): string[] {
 
 /** Links as update_node takes them: a web page needs a url; a diagram to zoom into must be one this person can see. */
 async function linksIn(api: Api, given: Row[]): Promise<NonNullable<DocNode["links"]>> {
-  const out: NonNullable<DocNode["links"]> = [];
-  for (const l of given) {
-    const label = str(l.label) ? { label: str(l.label) } : {};
-    if (str(l.diagram)) {
+  if (given.some(l => !str(l.diagram) && !str(l.url))) throw new ToolError("a link needs a url (a web page) or a diagram (to zoom into)");
+  return Promise.all(
+    given.map(async l => {
+      const label = str(l.label) ? { label: str(l.label) } : {};
+      if (!str(l.diagram)) return { ...label, url: str(l.url) };
       const target = await diagramOf(api, l.diagram);
-      out.push({ ...label, diagram: target.id, ...(str(l.view) ? { view: str(l.view) } : {}) });
-    } else if (str(l.url)) out.push({ ...label, url: str(l.url) });
-    else throw new ToolError("a link needs a url (a web page) or a diagram (to zoom into)");
-  }
-  return out;
+      return { ...label, diagram: target.id, ...(str(l.view) ? { view: str(l.view) } : {}) };
+    }),
+  );
 }
 
 function nodeOf(doc: SkopeDoc, param: unknown, label = "node"): string {
