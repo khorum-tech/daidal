@@ -40,13 +40,13 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
-  # Prod. Its Cloudflare token lives in the `production` environment, which only `main` may use (Settings →
+  # Prod. Its Cloudflare token lives in the `Prod` environment, which only `main` may use (Settings →
   # Environments), so no pull request's code ever runs with it. Stage has its own token (STAGE_CLOUDFLARE_*).
   deploy:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: production
+    environment: Prod
     concurrency: deploy
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -60,7 +60,7 @@ jobs:
       # (wrangler, workerd and esbuild work without them).
       - run: npm ci --ignore-scripts
       - run: npm ci --ignore-scripts --prefix app
-      # wrangler.jsonc holds only placeholders; prod's database id and AUD come from the production environment,
+      # wrangler.jsonc holds only placeholders; prod's database id and AUD come from the `Prod` environment,
       # as secrets or variables (either works).
       - name: Generate wrangler.prod.jsonc
         run: node scripts/prod-config.mjs
