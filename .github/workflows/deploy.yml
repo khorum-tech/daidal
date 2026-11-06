@@ -86,7 +86,8 @@ jobs:
     # needs.test is skipped on a closed PR (nothing to test), which still hands stage on; a failed test stops it.
     if: >-
       always() && needs.test.result != 'failure' && needs.test.result != 'cancelled' &&
-      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.type != 'Bot' && !endsWith(github.event.pull_request.user.login, '[bot]')
     runs-on: ubuntu-latest
     # Stage's settings live in the `stage` environment (repository-level ones are read too); it must allow PR branches.
     environment: stage
@@ -137,9 +138,10 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
           IS_DRAFT: ${{ github.event.pull_request.draft }}
         run: |
-          # "number sha branch" for each open PR in line, oldest first.
+          # "number sha branch" for each open PR in line, oldest first. Bots' PRs (Dependabot's) never take stage:
+          # their runs get none of its secrets, so they would hold it without ever deploying.
           line="$(gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
-            --jq ".[] | select(.draft | not) | select(.head.repo.full_name == \"$REPO\") | \"\(.number) \(.head.sha) \(.head.ref)\"" \
+            --jq ".[] | select(.draft | not) | select(.user.type != \"Bot\" and (.user.login | endswith(\"[bot]\") | not)) | select(.head.repo.full_name == \"$REPO\") | \"\(.number) \(.head.sha) \(.head.ref)\"" \
             | grep -v "^$PR " | sort -n || true)"
           first="$(printf '%s\n' "$line" | head -n 1)"
           first_pr="${first%% *}"
