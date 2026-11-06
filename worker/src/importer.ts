@@ -319,30 +319,34 @@ export async function workspaceBackup(db: D1Database, workspace: string, email: 
   };
 }
 
+/** "<diagram>#<node>" with the diagram renamed by [newId]; anything else as it is. */
+function renamedRef(v: unknown, newId: Map<string, string>): unknown {
+  if (typeof v !== "string") return v;
+  const cut = v.indexOf("#");
+  const to = cut > 0 ? newId.get(v.slice(0, cut)) : undefined;
+  return to ? to + v.slice(cut) : v;
+}
+
+/** [links] with each diagram they zoom into renamed by [newId]. */
+function renamedLinks(links: unknown, newId: Map<string, string>): unknown {
+  if (!Array.isArray(links)) return links;
+  return links.map(l => (isPlainObject(l) && typeof l.diagram === "string" && newId.has(l.diagram) ? { ...l, diagram: newId.get(l.diagram) } : l));
+}
+
 /** [docJson] with the diagram ids in its nodes' links and refs (and its boundaries' refs) renamed by [newId]. */
 export function withNewDiagramIds(docJson: string, newId: Map<string, string>): string {
   const doc = JSON.parse(docJson) as Row;
-  let changed = false;
-  const ref = (v: unknown) => {
-    if (typeof v !== "string" || !v.includes("#")) return v;
-    const cut = v.indexOf("#");
-    const to = newId.get(v.slice(0, cut));
-    if (!to) return v;
-    changed = true;
-    return to + v.slice(cut);
-  };
-  for (const n of Array.isArray(doc.nodes) ? doc.nodes : []) {
-    if (!isPlainObject(n)) continue;
-    if (Array.isArray(n.links)) {
-      for (const l of n.links) {
-        if (isPlainObject(l) && typeof l.diagram === "string" && newId.has(l.diagram)) {
-          l.diagram = newId.get(l.diagram)!;
-          changed = true;
-        }
-      }
-    }
-    if ("ref" in n) n.ref = ref(n.ref);
-  }
-  for (const b of Array.isArray(doc.boundaries) ? doc.boundaries : []) if (isPlainObject(b) && "ref" in b) b.ref = ref(b.ref);
-  return changed ? JSON.stringify(doc) : docJson;
+  const renamed = (items: unknown, node: boolean) =>
+    Array.isArray(items)
+      ? items.map(item => {
+          if (!isPlainObject(item)) return item;
+          const out: Row = { ...item };
+          if ("ref" in item) out.ref = renamedRef(item.ref, newId);
+          if (node && "links" in item) out.links = renamedLinks(item.links, newId);
+          return out;
+        })
+      : items;
+  const next = { ...doc, ...("nodes" in doc ? { nodes: renamed(doc.nodes, true) } : {}), ...("boundaries" in doc ? { boundaries: renamed(doc.boundaries, false) } : {}) };
+  const text = JSON.stringify(next);
+  return text === JSON.stringify(doc) ? docJson : text;
 }
