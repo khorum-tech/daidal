@@ -101,7 +101,16 @@ export interface DocNode {
 	tags?: string[];
 	layout?: { x: number; y: number; w?: number; h?: number };
 	notes?: string;
-	links?: { label?: string; url: string }[];
+	/** Web pages ({ url }) and diagrams to zoom into ({ diagram, view? }), in one list. */
+	links?: NodeLink[];
+}
+
+/** A node's link: a web page by its url, or another diagram in the workspace (and one of its views) to zoom into. */
+export interface NodeLink {
+	label?: string;
+	url?: string;
+	diagram?: string;
+	view?: string;
 }
 
 export interface DocEdge {

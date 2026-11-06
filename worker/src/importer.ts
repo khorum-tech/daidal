@@ -225,6 +225,10 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
     return { id: newId.get(from)!, lead_id: newId.get(lead)!, synced_snapshot_id: synced, paused: spec.paused ? 1 : 0, decided: decidedText(remapped) };
   });
 
+  // A node's links to other diagrams (links[].diagram) and its ref ("<diagram>#<node>") name diagrams by their id in
+  // the file; once every diagram has its new id, they follow. One pointing outside the file is left as it is.
+  for (const row of [...diagrams, ...snapshots]) row.doc = withNewDiagramIds(row.doc, newId);
+
   const cols = (names: string[]) => names.map(n => `json_extract(value, '$.${n}')`).join(", ");
   statements.push(
     ...chunked(
@@ -313,4 +317,32 @@ export async function workspaceBackup(db: D1Database, workspace: string, email: 
     ...(types.results.length ? { types: types.results } : {}),
     diagrams,
   };
+}
+
+/** [docJson] with the diagram ids in its nodes' links and refs (and its boundaries' refs) renamed by [newId]. */
+export function withNewDiagramIds(docJson: string, newId: Map<string, string>): string {
+  const doc = JSON.parse(docJson) as Row;
+  let changed = false;
+  const ref = (v: unknown) => {
+    if (typeof v !== "string" || !v.includes("#")) return v;
+    const cut = v.indexOf("#");
+    const to = newId.get(v.slice(0, cut));
+    if (!to) return v;
+    changed = true;
+    return to + v.slice(cut);
+  };
+  for (const n of Array.isArray(doc.nodes) ? doc.nodes : []) {
+    if (!isPlainObject(n)) continue;
+    if (Array.isArray(n.links)) {
+      for (const l of n.links) {
+        if (isPlainObject(l) && typeof l.diagram === "string" && newId.has(l.diagram)) {
+          l.diagram = newId.get(l.diagram)!;
+          changed = true;
+        }
+      }
+    }
+    if ("ref" in n) n.ref = ref(n.ref);
+  }
+  for (const b of Array.isArray(doc.boundaries) ? doc.boundaries : []) if (isPlainObject(b) && "ref" in b) b.ref = ref(b.ref);
+  return changed ? JSON.stringify(doc) : docJson;
 }

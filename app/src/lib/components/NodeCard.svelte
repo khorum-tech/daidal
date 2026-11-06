@@ -84,6 +84,9 @@
 				{#each flags as f (f.id)}<span title={f.label} class="flag"><Icon name={f.icon} size={11} label={f.label} /></span>{/each}
 				{#if first}<span class="dot" title={tagTitle} style:background={first.color}></span>{/if}
 			</span>
+			{#if node.zooms.length}
+				<span class="zoom-mark" title="Zooms into {node.zooms.length === 1 ? 'a diagram' : `${node.zooms.length} diagrams`}"><Icon name="magnifyingGlassPlus" size={11} label="Zooms in" /></span>
+			{/if}
 			{#if node.links.length}
 				<span class="links" title={linkTitle}><Icon name="globe" size={11} />{node.links.length}</span>
 			{/if}
@@ -202,6 +205,11 @@
 		width: 7px;
 		height: 7px;
 		border-radius: 50%;
+	}
+	.zoom-mark {
+		display: flex;
+		flex: none;
+		color: var(--color-accent-300);
 	}
 	.links {
 		display: flex;

@@ -61,6 +61,7 @@
 		onaddat,
 		renaming = null,
 		onrenamestart,
+		ondrill,
 		onrename,
 		snap = true,
 		onsnap,
@@ -109,6 +110,8 @@
 		/** The node whose name is being typed in place. */
 		renaming?: string | null;
 		onrenamestart?: (id: string) => void;
+		/** A double-click on a node that zooms into another diagram: true when it went there, so it doesn't also rename. */
+		ondrill?: (id: string) => boolean;
 		onrename?: (id: string, name: string | null) => void;
 		/** Whether a dragged node snaps into line (Alt places it freely either way). */
 		snap?: boolean;
@@ -581,6 +584,9 @@
 	let lastPointer = '';
 	let connectedAt = -Infinity;
 	function doubleClick(e: MouseEvent) {
+		// A node that zooms into another diagram opens it, for anyone who can see this one.
+		const drill = (e.target as Element).closest<HTMLElement>('[data-node]')?.dataset.node;
+		if (drill && !connectFrom && !picking && !manyMode && !e.shiftKey && ondrill?.(drill)) return;
 		if (!editable || lastPointer !== 'mouse' || e.timeStamp - connectedAt < 700 || connectFrom || picking || manyMode || e.shiftKey) return;
 		const target = e.target as Element;
 		const id = target.closest<HTMLElement>('[data-node]')?.dataset.node;

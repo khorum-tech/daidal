@@ -71,7 +71,7 @@
 	import { getClip, putClip } from '#lib/clipboard.ts';
 	import MultiInspector from '#lib/components/MultiInspector.svelte';
 	import { History } from '#lib/history.svelte.ts';
-	import { iconScene, tagsOn, toScene, type Anchor } from '#lib/diagram/model.ts';
+	import { iconScene, tagsOn, toScene, type Anchor, type ZoomLink } from '#lib/diagram/model.ts';
 	import { catalogue } from '#lib/diagram/icons.ts';
 	import { kindOf, type KindId } from '#lib/diagram/kinds.ts';
 	import { appearance } from '#lib/appearance.svelte.ts';
@@ -87,6 +87,63 @@
 
 	const workspace = $derived(data.workspaces.find(w => w.id === data.diagram.workspaceId));
 	const api = createApi(fetch);
+
+	// Drill-down. A node can zoom into another diagram in the workspace (its links[].diagram); this one's address
+	// carries the diagrams it was reached from (?from=parent,grandparent…), so the header can show the way back up.
+	/** The workspace's other diagrams, by id and name: what a node can zoom into, and the names on the way back. */
+	let linkable = $state<{ id: string; name: string }[] | null>(null);
+	$effect(() => {
+		const ws = data.diagram.workspaceId;
+		const self = data.diagram.id;
+		linkable = null;
+		api
+			.diagrams(ws, { limit: 100 })
+			.then(list => {
+				if (data.diagram.workspaceId === ws) linkable = list.filter(d => d.id !== self).map(d => ({ id: d.id, name: d.name }));
+			})
+			.catch(() => (linkable = []));
+	});
+	const trail = $derived((page.url.searchParams.get('from') ?? '').split(',').filter(id => id && id !== data.diagram.id));
+	/** Names of the diagrams on the way back up that aren't in this workspace's list (another workspace's, or not yet loaded). */
+	let farNames = $state<Record<string, string>>({});
+	$effect(() => {
+		for (const id of trail) {
+			if (farNames[id] || linkable?.some(d => d.id === id)) continue;
+			api.diagram(id).then(
+				d => (farNames = { ...farNames, [id]: d.name }),
+				() => (farNames = { ...farNames, [id]: 'a diagram' })
+			);
+		}
+	});
+	const trailName = (id: string) => linkable?.find(d => d.id === id)?.name ?? farNames[id] ?? '…';
+	/** The links of [nodeId] this person can follow: to diagrams they can see. */
+	function zoomsFrom(nodeId: string): ZoomLink[] {
+		const n = scene.nodes.find(x => x.id === nodeId);
+		return n && linkable ? n.zooms.filter(z => linkable!.some(d => d.id === z.diagram)) : [];
+	}
+	function zoomIn(z: ZoomLink) {
+		const params = new URLSearchParams({ from: [data.diagram.id, ...trail].join(',') });
+		if (z.view) params.set('view', z.view);
+		void goto(`${resolve('/d/[id]', { id: z.diagram })}?${params}`);
+	}
+	/** The address [levels] diagrams back up the way this was reached, with the node that zoomed in selected there. */
+	function zoomOutHref(levels: number): string {
+		const params = new URLSearchParams({ focus: levels === 1 ? data.diagram.id : trail[levels - 2] });
+		const rest = trail.slice(levels);
+		if (rest.length) params.set('from', rest.join(','));
+		return `${resolve('/d/[id]', { id: trail[levels - 1] })}?${params}`;
+	}
+	function zoomOut() {
+		if (trail.length) void goto(zoomOutHref(1));
+	}
+	/** A double-click (or ⌘↓) on a node: one diagram to zoom into goes there; several open the node's details to choose. */
+	function drill(nodeId: string): boolean {
+		const zooms = zoomsFrom(nodeId);
+		if (!zooms.length) return false;
+		if (zooms.length === 1) zoomIn(zooms[0]);
+		else details(nodeId);
+		return true;
+	}
 
 	// The working copy as edited here, what saves it, and its undo history. All start over whenever a diagram
 	// (re)loads.
@@ -159,7 +216,9 @@
 			view = scene.views.some(v => v.label === asked) ? asked : scene.initialView;
 			on = tagsOn(scene, view);
 			solo = null;
-			selected = null;
+			// Back from a diagram it zooms into (?focus=that one), the node that zoomed in starts selected.
+			const focus = replaying ? null : page.url.searchParams.get('focus');
+			selected = focus ? (scene.nodes.find(n => n.zooms.some(z => z.diagram === focus))?.id ?? null) : null;
 			selectedEdge = null;
 			connectFrom = null;
 			selectedBox = null;
@@ -731,10 +790,16 @@
 		// Keys pressed in a field or a sheet (Escape closing one, say) are theirs, not the canvas's.
 		if (e.defaultPrevented || (e.target as Element).closest?.('input, textarea, select, [contenteditable], dialog')) return;
 		const k = e.key.toLowerCase();
-		const action = e.metaKey || e.ctrlKey ? metaKey(k, e.shiftKey) : k === 'delete' || k === 'backspace' ? deleteKey() : k === 'escape' ? escapeKey() : null;
+		const action = e.metaKey || e.ctrlKey ? (zoomKey(k) ?? metaKey(k, e.shiftKey)) : k === 'delete' || k === 'backspace' ? deleteKey() : k === 'escape' ? escapeKey() : null;
 		if (!action) return;
 		e.preventDefault();
 		action();
+	}
+	/** ⌘↓ zooms into the selected node's diagram; ⌘↑ goes back up to the diagram this was reached from. */
+	function zoomKey(k: string): (() => void) | null {
+		if (k === 'arrowdown') return selected && zoomsFrom(selected).length ? () => drill(selected!) : null;
+		if (k === 'arrowup') return trail.length ? () => zoomOut() : null;
+		return null;
 	}
 	function metaKey(k: string, shift: boolean): (() => void) | null {
 		// Picking and copying work on any diagram you can see; the rest change it.
@@ -1056,6 +1121,8 @@
 	homeHref={resolve('/')}
 	crumbs={[
 		...(workspace ? [{ label: workspace.name, href: `${resolve('/')}?ws=${encodeURIComponent(workspace.id)}` }] : []),
+		// The way back up, outermost first.
+		...trail.map((id, i) => ({ label: trailName(id), href: zoomOutHref(i + 1) })).reverse(),
 		{ label: working.name, onclick: () => (sheet = 'diagram'), title: mine ? 'Rename, copy or delete this diagram' : 'Copy this diagram' }
 	]}
 />
@@ -1114,6 +1181,8 @@
 		<Inspector
 			{cats}
 			{kind}
+			diagrams={linkable}
+			onzoom={zoomIn}
 			node={selectedNode}
 			tags={tagByKey}
 			{editable}
@@ -1268,6 +1337,7 @@
 			onaddat={addAt}
 			{renaming}
 			onrenamestart={startRename}
+			ondrill={drill}
 			onrename={renameNode}
 			{snap}
 			onsnap={editable ? setSnap : undefined}

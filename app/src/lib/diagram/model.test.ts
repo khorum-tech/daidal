@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE } from '../fixtures/docs';
 import { catalogue } from './icons';
-import { bounds, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
+import { bounds, docLinks, zoomsOf, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
 
 describe('typeName', () => {
 	it("turns a slug back into the prototype's own type name", () => {
@@ -158,5 +158,26 @@ describe('sticky notes', () => {
 		expect(toScene(doc(long.desc, 150)).nodes[0].h).toBeGreaterThan(long.h);
 		expect(iconScene(toScene(doc('x'))).nodes[0]).toEqual(toScene(doc('x')).nodes[0]);
 		expect(noteLines(long.desc, long.w).length).toBeGreaterThan(4);
+	});
+});
+
+describe('links to other diagrams', () => {
+	const n = {
+		id: 'api',
+		name: 'API',
+		type: 'service',
+		links: [{ label: 'Runbook', url: 'example.com/run' }, { diagram: 'd2', view: 'Ops' }, { diagram: 'd2' }, { diagram: '' }, { label: 'Parts', diagram: 'd3' }]
+	};
+
+	it('splits web links from the diagrams a node zooms into, one per diagram', () => {
+		const scene = toScene({ version: 1, nodes: [n] });
+		expect(scene.nodes[0].links).toEqual([{ label: 'Runbook', url: 'example.com/run' }]);
+		expect(scene.nodes[0].zooms).toEqual([{ diagram: 'd2', view: 'Ops' }, { label: 'Parts', diagram: 'd3' }]);
+		expect(zoomsOf({ id: 'x', name: 'x', type: 'service' })).toEqual([]);
+	});
+
+	it('puts them back together in the document shape', () => {
+		const scene = toScene({ version: 1, nodes: [n] }).nodes[0];
+		expect(docLinks(scene.links, scene.zooms)).toEqual([{ label: 'Runbook', url: 'example.com/run' }, { diagram: 'd2', view: 'Ops' }, { label: 'Parts', diagram: 'd3' }]);
 	});
 });
