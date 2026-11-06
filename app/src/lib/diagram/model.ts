@@ -135,7 +135,8 @@ export const NOTE = { pad: 12, headSize: 13, headLine: 18, gap: 4, size: 12, lin
 function wrapParagraph(para: string, max: number): string[] {
 	const lines: string[] = [];
 	let line = '';
-	const pieces = para.split(/\s+/).flatMap(word => word.match(new RegExp(`.{1,${max}}`, 'g')) ?? []);
+	const chunks = (word: string) => Array.from({ length: Math.ceil(word.length / max) }, (_, i) => word.slice(i * max, (i + 1) * max));
+	const pieces = para.split(/\s+/).flatMap(chunks);
 	for (const piece of pieces) {
 		if (line && line.length + 1 + piece.length <= max) line += ` ${piece}`;
 		else {
