@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { c4Backup } from "../stage/diagrams";
 import { importStageData } from "./support";
 
 interface SavedNode {
@@ -1393,6 +1394,43 @@ test.describe("the app at /app", () => {
     await expect(page).toHaveURL(new RegExp(`/app/d/${child}`));
     await crumbs.getByRole("link", { name: "ledger-platform" }).click();
     await expect(page).toHaveURL(new RegExp(`/app/d/${top}`));
+  });
+
+  test("walks a linked C4 set down and up, and makes the level below a node as a new diagram", async ({ page, request }) => {
+    const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+    expect(res.status()).toBe(201);
+    const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+    const id = (name: string) => list.find(d => d.name === name)!.id;
+    const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
+
+    // Context → Containers → Components by double-clicks, and the breadcrumb shows the whole way.
+    await page.goto(`/app/d/${id("ledger-context")}`);
+    await page.getByRole("button", { name: "System: Ledger" }).dblclick();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${id("ledger-containers")}`));
+    await page.getByRole("button", { name: "Service: Postings Service" }).dblclick();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${id("postings-components")}`));
+    await expect(crumbs.getByRole("link")).toHaveText(["Ledger C4", "ledger-context", "ledger-containers"]);
+
+    // Back up one, then make the level below the console.
+    await crumbs.getByRole("link", { name: "ledger-containers" }).click();
+    await expect(page.getByRole("region", { name: "Selected node" }).getByLabel("Name")).toHaveValue("Postings Service");
+    await page.getByRole("button", { name: "Web App: Ledger Console" }).click();
+    await page.getByRole("region", { name: "Selected node" }).getByRole("button", { name: "New C4 Component diagram" }).click();
+    await expect(page).toHaveURL(new RegExp(`\\?from=${id("ledger-containers")}`));
+    await expect(crumbs.getByRole("button", { name: "Ledger Console" })).toBeVisible();
+    // Its neighbours came along around the scope, and it is a C4 Component diagram.
+    await expect(page.getByRole("button", { name: "Actor: Finance Staff" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Service: Postings Service" })).toBeVisible();
+    await expect(page.locator("[data-box]").filter({ hasText: "Ledger Console" })).toBeVisible();
+    const made = page.url().match(/\/app\/d\/([^?]+)/)![1];
+    expect((await saved(page, request, made)).doc.diagram.kind).toBe("c4-component");
+
+    // The node above now zooms into it.
+    await page.keyboard.press("ControlOrMeta+ArrowUp");
+    await expect(page).toHaveURL(new RegExp(`/app/d/${id("ledger-containers")}`));
+    const console_ = (await saved(page, request, id("ledger-containers"))).doc.nodes.find(n => n.id === "console")!;
+    expect(console_.links).toEqual([{ diagram: made }]);
   });
 
   test("shows a note as a sticky note that grows with its text, and exports it the same way", async ({ page, request }) => {

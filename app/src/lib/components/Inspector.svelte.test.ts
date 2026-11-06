@@ -150,3 +150,32 @@ describe('the inspector and diagrams to zoom into', () => {
 		expect(page.getByLabelText('Link a diagram to zoom into').elements()).toHaveLength(0);
 	});
 });
+
+describe('the inspector and new diagrams below a node', () => {
+	const plain = toScene({ version: 1, nodes: [{ id: 'api', name: 'API', type: 'service' }] }).nodes[0];
+
+	it('offers the next C4 level for a node that zooms into nothing, and shows a failure', async () => {
+		const { kindOf } = await import('../diagram/kinds');
+		let calls = 0;
+		render(Inspector, {
+			node: plain,
+			tags: {},
+			editable: true,
+			diagrams: [],
+			kind: kindOf('c4-container'),
+			onzoomnew: async () => {
+				calls++;
+				throw new Error('You can own at most 2 diagrams');
+			}
+		});
+		await page.getByRole('button', { name: 'New C4 Component diagram' }).click();
+		expect(calls).toBe(1);
+		await expect.element(page.getByRole('alert')).toHaveTextContent('You can own at most 2 diagrams');
+	});
+
+	it('offers nothing below at the bottom of C4', async () => {
+		const { kindOf } = await import('../diagram/kinds');
+		render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-code'), onzoomnew: async () => {} });
+		expect(page.getByRole('button', { name: /^New .* diagram$/ }).elements()).toHaveLength(0);
+	});
+});

@@ -29,7 +29,8 @@
 		cats = TYPE_CATS,
 		kind = kindOf(''),
 		diagrams = null,
-		onzoom
+		onzoom,
+		onzoomnew
 	}: {
 		node: SceneNode;
 		tags: Record<string, SceneTag>;
@@ -56,6 +57,8 @@
 		diagrams?: { id: string; name: string }[] | null;
 		/** Opens the diagram a link zooms into. */
 		onzoom?: (link: ZoomLink) => void;
+		/** In a C4 diagram, makes the level below this node as a new diagram, links the node to it and opens it. */
+		onzoomnew?: () => Promise<void>;
 	} = $props();
 	let naming = $state(false);
 	let tagName = $state('');
@@ -88,6 +91,21 @@
 	/** The links this person can follow: to diagrams they can see. */
 	const zooms = $derived(node.zooms.filter(z => nameOf.has(z.diagram)));
 	const linkable = $derived((diagrams ?? []).filter(d => !node.zooms.some(z => z.diagram === d.id)));
+	/** What a new diagram below this node would be: the next C4 level, offered while the node zooms into nothing. */
+	const below = $derived(editable && onzoomnew && kind.level && kind.child && !zooms.length ? kindOf(kind.child) : null);
+	let making = $state(false);
+	let madeError = $state('');
+	async function zoomNew() {
+		making = true;
+		madeError = '';
+		try {
+			await onzoomnew?.();
+		} catch (e) {
+			madeError = e instanceof Error ? e.message : 'Could not make the diagram';
+		} finally {
+			making = false;
+		}
+	}
 	function linkDiagram(id: string) {
 		if (id) onchange?.({ links: docLinks(node.links, [...node.zooms, { diagram: id }]) }, `Zoom into ${nameOf.get(id) ?? 'a diagram'}`);
 	}
@@ -135,7 +153,7 @@
 {/snippet}
 
 {#snippet zoomIn()}
-	{#if zooms.length || (editable && linkable.length)}
+	{#if zooms.length || below || (editable && linkable.length)}
 		<h3>Zoom in</h3>
 		{#if zooms.length}
 			<ul class="zooms">
@@ -150,6 +168,12 @@
 					</li>
 				{/each}
 			</ul>
+		{/if}
+		{#if below}
+			<button type="button" class="btn btn-secondary zoom" disabled={making} onclick={zoomNew}>
+				<Icon name="magnifyingGlassPlus" size={14} />New {below.label} diagram
+			</button>
+			{#if madeError}<p class="error" role="alert">{madeError}</p>{/if}
 		{/if}
 		{#if editable && linkable.length}
 			<select class="input" aria-label="Link a diagram to zoom into" value="" onchange={e => linkDiagram(e.currentTarget.value)}>
@@ -322,6 +346,11 @@
 </section>
 
 <style>
+	.error {
+		margin: 4px 0 0;
+		font-size: 12px;
+		color: var(--color-danger, #e5484d);
+	}
 	.zooms {
 		list-style: none;
 		margin: 0 0 6px;

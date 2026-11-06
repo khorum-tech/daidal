@@ -285,6 +285,17 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | MCP-3 | With a **Read** token, ask it to change something | It says the token can only read; nothing changes | D | |
 | MCP-4 | Online (once Managed OAuth is on, see `docs/mcp.md`): add `https://<site>/mcp` as a claude.ai custom connector and sign in | It lists your workspaces as you | D | |
 
+## 21. Kinds and C4 drill-down
+
+| ID | Do | Expect | On | Result |
+|----|----|--------|----|--------|
+| C4-1 | Open a diagram, press its name, change **Kind**; then **+ Add** | The hint says what the kind is; **Common in <kind>** lists that kind's types first; Undo puts the kind back | D P | |
+| C4-2 | On stage, open **Ledger C4 › ledger-context** and double-click **Ledger**, then **Postings Service** | Each opens the level below; the header reads *Ledger C4 / ledger-context / ledger-containers / postings-components* | D | |
+| C4-3 | Press **⌘↑**, or a diagram in the header | Back up one level (or to the one pressed), with the node that zoomed in selected | D | |
+| C4-4 | On a phone, open a node's details: the button under **Zoom in** | It opens the linked diagram; the header's links come back up | P | |
+| C4-5 | Select a node with no link in a C4 Container diagram: **Zoom in → New C4 Component diagram** | A new diagram named after it opens, with it as a container and its neighbours around it; back up, the node now zooms into it | D P | |
+| C4-6 | Export a workspace with linked diagrams, import the file | The imported diagrams link to each other, not to the originals | D | |
+
 ## Regressions
 
 Bugs that were fixed, so they stay fixed. Add one whenever a bug is fixed: what to do, and what used to go wrong.

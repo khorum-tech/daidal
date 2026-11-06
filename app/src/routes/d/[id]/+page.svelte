@@ -74,6 +74,7 @@
 	import { iconScene, tagsOn, toScene, type Anchor, type ZoomLink } from '#lib/diagram/model.ts';
 	import { catalogue } from '#lib/diagram/icons.ts';
 	import { kindOf, type KindId } from '#lib/diagram/kinds.ts';
+	import { childDoc } from '#lib/diagram/drill.ts';
 	import { appearance } from '#lib/appearance.svelte.ts';
 	import { distinguishable } from '#lib/diagram/colour.ts';
 	import { followState } from '#lib/follow.ts';
@@ -135,6 +136,23 @@
 	}
 	function zoomOut() {
 		if (trail.length) void goto(zoomOutHref(1));
+	}
+	/**
+	 * Zoom in → New diagram: the next C4 level below the selected node, in this workspace, named after it and seeded
+	 * with it as the scope and its neighbours around it; the node links to it (an edit, so Undo takes the link back),
+	 * and it opens. A failure to make it is reported to the caller and changes nothing here.
+	 */
+	async function zoomNew() {
+		const nodeId = selected;
+		const below = kind.child;
+		const node = nodeId ? scene.nodes.find(n => n.id === nodeId) : undefined;
+		if (!node || !below || !mine) return;
+		const made = await api.createDiagram({ workspace: data.diagram.workspaceId, name: node.name, doc: childDoc(current(), data.diagram.id, node.id, below) });
+		const before = current();
+		const zooms = [...node.zooms, { diagram: made.id }];
+		apply(updateNode(before, node.id, { links: [...node.links, ...zooms] }), before, `Zoom into a new ${kindOf(below).label} diagram`);
+		await working.saver.flush();
+		zoomIn({ diagram: made.id });
 	}
 	/** A double-click (or ⌘↓) on a node: one diagram to zoom into goes there; several open the node's details to choose. */
 	function drill(nodeId: string): boolean {
@@ -1183,6 +1201,7 @@
 			{kind}
 			diagrams={linkable}
 			onzoom={zoomIn}
+			onzoomnew={zoomNew}
 			node={selectedNode}
 			tags={tagByKey}
 			{editable}
