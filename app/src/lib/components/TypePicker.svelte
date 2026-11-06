@@ -1,21 +1,23 @@
 <script lang="ts">
 	import { TYPE_CATS, typeIcon, type TypeCats } from '../diagram/icons';
+	import { commonTypes, kindOf, type Kind } from '../diagram/kinds';
 	import Icon from './Icon.svelte';
 
 	/**
-	 * The prototype's type picker: the core types first, and the whole catalogue behind a search field.
-	 * [current] is marked; picking one calls [onpick] with its display name. [cats] is the workspace's catalogue,
-	 * its own types merged into the built-in ones.
+	 * The prototype's type picker: the diagram kind's common types first, and the whole catalogue behind a search
+	 * field. [current] is marked; picking one calls [onpick] with its display name. [cats] is the workspace's
+	 * catalogue, its own types merged into the built-in ones; [kind] picks which types come first.
 	 */
 	let {
 		current = null,
 		onpick,
 		autofocus = false,
-		cats = TYPE_CATS
-	}: { current?: string | null; onpick: (type: string) => void; autofocus?: boolean; cats?: TypeCats } = $props();
+		cats = TYPE_CATS,
+		kind = kindOf('')
+	}: { current?: string | null; onpick: (type: string) => void; autofocus?: boolean; cats?: TypeCats; kind?: Kind } = $props();
 
-	/** The prototype's core types (web/index.html CORE_TYPES). */
-	const CORE = ['Web App', 'Service', 'Database', 'Queue', 'Actor', 'External', 'Storage', 'Note'];
+	const known = $derived(new Set(cats.flatMap(c => c.items.map(([label]) => label))));
+	const common = $derived(commonTypes(kind, t => known.has(t)));
 
 	let q = $state('');
 	const query = $derived(q.trim().toLowerCase());
@@ -38,9 +40,9 @@
 <div class="picker">
 	<input bind:this={search} class="input" type="search" placeholder="Search all types…" aria-label="Search all types" bind:value={q} />
 	{#if !query}
-		<p class="cat">Common</p>
+		<p class="cat">Common{kind.id === 'freeform' ? '' : ` in ${kind.label}`}</p>
 		<div class="grid">
-			{#each CORE as label (label)}{@render option(label)}{/each}
+			{#each common as label (label)}{@render option(label)}{/each}
 		</div>
 	{/if}
 	{#each groups as g (g.cat)}

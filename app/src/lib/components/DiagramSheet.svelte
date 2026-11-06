@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Workspace } from '../types';
+	import { KINDS, type KindId } from '../diagram/kinds';
 	import Icon from './Icon.svelte';
 
 	/**
@@ -14,6 +15,8 @@
 		workspaces,
 		here,
 		onrename,
+		kind = 'freeform',
+		onkind,
 		oncopy,
 		ondelete,
 		link = '',
@@ -32,6 +35,9 @@
 		/** The workspace the diagram is in, chosen for a copy at first. */
 		here: string;
 		onrename: (name: string) => void;
+		/** The diagram's kind, which its owner can change: it decides which types the Add menu offers first. */
+		kind?: KindId;
+		onkind?: (kind: KindId) => void;
 		oncopy: (copy: { workspace: string; name: string; follow: boolean }) => Promise<void>;
 		ondelete: () => Promise<void>;
 		/** The diagram's address, and with [viewName] the view on now, which a link can open on. */
@@ -112,6 +118,13 @@
 		<label class="field">
 			<span>Name</span>
 			<input class="input" value={name} maxlength="100" onchange={rename} onkeydown={e => e.key === 'Enter' && e.currentTarget.blur()} />
+		</label>
+		<label class="field">
+			<span>Kind</span>
+			<select class="input" aria-label="Kind" aria-describedby="kind-hint" value={kind} onchange={e => onkind?.(e.currentTarget.value as KindId)}>
+				{#each KINDS as k (k.id)}<option value={k.id}>{k.label}</option>{/each}
+			</select>
+			<small class="hint" id="kind-hint">{KINDS.find(k => k.id === kind)?.hint} It decides which types <strong>+ Add</strong> offers first.</small>
 		</label>
 	{:else}
 		<p class="owned">You can look at this diagram, and copy it into a workspace of yours.</p>
@@ -226,6 +239,10 @@
 </div>
 
 <style>
+	.hint {
+		font-size: 12px;
+		color: var(--color-neutral-500);
+	}
 	.diagram-sheet {
 		display: flex;
 		flex-direction: column;

@@ -60,5 +60,15 @@
 			["CI/CD Pipeline", "arrowCW"]
 		]
 	},
+	{
+		"cat": "Code",
+		"items": [
+			["Component", "puzzlePiece"],
+			["Module", "package"],
+			["Class", "bracketsCurly"],
+			["Table", "table"],
+			["File", "fileCode"]
+		]
+	},
 	{ "cat": "Annotation", "items": [["Note", "note"], ["Text", "textT"]] }
 ]

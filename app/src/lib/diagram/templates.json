@@ -7,7 +7,7 @@
 			"version": 1,
 			"diagram": {
 				"name": "C4 Container",
-				"kind": "C4",
+				"kind": "c4-container",
 				"view": "Full system"
 			},
 			"tags": {
@@ -129,7 +129,7 @@
 			"version": 1,
 			"diagram": {
 				"name": "C4 Context",
-				"kind": "C4",
+				"kind": "c4-context",
 				"view": "Full system"
 			},
 			"tags": {
@@ -248,7 +248,7 @@
 			"version": 1,
 			"diagram": {
 				"name": "Deployment topology",
-				"kind": "Infra",
+				"kind": "deployment",
 				"view": "Full system"
 			},
 			"tags": {
@@ -382,7 +382,7 @@
 			"version": 1,
 			"diagram": {
 				"name": "Freeform",
-				"kind": "Freeform",
+				"kind": "freeform",
 				"view": "Everything"
 			},
 			"tags": {

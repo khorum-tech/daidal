@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { kindOf } from '../diagram/kinds';
 	import type { ListedDiagram } from '../types';
 	import { SHEET_H, SHEET_W } from '../diagram/model';
 	import { ago } from '../time';
@@ -35,7 +36,7 @@
 	<span class="body">
 		<span class="title">
 			<span class="name">{diagram.name}</span>
-			{#if s.kind}<span class="tag tag-neutral kind">{s.kind}</span>{/if}
+			{#if s.kind}<span class="tag tag-neutral kind">{kindOf(s.kind).label}</span>{/if}
 		</span>
 		{#if diagram.leadId}
 			<span class="follows"

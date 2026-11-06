@@ -29,3 +29,13 @@ describe('the type picker', () => {
 		await expect.element(page.getByText('No type matches “zzz”.')).toBeVisible();
 	});
 });
+
+describe('the type picker and diagram kinds', () => {
+	it("offers the kind's common types first", async () => {
+		const { kindOf } = await import('../diagram/kinds');
+		render(TypePicker, { kind: kindOf('c4-code'), onpick: () => {} });
+		await expect.element(page.getByText('Common in C4 Code')).toBeVisible();
+		const first = page.getByRole('button').elements().slice(0, 5).map(b => b.textContent?.trim());
+		expect(first).toEqual(['Class', 'Function', 'Table', 'File', 'Note']);
+	});
+});

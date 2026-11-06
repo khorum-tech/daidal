@@ -149,7 +149,7 @@ export const offerTour = (me: Me) => tourOf(me) === null;
 export function practiceDoc(): SkopeDoc {
 	return {
 		version: 1,
-		diagram: { name: 'Getting started', kind: 'Freeform' },
+		diagram: { name: 'Getting started', kind: 'freeform' },
 		nodes: [{ id: 'storefront', name: 'Storefront', type: 'web-app', subtitle: 'Where customers shop', layout: { x: 120, y: 160 } }]
 	};
 }

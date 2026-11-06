@@ -17,7 +17,7 @@ describe('templates', () => {
 	it('start a diagram with the examples, or just the tags, views and kind', () => {
 		const deploy = TEMPLATES.find(t => t.id === 'deploy')!;
 		const full = fromTemplate('ops', deploy, true);
-		expect(full.diagram).toMatchObject({ name: 'ops', kind: 'Infra' });
+		expect(full.diagram).toMatchObject({ name: 'ops', kind: 'deployment' });
 		expect(full.nodes).toHaveLength(4);
 		expect(full.boundaries).toHaveLength(1);
 		const bare = fromTemplate('ops', deploy, false);

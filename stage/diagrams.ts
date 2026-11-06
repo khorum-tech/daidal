@@ -87,7 +87,7 @@ const ledgerBoundaries = [
 ];
 
 const ledger = (version: number) =>
-  diagramDoc("ledger-platform", "ledger-platform", "c4", "Full system", {
+  diagramDoc("ledger-platform", "ledger-platform", "c4-container", "Full system", {
     tags: ledgerTags,
     views: ledgerViews,
     // Version 1 had no cache yet; the cache and its edge arrive in version 2.
@@ -116,7 +116,7 @@ const ingress = (step: 1 | 2 | 3 | 4) => {
     edges.push(edge("lb", "pool-b", "HTTP"));
   }
   if (step >= 4) nodes.push(node("health", "Health Checker", "service", 320, 420, ["compute"]));
-  return diagramDoc("edge-ingress", "edge-ingress", "infra", "All", {
+  return diagramDoc("edge-ingress", "edge-ingress", "deployment", "All", {
     tags: ingressTags,
     views: [{ name: "All", tags: Object.keys(ingressTags) }, { name: "Security", tags: ["edge", "security"] }],
     nodes,
@@ -137,7 +137,7 @@ const scratch = diagramDoc("scratch", "scratch-token-refresh", "freeform", "All"
 const payTags = { client: tag("Client", P[0], "Layer"), core: tag("Core", P[1], "Layer"), partner: tag("Partner", P[4], "Concern") };
 
 const paymentFlow = (version: number) =>
-  diagramDoc("payment-flow", "payment-flow", "c4", "Happy path", {
+  diagramDoc("payment-flow", "payment-flow", "c4-container", "Happy path", {
     tags: payTags,
     views: [{ name: "Happy path", tags: ["client", "core"] }, { name: "Partners", tags: ["core", "partner"] }],
     nodes: [

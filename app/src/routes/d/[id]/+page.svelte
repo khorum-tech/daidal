@@ -73,6 +73,7 @@
 	import { History } from '#lib/history.svelte.ts';
 	import { iconScene, tagsOn, toScene, type Anchor } from '#lib/diagram/model.ts';
 	import { catalogue } from '#lib/diagram/icons.ts';
+	import { kindOf, type KindId } from '#lib/diagram/kinds.ts';
 	import { appearance } from '#lib/appearance.svelte.ts';
 	import { distinguishable } from '#lib/diagram/colour.ts';
 	import { followState } from '#lib/follow.ts';
@@ -121,6 +122,7 @@
 	const replayed = $derived(replaying ? working.snapshots.find(s => s.id === replaying) : undefined);
 	// The workspace's own types, merged into the built-in ones, name and draw the nodes.
 	const cats = $derived(catalogue(workspace?.types ?? []));
+	const kind = $derived(kindOf(working.doc.diagram?.kind));
 	const scene = $derived(toScene(replayed?.doc ?? working.doc, cats));
 
 	// View and tag switches are only what this browser shows; nothing is saved.
@@ -775,6 +777,11 @@
 		working.doc = { ...doc, diagram: { ...doc.diagram, name } };
 		working.saver.queue($state.snapshot(working.doc) as SkopeDoc);
 	}
+	function setKind(to: KindId) {
+		if (!mine || to === kind.id) return;
+		const before = current();
+		apply({ ...before, diagram: { ...before.diagram, kind: to } }, before, `Make it ${kindOf(to).label}`);
+	}
 	async function copy({ workspace, name, follow }: { workspace: string; name: string; follow: boolean }) {
 		// A duplicate is the diagram as it is now; a follower starts from its latest snapshot, as the server makes one.
 		const made = follow
@@ -1106,6 +1113,7 @@
 	{#if selectedNode}
 		<Inspector
 			{cats}
+			{kind}
 			node={selectedNode}
 			tags={tagByKey}
 			{editable}
@@ -1133,7 +1141,7 @@
 		<button type="button" class="add-box" onclick={paste}><Icon name="note" size={15} />Paste {plural(clipSize, 'node')}<span>what you copied</span></button>
 	{/if}
 	<button type="button" class="add-box" onclick={addBox}><Icon name="frameCorners" size={15} />Container<span>a labelled box to group nodes</span></button>
-	<TypePicker {cats} autofocus={focus} onpick={add} />
+	<TypePicker {cats} {kind} autofocus={focus} onpick={add} />
 {/snippet}
 {#snippet multiInspector()}
 	{#if multi}
@@ -1462,6 +1470,8 @@
 		workspaces={data.workspaces}
 		here={data.diagram.workspaceId}
 		onrename={rename}
+		kind={kind.id}
+		onkind={setKind}
 		oncopy={copy}
 		ondelete={destroy}
 		link={shareLink}
