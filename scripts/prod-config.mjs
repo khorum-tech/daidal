@@ -15,7 +15,7 @@ export const PLACEHOLDER_D1_ID = "00000000-0000-0000-0000-000000000000";
 /** The prod config built from wrangler.jsonc. Throws when a value is missing or still the placeholder. */
 export function prodConfig(base, env) {
   const missing = ["PROD_D1_ID", "PROD_ACCESS_AUD"].filter(name => !String(env[name] ?? "").trim());
-  if (missing.length) throw new Error(`prod-config: set ${missing.join(" and ")} (the `Prod` environment's secrets or variables; see docs/stage.md)`);
+  if (missing.length) throw new Error(`prod-config: set ${missing.join(" and ")} (the Prod environment's secrets or variables; see docs/stage.md)`);
   const unknown = Object.keys(base).filter(key => !KNOWN_KEYS.has(key));
   if (unknown.length) {
     const names = unknown.map(k => JSON.stringify(k)).join(", ");
