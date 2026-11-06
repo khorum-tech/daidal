@@ -193,9 +193,12 @@ describe('C4 cards', () => {
 	});
 
 	it('draws C4 cards only in Context, Container and Component diagrams, and never for notes', () => {
-		expect(toScene(doc('c4-container')).nodes[0].c4).toEqual({ role: 'container', line: '[Container: Kotlin]' });
+		expect(toScene(doc('c4-container')).nodes[0].c4).toEqual({ role: 'container', line: '[Container: Kotlin]', desc: '' });
 		expect(toScene(doc('c4-container')).nodes[1].c4).toBeNull();
 		for (const k of ['freeform', 'c4-code', 'deployment', 'C4 nonsense']) expect(toScene(doc(k)).nodes[0].c4, k).toBeNull();
+		// A person or system has no technology in its line, so its subtitle describes it when it has no notes.
+		const person = toScene({ version: 1, diagram: { kind: 'c4-context' }, nodes: [{ id: 'p', name: 'Staff', type: 'actor', subtitle: 'Reconciles' }] }).nodes[0];
+		expect(person.c4).toEqual({ role: 'person', line: '[Person]', desc: 'Reconciles' });
 		// The older "C4" reads as C4 Container.
 		expect(toScene(doc('C4')).nodes[0].c4?.role).toBe('container');
 	});
