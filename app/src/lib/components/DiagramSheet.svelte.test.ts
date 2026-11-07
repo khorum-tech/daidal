@@ -10,6 +10,22 @@ const workspaces: Workspace[] = [
 ];
 
 describe('the diagram sheet', () => {
+	it('lists the diagrams above and below by zooming, each a link, and leaves the section out when there are none', async () => {
+		const linked = {
+			above: [{ id: 'ctx', name: 'Ledger context', href: '/app/d/ctx?focus=me' }],
+			below: [{ id: 'parts', name: 'Postings parts', href: '/app/d/parts?from=me', via: ['Postings API', 'Worker'] }]
+		};
+		const shown = await render(DiagramSheet, { name: 'ledger', mine: false, workspaces, here: 't', linked, onrename: () => {}, oncopy: async () => {}, ondelete: async () => {} });
+		const section = page.getByRole('region', { name: 'Linked diagrams' });
+		await expect.element(section.getByRole('link', { name: /Ledger context/ })).toHaveAttribute('href', '/app/d/ctx?focus=me');
+		await expect.element(section.getByRole('link', { name: /Postings parts/ })).toHaveAttribute('href', '/app/d/parts?from=me');
+		await expect.element(section.getByText('from Postings API, Worker')).toBeVisible();
+		await shown.unmount();
+
+		await render(DiagramSheet, { name: 'ledger', mine: false, workspaces, here: 't', onrename: () => {}, oncopy: async () => {}, ondelete: async () => {} });
+		expect(page.getByRole('region', { name: 'Linked diagrams' }).elements()).toHaveLength(0);
+	});
+
 	it('lets the owner rename, copy and delete, after asking', async () => {
 		const calls: unknown[] = [];
 		await render(DiagramSheet, {

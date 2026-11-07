@@ -25,7 +25,8 @@
 		me: Me;
 		homeHref: string;
 		/** Where you are. A crumb with [onclick] is a button (the diagram's name opens what can be done with it). */
-		crumbs?: { label: string; href?: string; onclick?: () => void; title?: string }[];
+		/** The path to this page. The last can open a menu, with [links]: the diagrams above and below it by zooming. */
+		crumbs?: { label: string; href?: string; onclick?: () => void; title?: string; links?: { above: number; below: number } }[];
 	} = $props();
 	let open = $state(false);
 	let userEl = $state<HTMLElement>();
@@ -95,8 +96,23 @@
 			{#each crumbs as c, i (i)}
 				{#if i > 0}<span aria-hidden="true" class="slash">/</span>{/if}
 				{#if c.href}<a href={c.href}>{c.label}</a>{:else if c.onclick}
-					<button type="button" class="crumb-btn" aria-current="page" aria-haspopup="dialog" title={c.title} onclick={c.onclick}>
-						<span>{c.label}</span><Icon name="caretDown" size={11} />
+					<button
+						type="button"
+						class="crumb-btn"
+						aria-current="page"
+						aria-haspopup="dialog"
+						title={c.title}
+						aria-describedby={c.links && (c.links.above || c.links.below) ? 'crumb-links' : undefined}
+						onclick={c.onclick}
+					>
+						<span>{c.label}</span>
+						{#if c.links && (c.links.above || c.links.below)}
+							<span id="crumb-links" hidden>Linked diagrams: {c.links.above} above, {c.links.below} below</span>
+							<span class="links-badge" aria-hidden="true" data-testid="links-badge">
+								<Icon name="treeStructure" size={11} />{#if c.links.above}<span>↑{c.links.above}</span>{/if}{#if c.links.below}<span>↓{c.links.below}</span>{/if}
+							</span>
+						{/if}
+						<Icon name="caretDown" size={11} />
 					</button>
 				{:else}<span aria-current="page">{c.label}</span>{/if}
 			{/each}
@@ -316,6 +332,18 @@
 	.menu button:hover,
 	.menu a:hover {
 		background: color-mix(in srgb, var(--color-text) 8%, transparent);
+	}
+	.links-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+		flex: none;
+		padding: 1px 6px;
+		border: 1px solid var(--color-divider);
+		border-radius: 999px;
+		font-size: 11px;
+		font-variant-numeric: tabular-nums;
+		color: var(--color-neutral-400);
 	}
 	.crumb-btn {
 		display: inline-flex;

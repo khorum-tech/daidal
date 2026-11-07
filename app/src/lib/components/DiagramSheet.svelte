@@ -1,3 +1,14 @@
+<script lang="ts" module>
+	/** A diagram linked to this one by zooming, and the address that opens it (selecting the node that links them). */
+	export interface LinkedDiagram {
+		id: string;
+		name: string;
+		href: string;
+		/** The nodes that zoom into it, by name. */
+		via?: string[];
+	}
+</script>
+
 <script lang="ts">
 	import type { Workspace } from '../types';
 	import { KINDS, type KindId } from '../diagram/kinds';
@@ -26,7 +37,8 @@
 		onlock,
 		onexport,
 		onconfig,
-		onmove
+		onmove,
+		linked = { above: [], below: [] }
 	}: {
 		name: string;
 		mine: boolean;
@@ -53,6 +65,11 @@
 		onconfig?: () => void;
 		/** The owner moves it, with its history, into another of their workspaces. */
 		onmove?: (workspace: string) => Promise<void>;
+		/**
+		 * The diagrams this one is linked to by zooming: above, those with a node that zooms into this one; below, those
+		 * this one's nodes zoom into, with the nodes that do. Each with the address that opens it.
+		 */
+		linked?: { above: LinkedDiagram[]; below: LinkedDiagram[] };
 	} = $props();
 	const elsewhere = $derived(workspaces.filter(w => w.id !== here));
 	let moveTo = $state('');
@@ -128,6 +145,29 @@
 		</label>
 	{:else}
 		<p class="owned">You can look at this diagram, and copy it into a workspace of yours.</p>
+	{/if}
+
+	{#if linked.above.length || linked.below.length}
+		<section class="share" aria-label="Linked diagrams">
+			<h3>Linked diagrams</h3>
+			{#each [{ label: 'Above', icon: 'treeStructure', list: linked.above }, { label: 'Below', icon: 'magnifyingGlassPlus', list: linked.below }] as group (group.label)}
+				{#if group.list.length}
+					<div class="linked">
+						<span class="linked-label">{group.label}</span>
+						<ul>
+							{#each group.list as d (d.id)}
+								<li>
+									<a class="btn btn-secondary" href={d.href}>
+										<Icon name={group.icon} size={14} /><span class="linked-name">{d.name}</span>
+										{#if d.via?.length}<span class="via">from {d.via.join(', ')}</span>{/if}
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+			{/each}
+		</section>
 	{/if}
 
 	<section class="share" aria-label="Share and present">
@@ -300,6 +340,46 @@
 	}
 	.export .btn {
 		font-size: 12.5px;
+	}
+	.linked {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+	.linked-label {
+		font-size: 11px;
+		color: var(--color-neutral-500);
+	}
+	.linked ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+	.linked .btn {
+		width: 100%;
+		justify-content: flex-start;
+		gap: 6px;
+		font-size: 12.5px;
+	}
+	.linked-name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.via {
+		margin-left: auto;
+		flex: none;
+		max-width: 45%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-family: var(--font-body, inherit);
+		font-weight: 400;
+		font-size: 11px;
+		color: var(--color-neutral-500);
 	}
 	.link-row {
 		display: flex;
