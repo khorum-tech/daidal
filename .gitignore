@@ -14,3 +14,5 @@ seed.sql
 # Playwright
 /test-results
 /playwright-report
+# SvelteKit output when a tool runs from the repo root
+/.svelte-kit
