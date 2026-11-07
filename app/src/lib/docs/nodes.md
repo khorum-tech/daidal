@@ -56,3 +56,5 @@ A node can open another diagram in the same workspace: a system into its contain
 - A link to a diagram you can't see doesn't show. Links follow a workspace through a backup and import.
 
 In a C4 diagram, a node that zooms into nothing yet offers **New C4 … diagram** under **Zoom in**: the level below it (Containers under a system, Components under a container, Code under a component). The new diagram is named after the node, and starts with the node as a container and everything it connects to around it, each remembering which node above it stands for (`ref`). The node then zooms into it, and it opens. Undo takes the link back; the new diagram stays, to delete from its sheet if you don't want it.
+
+The other way, below C4 Context a node offers **New C4 … diagram above** under **Zoom out**: the level above it (Containers above a component, Context above a container). The new diagram is named after the node, holds it and what it connects to where they sit now, each with a `ref` back, and the node zooms back down to the diagram you started from. It opens with that node selected; the diagram you were in isn't changed.

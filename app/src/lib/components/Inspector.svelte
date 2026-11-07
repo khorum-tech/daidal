@@ -30,7 +30,8 @@
 		kind = kindOf(''),
 		diagrams = null,
 		onzoom,
-		onzoomnew
+		onzoomnew,
+		onzoomup
 	}: {
 		node: SceneNode;
 		tags: Record<string, SceneTag>;
@@ -59,6 +60,8 @@
 		onzoom?: (link: ZoomLink) => void;
 		/** In a C4 diagram, makes the level below this node as a new diagram, links the node to it and opens it. */
 		onzoomnew?: () => Promise<void>;
+		/** In a C4 diagram below Context, makes the level above as a new diagram from this node and opens it. */
+		onzoomup?: () => Promise<void>;
 	} = $props();
 	let naming = $state(false);
 	let tagName = $state('');
@@ -93,13 +96,15 @@
 	const linkable = $derived((diagrams ?? []).filter(d => !node.zooms.some(z => z.diagram === d.id)));
 	/** What a new diagram below this node would be: the next C4 level, offered while the node zooms into nothing. */
 	const below = $derived(editable && onzoomnew && kind.level && kind.child && !zooms.length ? kindOf(kind.child) : null);
+	/** What a new diagram above this node would be: the C4 level up. */
+	const above = $derived(editable && onzoomup && kind.parent ? kindOf(kind.parent) : null);
 	let making = $state(false);
 	let madeError = $state('');
-	async function zoomNew() {
+	async function zoomNew(make = onzoomnew) {
 		making = true;
 		madeError = '';
 		try {
-			await onzoomnew?.();
+			await make?.();
 		} catch (e) {
 			madeError = e instanceof Error ? e.message : 'Could not make the diagram';
 		} finally {
@@ -170,7 +175,7 @@
 			</ul>
 		{/if}
 		{#if below}
-			<button type="button" class="btn btn-secondary zoom" disabled={making} onclick={zoomNew}>
+			<button type="button" class="btn btn-secondary zoom" disabled={making} onclick={() => zoomNew()}>
 				<Icon name="magnifyingGlassPlus" size={14} />New {below.label} diagram
 			</button>
 			{#if madeError}<p class="error" role="alert">{madeError}</p>{/if}
@@ -181,6 +186,15 @@
 				{#each linkable as d (d.id)}<option value={d.id}>{d.name}</option>{/each}
 			</select>
 		{/if}
+	{/if}
+{/snippet}
+
+{#snippet zoomOut()}
+	{#if above}
+		<h3>Zoom out</h3>
+		<button type="button" class="btn btn-secondary zoom" disabled={making} onclick={() => zoomNew(onzoomup)}>
+			<Icon name="treeStructure" size={14} />New {above.label} diagram above
+		</button>
 	{/if}
 {/snippet}
 
@@ -299,6 +313,8 @@
 		{/if}
 
 		{@render zoomIn()}
+		{@render zoomOut()}
+		{#if madeError && !below}<p class="error" role="alert">{madeError}</p>{/if}
 		{@render links()}
 		<!-- A link typed but not added is added anyway once focus leaves the form: on a phone the first tap on Add link
 		     often only puts the keyboard away, and closing the sheet then would lose what was typed. -->

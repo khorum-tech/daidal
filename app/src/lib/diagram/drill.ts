@@ -75,3 +75,39 @@ export function childDoc(parent: SkopeDoc, parentId: string, nodeId: string, kin
 		boundaries: [{ id: SCOPE, label: node.name, layout: { ...SCOPE_BOX }, ref: refTo(parentId, nodeId) }]
 	};
 }
+
+/**
+ * The diagram one level above [nodeId] in [current] (whose id is [currentId]), of kind [kind]: the node and what it
+ * connects to, where they sit relative to it now, each with a ref back to its node here. The node links down to
+ * [current], so the new diagram zooms back into this one.
+ */
+export function parentDoc(current: SkopeDoc, currentId: string, nodeId: string, kind: KindId): SkopeDoc {
+	const byId = new Map((current.nodes ?? []).map(n => [n.id, n]));
+	const node = byId.get(nodeId);
+	if (!node) throw new Error(`no node ${nodeId}`);
+	const touching = (current.edges ?? []).filter(e => (e.from === nodeId) !== (e.to === nodeId));
+	const side = neighbours(touching, nodeId, new Set(byId.keys()));
+	const at = node.layout ?? { x: 0, y: 0 };
+	const ANCHOR = { x: SCOPE_BOX.x + SCOPE_BOX.w / 2 - NODE_W / 2, y: SCOPE_BOX.y + SCOPE_BOX.h / 2 - NODE_H / 2 };
+	const moved = (n: DocNode): DocNode => {
+		const l = n.layout ?? { x: at.x, y: at.y };
+		return {
+			id: n.id,
+			name: n.name,
+			type: n.type,
+			...(n.subtitle ? { subtitle: n.subtitle } : {}),
+			...(n.notes ? { notes: n.notes } : {}),
+			...(n.icon ? { icon: n.icon } : {}),
+			...(n.tags?.length ? { tags: n.tags } : {}),
+			layout: { ...l, x: Math.round(l.x - at.x + ANCHOR.x), y: Math.round(l.y - at.y + ANCHOR.y) },
+			ref: refTo(currentId, n.id)
+		};
+	};
+	const placed = [{ ...moved(node), links: [{ diagram: currentId }] }, ...[...side.keys()].map(id => moved(byId.get(id)!))];
+	const edges: DocEdge[] = touching
+		.filter(e => side.has(e.from === nodeId ? e.to : e.from))
+		.map(e => ({ from: e.from, to: e.to, ...(e.label ? { label: e.label } : {}), ...(e.line ? { line: e.line } : {}), ...(e.direction ? { direction: e.direction } : {}) }));
+	const usedTags = new Set(placed.flatMap(n => n.tags ?? []));
+	const tags = Object.fromEntries(Object.entries(current.tags ?? {}).filter(([k]) => usedTags.has(k)));
+	return { version: 1, diagram: { name: node.name, kind: kindOf(kind).id }, ...(Object.keys(tags).length ? { tags } : {}), nodes: placed, edges };
+}

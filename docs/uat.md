@@ -295,6 +295,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | C4-3 | Press **⌘↑**, or a diagram in the header | Back up one level (or to the one pressed), with the node that zoomed in selected | D | |
 | C4-4 | On a phone, open a node's details: the button under **Zoom in** | It opens the linked diagram; the header's links come back up | P | |
 | C4-5 | Select a node with no link in a C4 Container diagram: **Zoom in → New C4 Component diagram** | A new diagram named after it opens, with it as a container and its neighbours around it; back up, the node now zooms into it | D P | |
+| C4-7 | In **postings-components**, select **Postings API**: **Zoom out → New C4 Container diagram above** | A new diagram named after it opens with it selected and its neighbours around it; a double-click on it comes back down | D P | |
 | C4-6 | Export a workspace with linked diagrams, import the file | The imported diagrams link to each other, not to the originals | D | |
 
 ## Regressions

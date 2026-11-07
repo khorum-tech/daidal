@@ -179,3 +179,21 @@ describe('the inspector and new diagrams below a node', () => {
 		expect(page.getByRole('button', { name: /^New .* diagram$/ }).elements()).toHaveLength(0);
 	});
 });
+
+describe('the inspector and new diagrams above a node', () => {
+	const plain = toScene({ version: 1, nodes: [{ id: 'api', name: 'API', type: 'service' }] }).nodes[0];
+
+	it('offers the C4 level above below Context, and nothing above Context', async () => {
+		const { kindOf } = await import('../diagram/kinds');
+		let calls = 0;
+		render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-component'), onzoomup: async () => void calls++ });
+		await page.getByRole('button', { name: 'New C4 Container diagram above' }).click();
+		expect(calls).toBe(1);
+	});
+
+	it('offers none in a C4 Context diagram', async () => {
+		const { kindOf } = await import('../diagram/kinds');
+		render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-context'), onzoomup: async () => {} });
+		expect(page.getByRole('button', { name: /diagram above$/ }).elements()).toHaveLength(0);
+	});
+});

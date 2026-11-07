@@ -1453,6 +1453,28 @@ test.describe("the app at /app", () => {
     expect(console_.links).toEqual([{ diagram: made }]);
   });
 
+  test("makes the C4 level above a node as a new diagram, which zooms back down", async ({ page, request }) => {
+    const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+    const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+    const parts = list.find(d => d.name === "postings-components")!.id;
+    await page.goto(`/app/d/${parts}`);
+    await page.getByRole("button", { name: "Component: Postings API" }).click();
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    await inspector.getByRole("button", { name: "New C4 Container diagram above" }).click();
+    await expect(page).toHaveURL(new RegExp(`\\?focus=${parts}`));
+    // It opens with the node selected, its neighbours around it, as a C4 Container diagram that zooms back down.
+    await expect(inspector.getByLabel("Name")).toHaveValue("Postings API");
+    await expect(page.getByRole("button", { name: "Web App: Ledger Console" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Component: Balance Checker" })).toBeVisible();
+    const made = page.url().match(/\/app\/d\/([^?]+)/)![1];
+    const { doc } = await saved(page, request, made);
+    expect(doc.diagram.kind).toBe("c4-container");
+    expect(doc.nodes.find(n => n.id === "api")!.links).toEqual([{ diagram: parts }]);
+    await page.getByRole("button", { name: "Component: Postings API" }).dblclick();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${parts}\\?from=${made}`));
+  });
+
   test("shows a note as a sticky note that grows with its text, and exports it the same way", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];

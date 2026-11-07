@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkopeDoc } from '../types';
-import { childDoc, refTo, SCOPE } from './drill';
+import { childDoc, parentDoc, refTo, SCOPE } from './drill';
 
 const parent: SkopeDoc = {
 	version: 1,
@@ -54,5 +54,28 @@ describe('zoom in → new diagram', () => {
 
 	it('refuses a node that is not there', () => {
 		expect(() => childDoc(parent, 'p1', 'ghost', 'c4-component')).toThrow(/no node ghost/);
+	});
+});
+
+describe('a new diagram above a node', () => {
+	const up = parentDoc(parent, 'p1', 'postings', 'c4-context');
+
+	it('is of the kind above, named after the node, which zooms back down here', () => {
+		expect(up.diagram).toEqual({ name: 'Postings', kind: 'c4-context' });
+		expect(up.nodes![0]).toMatchObject({ id: 'postings', name: 'Postings', subtitle: 'Kotlin', links: [{ diagram: 'p1' }], ref: refTo('p1', 'postings') });
+		expect(up.boundaries).toBeUndefined();
+	});
+
+	it('brings its neighbours where they sit around it, with refs, and their connections to it only', () => {
+		const at = Object.fromEntries(up.nodes!.map(n => [n.id, n.layout!]));
+		expect(Object.keys(at)).toEqual(['postings', 'console', 'journal', 'cache']);
+		// Console was 300 left of Postings, Journal 300 right, Cache 300 right and 300 down: still so.
+		expect([at.console.x - at.postings.x, at.journal.x - at.postings.x, at.cache.y - at.postings.y]).toEqual([-300, 300, 300]);
+		expect(up.nodes!.slice(1).every(n => n.ref === refTo('p1', n.id) && !n.links)).toBe(true);
+		expect(up.edges).toEqual([
+			{ from: 'console', to: 'postings', label: 'HTTPS' },
+			{ from: 'postings', to: 'journal', label: 'SQL', line: 'dashed' },
+			{ from: 'postings', to: 'cache' }
+		]);
 	});
 });

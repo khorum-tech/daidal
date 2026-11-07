@@ -11,6 +11,8 @@ export interface Kind {
 	level?: 1 | 2 | 3 | 4;
 	/** What zooming into one of its nodes makes; none at the bottom. */
 	child?: KindId;
+	/** The C4 level above it: what a node can make a new diagram of, one level up. */
+	parent?: KindId;
 	/** The types the Add menu shows first, display names from types.json. */
 	common: string[];
 	/** One line for the kind picker. */
@@ -35,6 +37,7 @@ export const KINDS: Kind[] = [
 		label: 'C4 Container',
 		level: 2,
 		child: 'c4-component',
+		parent: 'c4-context',
 		common: ['Web App', 'Mobile App', 'Service', 'Function', 'Database', 'Queue', 'Object Storage', 'External', 'Note'],
 		hint: 'Level 2: the apps and data stores inside one system.'
 	},
@@ -43,10 +46,11 @@ export const KINDS: Kind[] = [
 		label: 'C4 Component',
 		level: 3,
 		child: 'c4-code',
+		parent: 'c4-container',
 		common: ['Component', 'Module', 'Database', 'Queue', 'External', 'Note'],
 		hint: 'Level 3: the parts inside one container.'
 	},
-	{ id: 'c4-code', label: 'C4 Code', level: 4, common: ['Class', 'Function', 'Table', 'File', 'Note'], hint: 'Level 4: classes, functions, tables.' },
+	{ id: 'c4-code', label: 'C4 Code', level: 4, parent: 'c4-component', common: ['Class', 'Function', 'Table', 'File', 'Note'], hint: 'Level 4: classes, functions, tables.' },
 	{
 		id: 'deployment',
 		label: 'Deployment',
