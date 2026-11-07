@@ -50,7 +50,10 @@ export default defineConfig({
 						provider: playwright(),
 						// Desktop-sized, as the diagram page is laid out for; the default frame is phone-sized.
 						viewport: { width: 1280, height: 900 },
-						instances: [{ browser: 'chromium', headless: true }]
+						instances: [{ browser: 'chromium', headless: true }],
+						// Vitest 5 made locators match whole, case-sensitive text by default; these tests find things by part of
+						// their text (a label with a hint, a button with a badge), as Playwright's own locators do.
+						locators: { exact: false }
 					},
 					include: ['src/**/*.svelte.{test,spec}.{js,ts}']
 				}

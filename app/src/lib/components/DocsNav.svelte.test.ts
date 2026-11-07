@@ -8,7 +8,7 @@ const href = (slug: string) => `/app/docs/${slug}`;
 
 describe('the docs contents', () => {
 	it('lists every page, marking the one open', async () => {
-		render(DocsNav, { pages: PAGES, current: 'nodes', href });
+		await render(DocsNav, { pages: PAGES, current: 'nodes', href });
 		const nav = page.getByRole('navigation', { name: 'Docs' });
 		await expect.element(nav.getByRole('link', { name: 'Getting started' })).toHaveAttribute('href', '/app/docs/getting-started');
 		await expect.element(nav.getByRole('link', { name: 'Nodes' })).toHaveAttribute('aria-current', 'page');
@@ -17,7 +17,7 @@ describe('the docs contents', () => {
 	});
 
 	it('marks All docs on the contents page', async () => {
-		render(DocsNav, { pages: PAGES, href });
+		await render(DocsNav, { pages: PAGES, href });
 		await expect.element(page.getByRole('link', { name: 'All docs' })).toHaveAttribute('aria-current', 'page');
 	});
 });

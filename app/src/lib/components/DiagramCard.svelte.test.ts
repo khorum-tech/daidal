@@ -25,7 +25,7 @@ const diagram = (over: Partial<ListedDiagram> = {}): ListedDiagram => ({
 
 describe('a diagram in the list', () => {
 	it('links to the diagram and sums it up', async () => {
-		render(DiagramCard, { diagram: diagram(), href: '/app/d/d1', now: NOW });
+		await render(DiagramCard, { diagram: diagram(), href: '/app/d/d1', now: NOW });
 		await expect.element(page.getByRole('link', { name: /checkout/ })).toHaveAttribute('href', '/app/d/d1');
 		await expect.element(page.getByText('5 nodes · 4 connections')).toBeVisible();
 		await expect.element(page.getByText('Updated 3h ago')).toBeVisible();
@@ -33,16 +33,16 @@ describe('a diagram in the list', () => {
 	});
 
 	it('says what it follows, or that the lead is out of reach', async () => {
-		const { rerender } = render(DiagramCard, { diagram: diagram({ leadId: 'l', leadName: 'checkout-lead', paused: true }), href: '#', now: NOW });
+		const { rerender } = await render(DiagramCard, { diagram: diagram({ leadId: 'l', leadName: 'checkout-lead', paused: true }), href: '#', now: NOW });
 		await expect.element(page.getByText('Follows checkout-lead · paused')).toBeVisible();
 		await rerender({ diagram: diagram({ leadId: 'l', leadName: null }) });
 		await expect.element(page.getByText(/Follows a diagram you can no longer see/)).toBeVisible();
 	});
 
 	it('draws its thumbnail from the summary, and names the nodes a search found', async () => {
-		const { rerender } = render(DiagramCard, { diagram: diagram(), href: '#', search: 'gate', now: NOW });
+		const { rerender } = await render(DiagramCard, { diagram: diagram(), href: '#', search: 'gate', now: NOW });
 		expect(document.querySelectorAll('svg rect.n')).toHaveLength(5);
-		await expect.element(page.getByText(/^Has /)).toHaveTextContent('Has Gateway');
+		await expect.element(page.getByText(/^Has /)).toMatchTextContent('Has Gateway');
 		await rerender({ search: 'check' });
 		await expect.element(page.getByText(/^Has /)).not.toBeInTheDocument();
 	});

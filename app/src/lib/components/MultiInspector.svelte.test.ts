@@ -22,7 +22,7 @@ const scene = toScene(doc);
 
 describe('the multi-select inspector', () => {
 	it('counts what is picked and offers only copying when not editable', async () => {
-		render(MultiInspector, { nodes: scene.nodes, edges: scene.edges, tags: scene.tags });
+		await render(MultiInspector, { nodes: scene.nodes, edges: scene.edges, tags: scene.tags });
 		await expect.element(page.getByRole('heading', { name: '2 nodes · 2 connections' })).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Copy' })).toBeVisible();
 		expect(page.getByRole('button', { name: /^Delete/ }).elements()).toHaveLength(0);
@@ -31,11 +31,11 @@ describe('the multi-select inspector', () => {
 
 	it('shows which tags all, some or none carry, and reports a tap on one', async () => {
 		const tagged: string[] = [];
-		render(MultiInspector, { nodes: scene.nodes, edges: [], tags: scene.tags, editable: true, ontag: k => tagged.push(k) });
+		await render(MultiInspector, { nodes: scene.nodes, edges: [], tags: scene.tags, editable: true, ontag: k => tagged.push(k) });
 		const web = page.getByRole('button', { name: 'Take Web off all' });
 		await expect.element(web).toHaveAttribute('aria-pressed', 'true');
 		const data = page.getByRole('button', { name: 'Put Data on all' });
-		await expect.element(data).toHaveTextContent('1/2');
+		await expect.element(data).toMatchTextContent('1/2');
 		await data.click();
 		await web.click();
 		expect(tagged).toEqual(['data', 'web']);
@@ -43,7 +43,7 @@ describe('the multi-select inspector', () => {
 
 	it('changes the type of all from the picker, marking a shared type', async () => {
 		const types: string[] = [];
-		render(MultiInspector, { nodes: scene.nodes, edges: [], tags: [], editable: true, ontype: t => types.push(t) });
+		await render(MultiInspector, { nodes: scene.nodes, edges: [], tags: [], editable: true, ontype: t => types.push(t) });
 		const toggle = page.getByRole('button', { name: /Mixed types/ });
 		await toggle.click();
 		await page.getByRole('button', { name: 'Queue', exact: true }).first().click();
@@ -52,7 +52,7 @@ describe('the multi-select inspector', () => {
 
 	it('restyles every picked connection, marking what they share', async () => {
 		const changes: [EdgeChange, string][] = [];
-		render(MultiInspector, { nodes: [], edges: scene.edges, tags: [], editable: true, onedges: (c, l) => changes.push([c, l]) });
+		await render(MultiInspector, { nodes: [], edges: scene.edges, tags: [], editable: true, onedges: (c, l) => changes.push([c, l]) });
 		await expect.element(page.getByRole('button', { name: 'Dashed line' })).toHaveAttribute('aria-pressed', 'true');
 		await expect.element(page.getByRole('button', { name: 'Arrow at the target' })).toHaveAttribute('aria-pressed', 'true');
 		await page.getByRole('button', { name: 'Thick line' }).click();
@@ -67,7 +67,7 @@ describe('the multi-select inspector', () => {
 
 	it('copies, duplicates, deletes and clears', async () => {
 		const calls: string[] = [];
-		render(MultiInspector, {
+		await render(MultiInspector, {
 			nodes: scene.nodes,
 			edges: [],
 			tags: [],

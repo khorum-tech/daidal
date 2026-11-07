@@ -6,15 +6,15 @@ import type { TourStep } from '../tour';
 
 const step: TourStep = { id: 'add', title: 'Add a node', body: 'Press **+ Add** and pick a type.', phoneBody: 'Tap **+ Add**.', targets: ['#target'], done: () => false };
 
-function shown(props: Partial<{ index: number; total: number; narrow: boolean; step: TourStep }> = {}) {
+async function shown(props: Partial<{ index: number; total: number; narrow: boolean; step: TourStep }> = {}) {
 	const calls: string[] = [];
-	render(TourCallout, { step, index: 1, total: 5, onnext: () => calls.push('next'), onback: () => calls.push('back'), onend: () => calls.push('end'), ...props });
+	await render(TourCallout, { step, index: 1, total: 5, onnext: () => calls.push('next'), onback: () => calls.push('back'), onend: () => calls.push('end'), ...props });
 	return calls;
 }
 
 describe('a tour step', () => {
 	it('shows its place, title and text with the bold bits, and goes back, on and away', async () => {
-		const calls = shown();
+		const calls = await shown();
 		const card = page.getByRole('dialog', { name: 'Add a node' });
 		await expect.element(card.getByText('Tour · 2 of 5')).toBeVisible();
 		await expect.element(card.getByText('+ Add')).toBeVisible();
@@ -25,7 +25,7 @@ describe('a tour step', () => {
 	});
 
 	it('uses the phone wording on a phone, and Finish on the last step', async () => {
-		const calls = shown({ narrow: true, index: 4 });
+		const calls = await shown({ narrow: true, index: 4 });
 		await expect.element(page.getByText('Tap')).toBeVisible();
 		expect(page.getByRole('button', { name: 'Skip' }).elements()).toHaveLength(0);
 		await page.getByRole('button', { name: 'Finish' }).click();
@@ -38,7 +38,7 @@ describe('a tour step', () => {
 		target.textContent = 'Add';
 		Object.assign(target.style, { position: 'fixed', left: '100px', top: '100px', width: '80px', height: '30px' });
 		document.body.append(target);
-		shown({ index: 0 });
+		await shown({ index: 0 });
 		await expect.poll(() => document.querySelector('.ring')).not.toBeNull();
 		const ring = document.querySelector('.ring') as HTMLElement;
 		expect(ring.style.left).toBe('96px');
@@ -55,7 +55,7 @@ describe('a tour step', () => {
 		Object.assign(target.style, { position: 'fixed', left: '16px', top: '300px', width: '220px', height: '30px' });
 		aside.append(target);
 		document.body.append(aside);
-		shown({ index: 0 });
+		await shown({ index: 0 });
 		const card = () => document.querySelector('.tour') as HTMLElement;
 		await expect.poll(() => card().style.left).toBe('272px');
 		expect(card().getBoundingClientRect().left).toBeGreaterThanOrEqual(aside.getBoundingClientRect().right);

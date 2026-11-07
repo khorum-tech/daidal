@@ -9,7 +9,7 @@ const box = toScene({ version: 1, boundaries: [{ id: 'zone', label: 'PROD', labe
 
 describe('the container inspector', () => {
 	it('shows a container read-only unless editable', async () => {
-		render(BoxInspector, { box });
+		await render(BoxInspector, { box });
 		await expect.element(page.getByRole('heading', { name: 'PROD' })).toBeVisible();
 		await expect.element(page.getByText('400 × 220')).toBeVisible();
 		expect(page.getByRole('button', { name: 'Delete container' }).elements()).toHaveLength(0);
@@ -18,7 +18,7 @@ describe('the container inspector', () => {
 	it('marks the current settings and reports each change', async () => {
 		const changes: { change: BoundaryChange; label: string; group?: string }[] = [];
 		const calls: string[] = [];
-		render(BoxInspector, {
+		await render(BoxInspector, {
 			box,
 			editable: true,
 			onchange: (change, label, group) => changes.push({ change, label, group }),
