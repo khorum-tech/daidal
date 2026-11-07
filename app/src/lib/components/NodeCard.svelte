@@ -188,6 +188,8 @@
 	   C4 in model.ts, which the export uses too. */
 	.node.c4 {
 		align-items: center;
+		/* The text sits in the middle of the room under the head or rim, as the export draws it (c4Markup). */
+		justify-content: center;
 		text-align: center;
 		padding: 12px;
 		border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-neutral-800));
@@ -206,7 +208,7 @@
 		border-color: var(--color-neutral-700);
 	}
 	.node.c4[data-role='person'] {
-		padding-top: 34px;
+		padding-top: 26px;
 		border-radius: 22px;
 	}
 	.node.c4[data-role='store'] {
