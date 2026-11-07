@@ -185,7 +185,7 @@ export function c4Desc(notes: string, w: number): string[] {
 	const lines = wrapText(notes, w - 2 * C4.pad, C4.descSize);
 	if (lines.length <= C4.maxDesc) return lines;
 	const kept = lines.slice(0, C4.maxDesc);
-	kept[C4.maxDesc - 1] = `${kept[C4.maxDesc - 1].replace(/\s*\S?$/, '')}…`;
+	kept[C4.maxDesc - 1] = `${kept[C4.maxDesc - 1].slice(0, -1).trimEnd()}…`;
 	return kept;
 }
 
@@ -194,7 +194,8 @@ export const c4Name = (name: string, w: number) => wrapText(name, w - 2 * C4.pad
 export const c4Kind = (line: string, w: number) => wrapText(line, w - 2 * C4.pad, C4.kindSize);
 
 /** Where a C4 card's text starts below its top: past the head or rim its shape has. */
-export const c4Top = (role: C4Role) => C4.pad + (role === 'person' ? C4.head : role === 'store' ? C4.rim : 0);
+const SHAPE_TOP: Partial<Record<C4Role, number>> = { person: C4.head, store: C4.rim };
+export const c4Top = (role: C4Role) => C4.pad + (SHAPE_TOP[role] ?? 0);
 
 /** The height a C4 card needs for its name, element line and description at width [w]. */
 export function c4Height(role: C4Role, name: string, line: string, notes: string, w: number): number {
@@ -202,15 +203,24 @@ export function c4Height(role: C4Role, name: string, line: string, notes: string
 	return Math.ceil(c4Top(role) + c4Name(name, w).length * C4.nameLine + c4Kind(line, w).length * C4.kindLine + (desc ? C4.gap + desc * C4.descLine : 0) + C4.pad);
 }
 
+/** What a C4 card says under its element line: its notes; for a person or system, whose line has no technology, its subtitle when it has no notes. */
+function c4About(role: C4Role, n: DocNode): string {
+	if (n.notes?.trim()) return n.notes;
+	return role === 'person' || role === 'system' || role === 'external' ? (n.subtitle ?? '') : '';
+}
+
 function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind: Kind): SceneNode {
 	const lay = n.layout ?? { x: 60 + (i % 4) * 280, y: 80 + Math.floor(i / 4) * 160 };
 	const type = typeName(n.type, cats);
 	const ownIcon = isNodeIcon(n.icon) ? n.icon : null;
 	const role = type === 'Note' || type === 'Text' ? null : c4Role(kind, type);
-	const techless = role === 'person' || role === 'system' || role === 'external';
-	const c4 = role ? { role, line: c4Line(role, kind, n.subtitle ?? ''), desc: n.notes?.trim() ? n.notes : techless ? (n.subtitle ?? '') : '' } : null;
+	const c4 = role ? { role, line: c4Line(role, kind, n.subtitle ?? ''), desc: c4About(role, n) } : null;
 	const w = num(lay.w, NODE_W);
 	const h = num(lay.h, NODE_H);
+	const name = String(n.name ?? n.id);
+	let drawnH = h;
+	if (c4) drawnH = Math.max(h, c4Height(c4.role, name, c4.line, c4.desc, w));
+	else if (type === 'Note') drawnH = Math.max(h, noteHeight(name, n.notes ?? '', w));
 	return {
 		id: String(n.id),
 		name: String(n.name ?? n.id),
@@ -225,11 +235,7 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind:
 		x: num(lay.x, 0),
 		y: num(lay.y, 0),
 		w,
-		h: c4
-			? Math.max(h, c4Height(c4.role, String(n.name ?? n.id), c4.line, c4.desc, w))
-			: type === 'Note'
-				? Math.max(h, noteHeight(String(n.name ?? n.id), n.notes ?? '', w))
-				: h,
+		h: drawnH,
 		isText: type === 'Text',
 		isNote: type === 'Note',
 		c4

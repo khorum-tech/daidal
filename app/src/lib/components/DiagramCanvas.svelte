@@ -313,8 +313,18 @@
 			if ((e.target as Element).closest(keep)) return;
 			e.preventDefault();
 		};
+		// iOS 26 Safari also goes Back on a sideways swipe from anywhere on the page. A drag on the canvas is the
+		// canvas's (it pans or moves through pointer events), so once a finger moves, the move is claimed too. A tap
+		// never moves, so taps (and their clicks) are untouched.
+		const onMove = (e: TouchEvent) => {
+			if (e.cancelable && !(e.target as Element).closest('input, textarea, select')) e.preventDefault();
+		};
 		el.addEventListener('touchstart', onTouch, { passive: false });
-		return () => el.removeEventListener('touchstart', onTouch);
+		el.addEventListener('touchmove', onMove, { passive: false });
+		return () => {
+			el.removeEventListener('touchstart', onTouch);
+			el.removeEventListener('touchmove', onMove);
+		};
 	});
 
 	// Pointer gestures. Every pointer on the canvas is tracked; one decides between a pan and a node drag, two pinch.
