@@ -6,9 +6,9 @@ import type { CustomType } from '../types';
 
 const agent: CustomType = { name: 'Billing Agent', category: 'AI', icon: 'robot' };
 
-function managing(types: CustomType[] = [], fail = '') {
+async function managing(types: CustomType[] = [], fail = '') {
 	const calls: unknown[] = [];
-	render(TypeManager, {
+	await render(TypeManager, {
 		types,
 		onsave: async (key, type) => {
 			if (fail) throw new Error(fail);
@@ -21,7 +21,7 @@ function managing(types: CustomType[] = [], fail = '') {
 
 describe('the type manager', () => {
 	it('adds a type with a name, a category and an icon from the library', async () => {
-		const calls = managing();
+		const calls = await managing();
 		await expect.element(page.getByText(/None yet/)).toBeVisible();
 		await page.getByRole('button', { name: '+ Add a type' }).click();
 		await expect.element(page.getByRole('button', { name: 'Add type' })).toBeDisabled();
@@ -36,7 +36,7 @@ describe('the type manager', () => {
 	});
 
 	it('edits a type under the slug it was stored as, and removes one', async () => {
-		const calls = managing([agent]);
+		const calls = await managing([agent]);
 		await page.getByRole('button', { name: 'Edit Billing Agent' }).click();
 		await expect.element(page.getByLabelText('Name')).toHaveValue('Billing Agent');
 		await page.getByLabelText('Name').fill('Payments Agent');
@@ -49,12 +49,12 @@ describe('the type manager', () => {
 	});
 
 	it('says when a name redraws a built-in type, and shows a failure', async () => {
-		managing([], 'this workspace already has a type called Database');
+		await managing([], 'this workspace already has a type called Database');
 		await page.getByRole('button', { name: '+ Add a type' }).click();
 		await page.getByLabelText('Name').fill('database');
 		await expect.element(page.getByText('Changes how the built-in Database type looks in this workspace.')).toBeVisible();
 		await page.getByLabelText('Category').fill('Data');
 		await page.getByRole('button', { name: 'Add type' }).click();
-		await expect.element(page.getByRole('alert')).toHaveTextContent('this workspace already has a type called Database');
+		await expect.element(page.getByRole('alert')).toMatchTextContent('this workspace already has a type called Database');
 	});
 });

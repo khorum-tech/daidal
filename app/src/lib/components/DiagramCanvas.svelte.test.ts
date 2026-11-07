@@ -17,11 +17,11 @@ beforeEach(() => {
 	document.body.replaceChildren(stage);
 });
 
-function mount(view: string | null = null, selected: string | null = null, editable = false, moving = false) {
+async function mount(view: string | null = null, selected: string | null = null, editable = false, moving = false) {
 	const picked: (string | null)[] = [];
 	const moved: [string, number, number][] = [];
 	const details: string[] = [];
-	const r = render(DiagramCanvas, {
+	const r = await render(DiagramCanvas, {
 		target: stage,
 		props: {
 			scene,
@@ -58,7 +58,7 @@ async function drag(el: Element, dx: number, dy: number, { pointerType = 'mouse'
 
 describe('the canvas', () => {
 	it('draws every node, connection, label and container', async () => {
-		const { container } = mount();
+		const { container } = await mount();
 		for (const name of ['Web App: Shop', 'API Gateway: Gateway', 'Database: Orders DB', 'Telemetry: Collector']) {
 			await expect.element(page.getByRole('button', { name })).toBeVisible();
 		}
@@ -72,7 +72,7 @@ describe('the canvas', () => {
 	});
 
 	it('styles connections as the document says', async () => {
-		const { container } = mount();
+		const { container } = await mount();
 		const sql = container.querySelector('path[data-edge="gw>db"]')!;
 		expect(sql.getAttribute('stroke-dasharray')).toBe('5.6 4.5');
 		expect(sql.getAttribute('d')).toContain(' Q');
@@ -83,7 +83,7 @@ describe('the canvas', () => {
 	});
 
 	it('ghosts what the chosen view leaves out, instead of hiding it', async () => {
-		const { container } = mount('Request path');
+		const { container } = await mount('Request path');
 		await expect.element(page.getByRole('button', { name: 'Database: Orders DB' })).toHaveStyle({ opacity: '0.22' });
 		await expect.element(page.getByRole('button', { name: 'Web App: Shop' })).toHaveStyle({ opacity: '1' });
 		// The untagged text node always shows; a connection to a ghosted node fades with it.
@@ -92,7 +92,7 @@ describe('the canvas', () => {
 	});
 
 	it('selects a node with a tap, keeps it on a second, and clears on empty space', async () => {
-		const { picked, details, rerender } = mount();
+		const { picked, details, rerender } = await mount();
 		const gw = page.getByRole('button', { name: 'API Gateway: Gateway' });
 		await gw.click();
 		expect(picked).toEqual(['gw']);
@@ -107,7 +107,7 @@ describe('the canvas', () => {
 	});
 
 	it('does not take the click that ends a drag for a tap', async () => {
-		const { picked, moved } = mount(null, null, true);
+		const { picked, moved } = await mount(null, null, true);
 		const gw = document.querySelector('[data-node="gw"]')!;
 		await drag(gw, 40, 0, { altKey: true });
 		gw.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
@@ -116,7 +116,7 @@ describe('the canvas', () => {
 	});
 
 	it('asks for details from the keyboard when Enter is pressed on the selected node', async () => {
-		const { picked, details } = mount(null, 'gw');
+		const { picked, details } = await mount(null, 'gw');
 		(document.querySelector('[data-node="gw"]') as HTMLElement).focus();
 		await userEvent.keyboard('{Enter}');
 		expect(details).toEqual(['gw']);
@@ -126,17 +126,17 @@ describe('the canvas', () => {
 	});
 
 	it('zooms in steps and back to fit', async () => {
-		mount();
+		await mount();
 		const fit = page.getByRole('button', { name: /%$/ });
 		const before = (await fit.element().textContent) ?? '';
 		await page.getByRole('button', { name: 'Zoom in' }).click();
-		await expect.element(fit).not.toHaveTextContent(before);
+		await expect.element(fit).not.toMatchTextContent(before);
 		await fit.click();
-		await expect.element(fit).toHaveTextContent(before);
+		await expect.element(fit).toMatchTextContent(before);
 	});
 
 	it('pans when dragging empty space, and stops before the diagram leaves the view', async () => {
-		mount();
+		await mount();
 		const canvas = document.querySelector('.canvas')!;
 		const before = sheet();
 		// Grab a spot clear of the nodes: the canvas's top-left corner area.
@@ -153,7 +153,7 @@ describe('the canvas', () => {
 	});
 
 	it('moves a node with the mouse when editing is on, and says where it went', async () => {
-		const { moved, picked } = mount(null, null, true);
+		const { moved, picked } = await mount(null, null, true);
 		const gw = document.querySelector('[data-node="gw"]')!;
 		const { s } = sheet();
 		await drag(gw, 100 * s, 50 * s, { altKey: true }); // Alt: no snapping, so the drag lands exactly
@@ -163,7 +163,7 @@ describe('the canvas', () => {
 	});
 
 	it('snaps a dragged node into line with its neighbours, with a guide while dragging', async () => {
-		const { moved } = mount(null, null, true);
+		const { moved } = await mount(null, null, true);
 		const gw = document.querySelector('[data-node="gw"]')!;
 		const { s } = sheet();
 		// Down by 263: Gateway's top would be at 413, 7 short of the collector's top at 420, so it snaps there.
@@ -181,7 +181,7 @@ describe('the canvas', () => {
 	});
 
 	it('pans under a finger, even one that starts on a node, unless moving mode is on', async () => {
-		const plain = mount(null, 'gw', true);
+		const plain = await mount(null, 'gw', true);
 		const before = sheet();
 		await drag(document.querySelector('[data-node="gw"]')!, 50, 0, { pointerType: 'touch' });
 		expect(plain.moved).toEqual([]);
@@ -189,7 +189,7 @@ describe('the canvas', () => {
 		plain.unmount();
 
 		// Moving mode: a drag from anywhere, empty space included, moves the selected node.
-		const moving = mount(null, 'gw', true, true);
+		const moving = await mount(null, 'gw', true, true);
 		const { s } = sheet();
 		const r = document.querySelector('.canvas')!.getBoundingClientRect();
 		const empty = document.elementFromPoint(r.left + 5, r.top + 5)!;
@@ -199,7 +199,7 @@ describe('the canvas', () => {
 	});
 
 	it('never captures a touch pointer (WebKit throws on it), only a mouse', async () => {
-		mount(null, 'gw', true, true);
+		await mount(null, 'gw', true, true);
 		const canvas = document.querySelector('.canvas') as HTMLElement;
 		const calls: string[] = [];
 		canvas.setPointerCapture = (id: number) => {
@@ -213,7 +213,7 @@ describe('the canvas', () => {
 	});
 
 	it('pans instead when editing is off, even from a node', async () => {
-		const { moved } = mount();
+		const { moved } = await mount();
 		const before = sheet();
 		await drag(document.querySelector('[data-node="gw"]')!, 60, 0);
 		expect(moved).toEqual([]);
@@ -221,7 +221,7 @@ describe('the canvas', () => {
 	});
 
 	it('pans with the arrow keys and fits again with 0', async () => {
-		mount();
+		await mount();
 		const canvas = page.getByRole('application');
 		const before = sheet();
 		(canvas.element() as HTMLElement).focus();
@@ -233,7 +233,7 @@ describe('the canvas', () => {
 });
 
 describe('the canvas tools', () => {
-	function mountTools(props: Record<string, unknown> = {}) {
+	async function mountTools(props: Record<string, unknown> = {}) {
 		const calls: { connect: [string, string | null][]; start: string[]; picked: (string | null)[]; added: { x: number; y: number }[]; renameStart: string[]; renamed: [string, string | null][]; resized: [string, number, number][]; moved: [string, number, number][]; snap: boolean[] } = {
 			connect: [],
 			start: [],
@@ -245,7 +245,7 @@ describe('the canvas tools', () => {
 			moved: [],
 			snap: []
 		};
-		const r = render(DiagramCanvas, {
+		const r = await render(DiagramCanvas, {
 			target: stage,
 			props: {
 				scene,
@@ -271,14 +271,14 @@ describe('the canvas tools', () => {
 	};
 
 	it('makes a new node for a connection when empty canvas is tapped, instead of cancelling it', async () => {
-		const { calls } = mountTools({ selected: 'gw', connectFrom: 'gw' });
+		const { calls } = await mountTools({ selected: 'gw', connectFrom: 'gw' });
 		await page.elementLocator(empty()).click();
 		expect(calls.connect).toEqual([['gw', null]]);
 		expect(calls.picked).toEqual([]);
 	});
 
 	it('starts a connection from the node tapped while picking, without selecting it', async () => {
-		const { calls } = mountTools({ picking: true });
+		const { calls } = await mountTools({ picking: true });
 		await page.getByRole('button', { name: 'API Gateway: Gateway' }).click();
 		expect(calls.start).toEqual(['gw']);
 		expect(calls.picked).toEqual([]);
@@ -286,7 +286,7 @@ describe('the canvas tools', () => {
 	});
 
 	it('asks for a node on a double-click of empty canvas, and to rename on a double-click of a node', async () => {
-		const { calls } = mountTools();
+		const { calls } = await mountTools();
 		await userEvent.dblClick(page.elementLocator(empty()));
 		expect(calls.added).toHaveLength(1);
 		await userEvent.dblClick(page.getByRole('button', { name: 'API Gateway: Gateway' }));
@@ -295,7 +295,7 @@ describe('the canvas tools', () => {
 	});
 
 	it("ignores a finger's double tap", async () => {
-		const { calls } = mountTools();
+		const { calls } = await mountTools();
 		const el = empty();
 		el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: 10, clientY: 10 }));
 		el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: 10, clientY: 10 }));
@@ -304,7 +304,7 @@ describe('the canvas tools', () => {
 	});
 
 	it('types a new name in place: Enter keeps it, Escape leaves the old one', async () => {
-		const { calls, rerender } = mountTools({ selected: 'gw', renaming: 'gw' });
+		const { calls, rerender } = await mountTools({ selected: 'gw', renaming: 'gw' });
 		const input = page.getByRole('textbox', { name: 'Name of Gateway' });
 		await expect.element(input).toHaveFocus();
 		await expect.element(input).toHaveValue('Gateway');
@@ -318,7 +318,7 @@ describe('the canvas tools', () => {
 	});
 
 	it('resizes the selected node by its corner handle, with a mouse or a finger, no smaller than the limit', async () => {
-		const { calls } = mountTools({ selected: 'gw' });
+		const { calls } = await mountTools({ selected: 'gw' });
 		const { s } = sheet();
 		await drag(document.querySelector('.n-resize')!, 60 * s, 20 * s);
 		// Gateway is 190 × 88; the drag was 60 × 20 in diagram units.
@@ -329,7 +329,7 @@ describe('the canvas tools', () => {
 	});
 
 	it('places a dragged node freely with snapping off, and switches it from the zoom bar', async () => {
-		const { calls } = mountTools({ snap: false });
+		const { calls } = await mountTools({ snap: false });
 		const gw = document.querySelector('[data-node="gw"]')!;
 		const { s } = sheet();
 		await drag(gw, 0, 263 * s); // with snapping on, this lands on the collector's line at 420 (see above)
@@ -342,9 +342,9 @@ describe('the canvas tools', () => {
 });
 
 describe('picking many', () => {
-	function mountMany(props: Record<string, unknown> = {}) {
+	async function mountMany(props: Record<string, unknown> = {}) {
 		const calls = { toggled: [] as { node?: string; edge?: number }[], picked: [] as [Picked, boolean][], moved: [] as [string[], number, number][], selected: [] as (string | null)[] };
-		const r = render(DiagramCanvas, {
+		const r = await render(DiagramCanvas, {
 			target: stage,
 			props: {
 				scene,
@@ -365,7 +365,7 @@ describe('picking many', () => {
 	};
 
 	it('adds or takes away with a shift-click, and with a plain tap in Multi-select', async () => {
-		const { calls, rerender } = mountMany();
+		const { calls, rerender } = await mountMany();
 		await page.getByRole('button', { name: 'API Gateway: Gateway' }).click({ modifiers: ['Shift'] });
 		expect(calls.toggled).toEqual([{ node: 'gw' }]);
 		await rerender({ manyMode: true });
@@ -375,7 +375,7 @@ describe('picking many', () => {
 	});
 
 	it('marks every picked node and connection', async () => {
-		mountMany({ multi: { nodes: ['gw', 'db'], edges: [0] } });
+		await mountMany({ multi: { nodes: ['gw', 'db'], edges: [0] } });
 		await expect.element(page.getByRole('button', { name: 'API Gateway: Gateway' })).toHaveAttribute('aria-pressed', 'true');
 		await expect.element(page.getByRole('button', { name: 'Database: Orders DB' })).toHaveAttribute('aria-pressed', 'true');
 		const [first] = scene.edges;
@@ -383,7 +383,7 @@ describe('picking many', () => {
 	});
 
 	it('draws a box with shift held, picking the nodes it touches', async () => {
-		const { calls } = mountMany();
+		const { calls } = await mountMany();
 		const shop = document.querySelector('[data-node="shop"]')!.getBoundingClientRect();
 		const gw = document.querySelector('[data-node="gw"]')!.getBoundingClientRect();
 		const el = empty();
@@ -401,25 +401,25 @@ describe('picking many', () => {
 	});
 
 	it('pans on a plain drag of empty canvas, but draws a box in Multi-select, even with a finger', async () => {
-		const plain = mountMany();
+		const plain = await mountMany();
 		await drag(empty(), 80, 60);
 		expect(plain.calls.picked).toEqual([]);
 		plain.unmount();
-		const many = mountMany({ manyMode: true });
+		const many = await mountMany({ manyMode: true });
 		await drag(empty(), 300, 250, { pointerType: 'touch' });
 		expect(many.calls.picked).toHaveLength(1);
 		expect(many.calls.picked[0][1]).toBe(false);
 	});
 
 	it('moves every picked node when one of them is dragged, without snapping', async () => {
-		const { calls } = mountMany({ multi: { nodes: ['gw', 'db'], edges: [] } });
+		const { calls } = await mountMany({ multi: { nodes: ['gw', 'db'], edges: [] } });
 		const { s } = sheet();
 		await drag(document.querySelector('[data-node="gw"]')!, 40 * s, 263 * s);
 		expect(calls.moved).toEqual([[['gw', 'db'], 40, 263]]);
 	});
 
 	it('moves them with a finger from anywhere in moving mode', async () => {
-		const { calls } = mountMany({ multi: { nodes: ['gw', 'db'], edges: [] }, moving: true });
+		const { calls } = await mountMany({ multi: { nodes: ['gw', 'db'], edges: [] }, moving: true });
 		const { s } = sheet();
 		await drag(empty(), 0, 100 * s, { pointerType: 'touch' });
 		expect(calls.moved).toEqual([[['gw', 'db'], 0, 100]]);
@@ -429,7 +429,7 @@ describe('picking many', () => {
 describe('the canvas tools', () => {
 	it('puts handles on the ends of the selected connection, and a double-click sends one back to auto', async () => {
 		const ends: unknown[][] = [];
-		render(DiagramCanvas, {
+		await render(DiagramCanvas, {
 			target: stage,
 			props: { scene, on: tagsOn(scene, null), selected: null, onselect: () => {}, editable: true, selectedEdge: 0, onsetend: (i, end, at) => ends.push([i, end, at]) }
 		});
@@ -440,7 +440,7 @@ describe('the canvas tools', () => {
 	});
 
 	it('draws the minimap only when asked, and looks where it is pressed', async () => {
-		const r = render(DiagramCanvas, { target: stage, props: { scene, on: tagsOn(scene, null), selected: null, onselect: () => {}, showMinimap: true } });
+		const r = await render(DiagramCanvas, { target: stage, props: { scene, on: tagsOn(scene, null), selected: null, onselect: () => {}, showMinimap: true } });
 		const mini = page.getByRole('img', { name: /^Minimap/ });
 		await expect.element(mini).toBeVisible();
 		const before = document.querySelector<HTMLElement>('[data-node="shop"]')!.getBoundingClientRect().x;

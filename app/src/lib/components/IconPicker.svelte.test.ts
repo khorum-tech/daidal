@@ -5,7 +5,7 @@ import IconPicker from './IconPicker.svelte';
 
 describe('the icon picker', () => {
 	it('offers the node icons, marking the current one, and leaves out the app controls', async () => {
-		render(IconPicker, { current: 'robot', onpick: () => {} });
+		await render(IconPicker, { current: 'robot', onpick: () => {} });
 		await expect.element(page.getByRole('button', { name: 'Robot' })).toHaveAttribute('aria-pressed', 'true');
 		await expect.element(page.getByRole('button', { name: 'Database' })).toHaveAttribute('aria-pressed', 'false');
 		expect(page.getByRole('button', { name: 'Trash' }).elements()).toHaveLength(0);
@@ -13,7 +13,7 @@ describe('the icon picker', () => {
 
 	it('searches by keyword and reports the pick', async () => {
 		const picked: string[] = [];
-		render(IconPicker, { onpick: i => picked.push(i) });
+		await render(IconPicker, { onpick: i => picked.push(i) });
 		await page.getByLabelText('Search icons').fill('artificial intelligence');
 		await page.getByRole('button', { name: 'Robot' }).click();
 		expect(picked).toEqual(['robot']);

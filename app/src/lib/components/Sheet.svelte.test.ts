@@ -8,7 +8,7 @@ const content = createRawSnippet(() => ({ render: () => '<p>Sheet content</p>' }
 
 describe('a bottom sheet', () => {
 	it('shows its content as a modal dialog only while open', async () => {
-		const { rerender } = render(Sheet, { open: false, title: 'History', onclose: () => {}, children: content });
+		const { rerender } = await render(Sheet, { open: false, title: 'History', onclose: () => {}, children: content });
 		expect(page.getByRole('dialog').query()).toBeNull();
 		await rerender({ open: true });
 		await expect.element(page.getByRole('dialog', { name: 'History' })).toBeVisible();
@@ -17,7 +17,7 @@ describe('a bottom sheet', () => {
 
 	it('asks to close from its button and from Escape', async () => {
 		let closed = 0;
-		render(Sheet, { open: true, title: 'History', onclose: () => closed++, children: content });
+		await render(Sheet, { open: true, title: 'History', onclose: () => closed++, children: content });
 		await page.getByRole('button', { name: 'Close History' }).click();
 		expect(closed).toBe(1);
 		await userEvent.keyboard('{Escape}');
@@ -28,7 +28,7 @@ describe('a bottom sheet', () => {
 describe('closing from the backdrop', () => {
 	it('ignores a click that did not start on the backdrop, like the one that ends the tap opening it', async () => {
 		let closed = 0;
-		render(Sheet, { open: true, title: 'Details', onclose: () => closed++, children: content });
+		await render(Sheet, { open: true, title: 'Details', onclose: () => closed++, children: content });
 		const dialog = page.getByRole('dialog').element() as HTMLDialogElement;
 		dialog.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		expect(closed).toBe(0);

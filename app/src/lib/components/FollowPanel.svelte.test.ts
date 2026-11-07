@@ -20,7 +20,7 @@ const base = { leadName: 'checkout', leadHref: '/app/d/lead', groups, decided: {
 
 describe('the follow panel', () => {
 	it("lists each of the lead's new snapshots with what it changed, read-only unless editable", async () => {
-		render(FollowPanel, base);
+		await render(FollowPanel, base);
 		await expect.element(page.getByRole('heading', { name: 'Updates · 2' })).toBeVisible();
 		await expect.element(page.getByRole('link', { name: 'checkout' })).toHaveAttribute('href', '/app/d/lead');
 		const group = page.getByRole('group', { name: 'Snapshot Add the database' });
@@ -32,7 +32,7 @@ describe('the follow panel', () => {
 	it('accepts or skips one change, or all of a snapshot', async () => {
 		const accepted: [string[], string][] = [];
 		const skipped: string[][] = [];
-		render(FollowPanel, { ...base, editable: true, onaccept: (c: Change[], l: string) => accepted.push([c.map(x => x.id), l]), onskip: (ids: string[]) => skipped.push(ids) });
+		await render(FollowPanel, { ...base, editable: true, onaccept: (c: Change[], l: string) => accepted.push([c.map(x => x.id), l]), onskip: (ids: string[]) => skipped.push(ids) });
 		await page.getByRole('button', { name: 'Accept Add “Orders DB”' }).click();
 		await page.getByRole('button', { name: 'Skip Connect API → Orders DB' }).click();
 		await page.getByRole('button', { name: 'Accept all from Add the database' }).click();
@@ -46,7 +46,7 @@ describe('the follow panel', () => {
 
 	it('shows verdicts: an accepted change can be taken back, a skipped one accepted later', async () => {
 		const calls: string[] = [];
-		render(FollowPanel, {
+		await render(FollowPanel, {
 			...base,
 			editable: true,
 			decided: { 's2:na:db': 'accepted', 's2:ea:api>db': 'skipped' },
@@ -62,7 +62,7 @@ describe('the follow panel', () => {
 
 	it('pauses, marks everything reviewed, and unlinks after asking', async () => {
 		const calls: string[] = [];
-		render(FollowPanel, {
+		await render(FollowPanel, {
 			...base,
 			editable: true,
 			onpause: (p: boolean) => calls.push(`pause ${p}`),
@@ -77,7 +77,7 @@ describe('the follow panel', () => {
 	});
 
 	it('says when it is up to date, or paused', async () => {
-		render(FollowPanel, { ...base, groups: [], paused: true });
+		await render(FollowPanel, { ...base, groups: [], paused: true });
 		await expect.element(page.getByText('Up to date with checkout.')).toBeVisible();
 		await expect.element(page.getByText(/Paused: what checkout changes/)).toBeVisible();
 	});

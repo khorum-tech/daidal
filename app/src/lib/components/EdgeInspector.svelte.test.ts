@@ -18,7 +18,7 @@ const edge = toScene(doc).edges[0];
 
 describe('the connection inspector', () => {
 	it('shows a connection read-only unless editable', async () => {
-		render(EdgeInspector, { edge, fromName: 'Shop', toName: 'Gateway' });
+		await render(EdgeInspector, { edge, fromName: 'Shop', toName: 'Gateway' });
 		await expect.element(page.getByRole('heading', { name: 'Shop → Gateway' })).toBeVisible();
 		await expect.element(page.getByText('HTTPS')).toBeVisible();
 		expect(page.getByRole('button', { name: 'Reverse' }).elements()).toHaveLength(0);
@@ -27,7 +27,7 @@ describe('the connection inspector', () => {
 	it('reports each change with a label for undo', async () => {
 		const changes: { change: EdgeChange; label: string; group?: string }[] = [];
 		const calls: string[] = [];
-		render(EdgeInspector, {
+		await render(EdgeInspector, {
 			edge,
 			fromName: 'Shop',
 			toName: 'Gateway',
