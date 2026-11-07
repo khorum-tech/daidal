@@ -125,11 +125,13 @@ function c4Markup(n: SceneNode, dash: string, edge: string | undefined): string 
 		y += lineH;
 		return t;
 	};
-	const shape =
-		role === 'store'
-			? `<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="${n.w / 2}" ry="14" fill="${fill}" stroke="${stroke}"${dash}/>` +
-				`<ellipse cx="${cx}" cy="${n.y + 14}" rx="${n.w / 2}" ry="${C4.rim}" fill="none" stroke="${stroke}"/>`
-			: `<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="${role === 'person' ? 22 : 10}" fill="${fill}" stroke="${stroke}"${dash}/>`;
+	const corner = role === 'person' ? 22 : 10;
+	let shape = `<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="${corner}" fill="${fill}" stroke="${stroke}"${dash}/>`;
+	if (role === 'store') {
+		shape =
+			`<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="${n.w / 2}" ry="14" fill="${fill}" stroke="${stroke}"${dash}/>` +
+			`<ellipse cx="${cx}" cy="${n.y + 14}" rx="${n.w / 2}" ry="${C4.rim}" fill="none" stroke="${stroke}"/>`;
+	}
 	const head = role === 'person' ? `<circle cx="${cx}" cy="${n.y + 3}" r="17" fill="${fill}" stroke="${stroke}"/>` : '';
 	const mark = edge ? `<rect x="${n.x}" y="${n.y + 10}" width="3" height="${Math.max(0, n.h - 20)}" fill="${esc(edge)}"/>` : '';
 	const name = c4Name(n.name, n.w).map(l => text(l, C4.nameSize, C4.nameLine, ` font-weight="600" fill="${C.text}"`));

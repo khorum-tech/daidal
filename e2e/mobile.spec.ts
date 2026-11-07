@@ -114,6 +114,34 @@ test.describe("the app on a phone", () => {
     expect(await sheet(page)).toEqual(fitted);
   });
 
+  test("keeps a sideways swipe for the canvas, so Safari's swipe-anywhere Back can't take it, and taps still work", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    const postings = page.getByRole("button", { name: "Service: Postings Service" });
+    await expect(postings).toBeVisible();
+    // Whether the page claimed each touch move, as Safari would see it once the canvas has had it.
+    await page.evaluate(() => {
+      (window as unknown as { claimed: boolean[] }).claimed = [];
+      document.addEventListener("touchmove", e => (window as unknown as { claimed: boolean[] }).claimed.push(e.defaultPrevented));
+    });
+    const url = page.url();
+    // From the middle of the screen, on bare canvas and on a node.
+    const bare = await emptySpot(page);
+    await swipe(page, bare.x, bare.y, 120, 0);
+    const node = await middle(page, '[data-node="postings"]');
+    await swipe(page, node.x, node.y, -120, 0);
+    const claimed = await page.evaluate(() => (window as unknown as { claimed: boolean[] }).claimed);
+    expect(claimed.length).toBeGreaterThan(0);
+    expect(claimed.every(Boolean)).toBe(true);
+    expect(page.url()).toBe(url);
+    // A tap is no move: it still selects, and a tap on empty canvas still clears.
+    await postings.tap();
+    await expect(postings).toHaveAttribute("aria-pressed", "true");
+    const empty = await emptySpot(page);
+    await page.touchscreen.tap(empty.x, empty.y);
+    await expect(postings).toHaveAttribute("aria-pressed", "false");
+  });
+
   test("pans with one finger, even at fit and even starting on a node", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     // While replaying history nothing can be moved, so a drag anywhere pans, a node included.

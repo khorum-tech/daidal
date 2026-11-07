@@ -31,8 +31,10 @@ describe('diagram kinds', () => {
 
 	it('gives every template a kind by its id', () => {
 		expect(Object.fromEntries(TEMPLATES.map(t => [t.name, t.doc.diagram?.kind]))).toEqual({
-			'C4 Container': 'c4-container',
 			'C4 Context': 'c4-context',
+			'C4 Container': 'c4-container',
+			'C4 Component': 'c4-component',
+			'C4 Code': 'c4-code',
 			'Deployment topology': 'deployment',
 			Freeform: 'freeform'
 		});
