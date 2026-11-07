@@ -10,7 +10,7 @@ const noop = async () => {};
 describe('the workspace sheet', () => {
 	it("lets the owner rename it, add and remove members, export it and delete it, after asking", async () => {
 		const calls: unknown[] = [];
-		render(WorkspaceSheet, {
+		await render(WorkspaceSheet, {
 			workspace: team,
 			me: 'owner@x.io',
 			onrename: async n => void calls.push(['rename', n]),
@@ -31,7 +31,7 @@ describe('the workspace sheet', () => {
 	});
 
 	it('shows a member who is in it, and lets them export it, but nothing more', async () => {
-		render(WorkspaceSheet, { workspace: team, me: 'pal@x.io', onrename: noop, onadd: noop, onremove: noop, onexport: noop, ondelete: noop });
+		await render(WorkspaceSheet, { workspace: team, me: 'pal@x.io', onrename: noop, onadd: noop, onremove: noop, onexport: noop, ondelete: noop });
 		await expect.element(page.getByText('Only owner@x.io can change who')).toBeVisible();
 		await expect.element(page.getByText('you')).toBeVisible();
 		expect(page.getByLabelText('Name').elements()).toHaveLength(0);
@@ -41,7 +41,7 @@ describe('the workspace sheet', () => {
 	});
 
 	it("keeps a personal workspace unshared and undeletable, and shows a failure", async () => {
-		render(WorkspaceSheet, {
+		await render(WorkspaceSheet, {
 			workspace: { ...team, personal: true, members: ['owner@x.io'], types: [] },
 			me: 'owner@x.io',
 			onrename: noop,
@@ -55,12 +55,12 @@ describe('the workspace sheet', () => {
 		await expect.element(page.getByText('Your personal workspace is only yours.')).toBeVisible();
 		expect(page.getByRole('button', { name: 'Delete workspace…' }).elements()).toHaveLength(0);
 		await page.getByRole('button', { name: 'Export a backup' }).click();
-		await expect.element(page.getByRole('alert')).toHaveTextContent('not found');
+		await expect.element(page.getByRole('alert')).toMatchTextContent('not found');
 	});
 
 	it('lets a member leave after asking, and never offers it to the owner', async () => {
 		let left = 0;
-		const r = render(WorkspaceSheet, { workspace: team, me: 'pal@x.io', onrename: noop, onadd: noop, onremove: noop, onexport: noop, ondelete: noop, onleave: async () => void left++ });
+		const r = await render(WorkspaceSheet, { workspace: team, me: 'pal@x.io', onrename: noop, onadd: noop, onremove: noop, onexport: noop, ondelete: noop, onleave: async () => void left++ });
 		await page.getByRole('button', { name: 'Leave this workspace…' }).click();
 		await expect.element(page.getByText(/now owner@x.io's/)).toBeVisible();
 		await page.getByRole('button', { name: 'Leave the workspace' }).click();
@@ -71,7 +71,7 @@ describe('the workspace sheet', () => {
 
 	it('lets a member manage the workspace’s types, when it can save them', async () => {
 		const calls: unknown[] = [];
-		render(WorkspaceSheet, {
+		await render(WorkspaceSheet, {
 			workspace: { ...team, types: [{ name: 'Billing Agent', category: 'AI', icon: 'robot' }] },
 			me: 'pal@x.io',
 			onrename: noop,
@@ -89,7 +89,7 @@ describe('the workspace sheet', () => {
 	});
 
 	it('leaves types out when it can’t save them', async () => {
-		render(WorkspaceSheet, { workspace: team, me: 'owner@x.io', onrename: noop, onadd: noop, onremove: noop, onexport: noop, ondelete: noop });
+		await render(WorkspaceSheet, { workspace: team, me: 'owner@x.io', onrename: noop, onadd: noop, onremove: noop, onexport: noop, ondelete: noop });
 		expect(page.getByRole('region', { name: 'Types' }).elements()).toHaveLength(0);
 	});
 });

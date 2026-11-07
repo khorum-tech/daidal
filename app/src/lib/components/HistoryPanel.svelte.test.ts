@@ -9,7 +9,7 @@ const snap = (id: string, label: string, daysAgo: number): Snapshot => ({ id, la
 
 describe('history', () => {
 	it('lists the working copy, then snapshots newest first', async () => {
-		render(HistoryPanel, { snapshots: [snap('a', 'First sketch', 20), snap('b', 'Second cut', 2)], current: null, onpick: () => {}, now: NOW });
+		await render(HistoryPanel, { snapshots: [snap('a', 'First sketch', 20), snap('b', 'Second cut', 2)], current: null, onpick: () => {}, now: NOW });
 		const buttons = page.getByRole('button').all();
 		expect((await Promise.all(buttons.map(b => b.element().textContent))).map(t => t?.replace(/\s+/g, ' ').trim())).toEqual([
 			'Working copy',
@@ -21,14 +21,14 @@ describe('history', () => {
 
 	it('reports the snapshot picked, and the working copy', async () => {
 		const picked: (string | null)[] = [];
-		render(HistoryPanel, { snapshots: [snap('a', 'First sketch', 1)], current: 'a', onpick: id => picked.push(id), now: NOW });
+		await render(HistoryPanel, { snapshots: [snap('a', 'First sketch', 1)], current: 'a', onpick: id => picked.push(id), now: NOW });
 		await expect.element(page.getByRole('button', { name: /First sketch/ })).toHaveAttribute('aria-pressed', 'true');
 		await page.getByRole('button', { name: 'Working copy' }).click();
 		expect(picked).toEqual([null]);
 	});
 
 	it('says when there is no history yet', async () => {
-		render(HistoryPanel, { snapshots: [], current: null, onpick: () => {}, now: NOW });
+		await render(HistoryPanel, { snapshots: [], current: null, onpick: () => {}, now: NOW });
 		await expect.element(page.getByText('No snapshots yet.')).toBeVisible();
 	});
 });
@@ -36,7 +36,7 @@ describe('history', () => {
 describe('taking a snapshot', () => {
 	it('records a description, and is offered only when it can be taken', async () => {
 		const taken: string[] = [];
-		render(HistoryPanel, { snapshots: [], current: null, onpick: () => {}, ontake: async l => void taken.push(l) });
+		await render(HistoryPanel, { snapshots: [], current: null, onpick: () => {}, ontake: async l => void taken.push(l) });
 		await page.getByRole('button', { name: '+ Take a snapshot' }).click();
 		await page.getByLabelText('Snapshot description').fill('Before the cut-over');
 		await page.getByRole('button', { name: 'Save snapshot' }).click();
@@ -45,7 +45,7 @@ describe('taking a snapshot', () => {
 	});
 
 	it('is not offered without a way to take one', async () => {
-		render(HistoryPanel, { snapshots: [], current: null, onpick: () => {} });
+		await render(HistoryPanel, { snapshots: [], current: null, onpick: () => {} });
 		expect(page.getByRole('button', { name: '+ Take a snapshot' }).elements()).toHaveLength(0);
 	});
 });

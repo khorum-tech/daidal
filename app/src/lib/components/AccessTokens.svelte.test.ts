@@ -10,9 +10,9 @@ const workspaces: Workspace[] = [
 ];
 const old: AccessToken = { id: 'k1', name: 'Old laptop', scope: 'read', workspaces: ['t'], createdAt: '2026-10-01T10:00:00Z', lastUsedAt: null };
 
-function shown(origin = 'https://skope.khorum-oss.org', tokens: AccessToken[] = [old]) {
+async function shown(origin = 'https://skope.khorum-oss.org', tokens: AccessToken[] = [old]) {
 	const calls: unknown[] = [];
-	render(AccessTokens, {
+	await render(AccessTokens, {
 		workspaces,
 		origin,
 		list: async () => tokens,
@@ -27,7 +27,7 @@ function shown(origin = 'https://skope.khorum-oss.org', tokens: AccessToken[] = 
 
 describe('the access tokens tab', () => {
 	it('says how to connect online, and lists tokens with what they reach', async () => {
-		shown();
+		await shown();
 		await expect.element(page.getByText('https://skope.khorum-oss.org/mcp').first()).toBeVisible();
 		await expect.element(page.getByText(/sign in when it asks/)).toBeVisible();
 		const list = page.getByRole('list', { name: 'Your access tokens' });
@@ -36,12 +36,12 @@ describe('the access tokens tab', () => {
 	});
 
 	it('makes a token limited to some workspaces, shows it once, and gives the local command', async () => {
-		const calls = shown('http://localhost:8787');
+		const calls = await shown('http://localhost:8787');
 		await page.getByLabelText('Name').fill(' Claude Code ');
 		await page.getByRole('radio', { name: 'Read', exact: true }).click();
 		await page.getByLabelText('Only some workspaces').click();
 		await page.getByRole('button', { name: 'Create token' }).click();
-		await expect.element(page.getByRole('alert')).toHaveTextContent('Choose at least one workspace');
+		await expect.element(page.getByRole('alert')).toMatchTextContent('Choose at least one workspace');
 		await page.getByLabelText('Platform team').click();
 		await page.getByRole('button', { name: 'Create token' }).click();
 		expect(calls).toEqual([['create', { name: 'Claude Code', scope: 'read', workspaces: ['t'] }]]);
@@ -54,7 +54,7 @@ describe('the access tokens tab', () => {
 	});
 
 	it('revokes a token after asking', async () => {
-		const calls = shown();
+		const calls = await shown();
 		await page.getByRole('button', { name: 'Revoke Old laptop…' }).click();
 		await page.getByRole('button', { name: 'Revoke “Old laptop”' }).click();
 		expect(calls).toEqual([['revoke', 'k1']]);
@@ -62,8 +62,8 @@ describe('the access tokens tab', () => {
 	});
 
 	it('asks for a name', async () => {
-		shown('https://skope.khorum-oss.org', []);
+		await shown('https://skope.khorum-oss.org', []);
 		await page.getByRole('button', { name: 'Create token' }).click();
-		await expect.element(page.getByRole('alert')).toHaveTextContent('Give the token a name');
+		await expect.element(page.getByRole('alert')).toMatchTextContent('Give the token a name');
 	});
 });

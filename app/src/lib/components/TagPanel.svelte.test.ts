@@ -9,7 +9,7 @@ const scene = toScene(SAMPLE);
 
 describe('views and tags', () => {
 	it('lists the views, and each group with its tags and how many nodes carry them', async () => {
-		render(TagPanel, { scene, on: tagsOn(scene, null), view: null, onview: () => {}, ontoggle: () => {} });
+		await render(TagPanel, { scene, on: tagsOn(scene, null), view: null, onview: () => {}, ontoggle: () => {} });
 		await expect.element(page.getByRole('button', { name: 'Everything', exact: true })).toHaveAttribute('aria-pressed', 'true');
 		await expect.element(page.getByRole('button', { name: 'Request path' })).toBeVisible();
 		await expect.element(page.getByRole('heading', { name: 'Layer' })).toBeVisible();
@@ -21,7 +21,7 @@ describe('views and tags', () => {
 	it('reports a view picked or a tag switched', async () => {
 		const views: (string | null)[] = [];
 		const toggled: string[] = [];
-		render(TagPanel, { scene, on: tagsOn(scene, 'Request path'), view: 'Request path', onview: v => views.push(v), ontoggle: t => toggled.push(t) });
+		await render(TagPanel, { scene, on: tagsOn(scene, 'Request path'), view: 'Request path', onview: v => views.push(v), ontoggle: t => toggled.push(t) });
 		await expect.element(page.getByRole('checkbox', { name: /Data/ })).not.toBeChecked();
 		await page.getByRole('button', { name: 'Everything tagged' }).click();
 		await page.getByRole('checkbox', { name: /Data/ }).click();
@@ -30,7 +30,7 @@ describe('views and tags', () => {
 	});
 
 	it('says so when a diagram has no tags', async () => {
-		render(TagPanel, { scene: toScene({ version: 1 }), on: {}, view: null, onview: () => {}, ontoggle: () => {} });
+		await render(TagPanel, { scene: toScene({ version: 1 }), on: {}, view: null, onview: () => {}, ontoggle: () => {} });
 		await expect.element(page.getByText('This diagram has no tags.')).toBeVisible();
 	});
 });
@@ -38,7 +38,7 @@ describe('views and tags', () => {
 describe('editing views and tags', () => {
 	it('edits the chosen view, and offers saving the tags on now as a new one', async () => {
 		const calls: unknown[][] = [];
-		render(TagPanel, {
+		await render(TagPanel, {
 			scene,
 			on: { ...tagsOn(scene, 'Request path'), data: true },
 			view: 'Request path',
@@ -55,7 +55,7 @@ describe('editing views and tags', () => {
 			onmanage: () => calls.push(['manage'])
 		});
 		// The chosen view is changed (Data is on as well) and is the one the diagram opens on.
-		await expect.element(page.getByRole('button', { name: /^Request path/ })).toHaveTextContent(/changed.*default/);
+		await expect.element(page.getByRole('button', { name: /^Request path/ })).toMatchTextContent(/changed.*default/);
 		// The editor opens on request.
 		expect(page.getByRole('group', { name: 'Edit view Request path' }).elements()).toHaveLength(0);
 		await page.getByRole('button', { name: 'Edit view Request path' }).click();
@@ -85,7 +85,7 @@ describe('editing views and tags', () => {
 	it('locks a view: marked in the list, and kept from being renamed, re-saved or deleted', async () => {
 		const locked = toScene({ ...SAMPLE, views: SAMPLE.views!.map(v => (v.name === 'Request path' ? { ...v, locked: true } : v)) });
 		const calls: unknown[][] = [];
-		render(TagPanel, {
+		await render(TagPanel, {
 			scene: locked,
 			on: { ...tagsOn(locked, 'Request path'), data: true },
 			view: 'Request path',

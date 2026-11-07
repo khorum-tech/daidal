@@ -10,7 +10,7 @@ describe('the profile and appearance sheet', () => {
 	it('saves a changed name and title, and says when it could not', async () => {
 		const saved: unknown[] = [];
 		let fail = true;
-		render(ProfileSheet, {
+		await render(ProfileSheet, {
 			me,
 			settings: DEFAULTS,
 			light: false,
@@ -25,7 +25,7 @@ describe('the profile and appearance sheet', () => {
 		await page.getByLabelText('Name').fill('Ada Lovelace ');
 		await page.getByLabelText('Title').fill('Engineer');
 		await save.click();
-		await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't save: offline");
+		await expect.element(page.getByRole('alert')).toMatchTextContent("Couldn't save: offline");
 		fail = false;
 		await save.click();
 		expect(saved).toEqual([{ name: 'Ada Lovelace', title: 'Engineer' }]);
@@ -34,7 +34,7 @@ describe('the profile and appearance sheet', () => {
 
 	it('reports theme, condition, simulation and icon cards, and simulates only with a condition', async () => {
 		const changes: Partial<Settings>[] = [];
-		const screen = render(ProfileSheet, {
+		const screen = await render(ProfileSheet, {
 			me,
 			settings: DEFAULTS,
 			light: false,
@@ -59,7 +59,7 @@ describe('the profile and appearance sheet', () => {
 
 	it('downloads your data, and deletes the account only once your email is typed', async () => {
 		const calls: string[] = [];
-		render(ProfileSheet, {
+		await render(ProfileSheet, {
 			me,
 			settings: DEFAULTS,
 			light: false,
@@ -84,7 +84,7 @@ describe('the profile and appearance sheet', () => {
 	});
 
 	it('keeps the account when you back out, and says why a delete failed', async () => {
-		render(ProfileSheet, {
+		await render(ProfileSheet, {
 			me,
 			settings: DEFAULTS,
 			light: false,
@@ -97,7 +97,7 @@ describe('the profile and appearance sheet', () => {
 		await page.getByRole('button', { name: 'Delete my account…' }).click();
 		await page.getByLabelText(/Type your email/).fill('ada@example.com');
 		await page.getByRole('button', { name: 'Delete everything' }).click();
-		await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't delete your account: offline");
+		await expect.element(page.getByRole('alert')).toMatchTextContent("Couldn't delete your account: offline");
 		await page.getByRole('button', { name: 'Keep my account' }).click();
 		await expect.element(page.getByRole('button', { name: 'Delete my account…' })).toBeVisible();
 	});
