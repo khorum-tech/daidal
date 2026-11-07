@@ -12,7 +12,7 @@ const workspaces: Workspace[] = [
 describe('the diagram sheet', () => {
 	it('lets the owner rename, copy and delete, after asking', async () => {
 		const calls: unknown[] = [];
-		render(DiagramSheet, {
+		await render(DiagramSheet, {
 			name: 'ledger',
 			mine: true,
 			workspaces,
@@ -34,7 +34,7 @@ describe('the diagram sheet', () => {
 
 	it('lets the owner change the kind, which says what it does', async () => {
 		const kinds: string[] = [];
-		render(DiagramSheet, { name: 'ledger', mine: true, workspaces, here: 't', kind: 'c4-container', onkind: k => kinds.push(k), onrename: () => {}, oncopy: async () => {}, ondelete: async () => {} });
+		await render(DiagramSheet, { name: 'ledger', mine: true, workspaces, here: 't', kind: 'c4-container', onkind: k => kinds.push(k), onrename: () => {}, oncopy: async () => {}, ondelete: async () => {} });
 		await expect.element(page.getByLabelText('Kind', { exact: true })).toHaveValue('c4-container');
 		await expect.element(page.getByText(/Level 2: the apps and data stores inside one system/)).toBeVisible();
 		await page.getByLabelText('Kind', { exact: true }).selectOptions('C4 Component');
@@ -42,7 +42,7 @@ describe('the diagram sheet', () => {
 	});
 
 	it('only offers a copy to someone who does not own the diagram, and shows a failure', async () => {
-		render(DiagramSheet, {
+		await render(DiagramSheet, {
 			name: 'ledger',
 			mine: false,
 			workspaces,
@@ -57,14 +57,14 @@ describe('the diagram sheet', () => {
 		expect(page.getByRole('button', { name: 'Delete diagram…' }).elements()).toHaveLength(0);
 		await expect.element(page.getByLabelText('Into')).toHaveValue('p');
 		await page.getByRole('button', { name: 'Make a duplicate' }).click();
-		await expect.element(page.getByRole('alert')).toHaveTextContent('workspace not found');
+		await expect.element(page.getByRole('alert')).toMatchTextContent('workspace not found');
 	});
 
 	it('copies a link, to the view on now if wanted, presents, and locks editing on this device', async () => {
 		const calls: unknown[] = [];
 		const written: string[] = [];
 		Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (t: string) => void written.push(t) }, configurable: true });
-		render(DiagramSheet, {
+		await render(DiagramSheet, {
 			name: 'ledger',
 			mine: true,
 			workspaces,
@@ -91,14 +91,14 @@ describe('the diagram sheet', () => {
 	});
 
 	it('offers no lock to someone who does not own the diagram', async () => {
-		render(DiagramSheet, { name: 'ledger', mine: false, workspaces, here: 't', onrename: () => {}, oncopy: async () => {}, ondelete: async () => {}, link: 'x', onlock: () => {} });
+		await render(DiagramSheet, { name: 'ledger', mine: false, workspaces, here: 't', onrename: () => {}, oncopy: async () => {}, ondelete: async () => {}, link: 'x', onlock: () => {} });
 		await expect.element(page.getByRole('button', { name: 'Copy link' })).toBeVisible();
 		expect(page.getByLabelText('Lock editing on this device').elements()).toHaveLength(0);
 	});
 
 	it('exports an image as PNG or SVG, keeping what the view ghosts or not', async () => {
 		const asked: [string, boolean][] = [];
-		render(DiagramSheet, {
+		await render(DiagramSheet, {
 			name: 'ledger',
 			mine: false,
 			workspaces,
@@ -118,14 +118,14 @@ describe('the diagram sheet', () => {
 	});
 
 	it('says so when an export fails', async () => {
-		render(DiagramSheet, { name: 'ledger', mine: true, workspaces, here: 't', onrename: () => {}, oncopy: async () => {}, ondelete: async () => {}, onexport: async () => Promise.reject(new Error("Couldn't make the PNG")) });
+		await render(DiagramSheet, { name: 'ledger', mine: true, workspaces, here: 't', onrename: () => {}, oncopy: async () => {}, ondelete: async () => {}, onexport: async () => Promise.reject(new Error("Couldn't make the PNG")) });
 		await page.getByRole('button', { name: 'Download PNG' }).click();
-		await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't make the PNG");
+		await expect.element(page.getByRole('alert')).toMatchTextContent("Couldn't make the PNG");
 	});
 
 	it('lets the owner move it to another of their workspaces', async () => {
 		const moved: string[] = [];
-		render(DiagramSheet, { name: 'ledger', mine: true, workspaces, here: 't', onrename: () => {}, oncopy: async () => {}, ondelete: async () => {}, onmove: async w => void moved.push(w) });
+		await render(DiagramSheet, { name: 'ledger', mine: true, workspaces, here: 't', onrename: () => {}, oncopy: async () => {}, ondelete: async () => {}, onmove: async w => void moved.push(w) });
 		const move = page.getByRole('button', { name: 'Move the diagram' });
 		await expect.element(move).toBeDisabled();
 		await page.getByLabelText('Move to').selectOptions('Personal');

@@ -11,10 +11,10 @@ const tags = Object.fromEntries(scene.tags.map(t => [t.key, t]));
 const node = (id: string) => scene.nodes.find(n => n.id === id)!;
 
 /** Render an editable inspector for [id], collecting what it reports. */
-function editing(id: string) {
+async function editing(id: string) {
 	const changes: { change: NodeChange; label: string; group?: string }[] = [];
 	const calls: string[] = [];
-	render(Inspector, {
+	await render(Inspector, {
 		node: node(id),
 		tags,
 		editable: true,
@@ -28,7 +28,7 @@ function editing(id: string) {
 
 describe('the inspector', () => {
 	it('shows a node read-only unless editable', async () => {
-		render(Inspector, { node: node('gw'), tags });
+		await render(Inspector, { node: node('gw'), tags });
 		await expect.element(page.getByRole('heading', { name: 'Gateway' })).toBeVisible();
 		await expect.element(page.getByText('The one way in.')).toBeVisible();
 		expect(page.getByLabelText('Name').elements()).toHaveLength(0);
@@ -36,7 +36,7 @@ describe('the inspector', () => {
 	});
 
 	it('reports typing as one group per field, ended when the field is left', async () => {
-		const { changes, calls } = editing('gw');
+		const { changes, calls } = await editing('gw');
 		await expect.element(page.getByLabelText('Name')).toHaveValue('Gateway');
 		await expect.element(page.getByLabelText('Notes')).toHaveValue('The one way in.');
 		await page.getByLabelText('Subtitle').fill('Envoy');
@@ -46,14 +46,14 @@ describe('the inspector', () => {
 	});
 
 	it('gives a name left blank its type', async () => {
-		const { changes } = editing('gw');
+		const { changes } = await editing('gw');
 		await page.getByLabelText('Name').fill('');
 		await page.getByLabelText('Notes').click();
 		expect(changes.at(-1)).toEqual({ change: { name: 'API Gateway' }, label: 'Rename node', group: 'gw:name' });
 	});
 
 	it('changes the type, flags, tags and links with a tap', async () => {
-		const { changes } = editing('shop');
+		const { changes } = await editing('shop');
 		await page.getByRole('button', { name: 'Web App', expanded: false }).click();
 		await page.getByRole('button', { name: 'Mobile App' }).click();
 		await page.getByRole('button', { name: 'Cache' }).click();
@@ -73,7 +73,7 @@ describe('the inspector', () => {
 	});
 
 	it('adds a link typed but not added once focus leaves the link form, and only once', async () => {
-		const { changes } = editing('gw');
+		const { changes } = await editing('gw');
 		await page.getByLabelText('Link label').fill('Runbook');
 		await page.getByLabelText('Link address').fill('example.com/run');
 		await page.getByLabelText('Notes').click();
@@ -83,7 +83,7 @@ describe('the inspector', () => {
 	});
 
 	it('asks to duplicate or delete the node', async () => {
-		const { calls } = editing('db');
+		const { calls } = await editing('db');
 		await page.getByRole('button', { name: 'Duplicate' }).click();
 		await page.getByRole('button', { name: 'Delete node' }).click();
 		expect(calls).toEqual(['duplicate', 'delete']);
@@ -91,13 +91,13 @@ describe('the inspector', () => {
 
 	it('offers Isolate for a node with tags, read-only or not', async () => {
 		let isolated = 0;
-		render(Inspector, { node: node('gw'), tags, onisolate: () => isolated++ });
+		await render(Inspector, { node: node('gw'), tags, onisolate: () => isolated++ });
 		await page.getByRole('button', { name: 'Isolate its tags' }).click();
 		expect(isolated).toBe(1);
 	});
 
 	it('gives a node its own icon from the library, and takes it back to its type’s', async () => {
-		const { changes } = editing(scene.nodes[0].id);
+		const { changes } = await editing(scene.nodes[0].id);
 		await expect.element(page.getByText('The type’s icon')).toBeVisible();
 		await page.getByRole('button', { name: /^Icon:/ }).click();
 		await page.getByLabelText('Search icons').fill('robot');
@@ -107,7 +107,7 @@ describe('the inspector', () => {
 
 	it('offers the type’s icon back when the node has its own', async () => {
 		const changes: NodeChange[] = [];
-		render(Inspector, { node: { ...scene.nodes[0], icon: 'robot', ownIcon: 'robot' }, tags, editable: true, onchange: c => changes.push(c) });
+		await render(Inspector, { node: { ...scene.nodes[0], icon: 'robot', ownIcon: 'robot' }, tags, editable: true, onchange: c => changes.push(c) });
 		await expect.element(page.getByRole('button', { name: 'Icon: Robot' })).toBeVisible();
 		await page.getByRole('button', { name: 'Use the type’s' }).click();
 		expect(changes).toEqual([{ icon: null }]);
@@ -127,7 +127,7 @@ describe('the inspector and diagrams to zoom into', () => {
 	it('opens a linked diagram, links another, and hides one the viewer cannot see', async () => {
 		const changes: NodeChange[] = [];
 		const zooms: string[] = [];
-		render(Inspector, { node: linked, tags: {}, editable: true, diagrams, onzoom: z => zooms.push(z.diagram), onchange: c => changes.push(c) });
+		await render(Inspector, { node: linked, tags: {}, editable: true, diagrams, onzoom: z => zooms.push(z.diagram), onchange: c => changes.push(c) });
 		await page.getByRole('button', { name: /^API parts/ }).click();
 		expect(zooms).toEqual(['parts']);
 		expect(page.getByText('secret').elements()).toHaveLength(0);
@@ -137,7 +137,7 @@ describe('the inspector and diagrams to zoom into', () => {
 
 	it('keeps the diagram links when a web link is removed, and the web links when a diagram is unlinked', async () => {
 		const changes: NodeChange[] = [];
-		render(Inspector, { node: linked, tags: {}, editable: true, diagrams, onchange: c => changes.push(c) });
+		await render(Inspector, { node: linked, tags: {}, editable: true, diagrams, onchange: c => changes.push(c) });
 		await page.getByRole('button', { name: 'Remove link Runbook' }).click();
 		expect(changes.at(-1)!.links).toEqual([{ diagram: 'parts', view: 'Ops' }, { diagram: 'secret' }]);
 		await page.getByRole('button', { name: 'Stop zooming into API parts' }).click();
@@ -145,7 +145,7 @@ describe('the inspector and diagrams to zoom into', () => {
 	});
 
 	it('lets a viewer zoom in but not link', async () => {
-		render(Inspector, { node: linked, tags: {}, diagrams });
+		await render(Inspector, { node: linked, tags: {}, diagrams });
 		await expect.element(page.getByRole('button', { name: /^API parts/ })).toBeVisible();
 		expect(page.getByLabelText('Link a diagram to zoom into').elements()).toHaveLength(0);
 	});

@@ -10,7 +10,7 @@ const scene = toScene(SAMPLE);
 describe('the tag manager', () => {
 	it('lists every tag with its group and count, and reports each change', async () => {
 		const calls: unknown[][] = [];
-		render(TagManager, {
+		await render(TagManager, {
 			tags: scene.tags,
 			counts: { web: 1, api: 1, data: 1, obs: 1 },
 			onchange: (key, change, label, group) => calls.push(['change', key, change, label, group]),
@@ -40,14 +40,14 @@ describe('the tag manager', () => {
 	});
 
 	it('says so when there are no tags', async () => {
-		render(TagManager, { tags: [], counts: {}, onchange: () => {}, onfieldend: () => {}, ondelete: () => {}, onadd: () => {} });
+		await render(TagManager, { tags: [], counts: {}, onchange: () => {}, onfieldend: () => {}, ondelete: () => {}, onadd: () => {} });
 		await expect.element(page.getByText('No tags yet.')).toBeVisible();
 	});
 
 	it('offers the palette first and the rest under More colours, keeps a tag’s own colour, and leaves out what collides', async () => {
 		const tags = [{ ...scene.tags[0], color: '#a9cc6a' }];
 		const props = { tags, counts: {}, onchange: () => {}, onfieldend: () => {}, ondelete: () => {}, onadd: () => {} };
-		const screen = render(TagManager, props);
+		const screen = await render(TagManager, props);
 		await page.getByLabelText(`Colour of ${tags[0].label}`).click();
 		const all = page.getByRole('group').getByRole('button', { name: /^Colour #/ });
 		await expect.poll(() => all.elements().length).toBe(9);
@@ -61,7 +61,7 @@ describe('the tag manager', () => {
 
 	it('switches the palette, only to another one', async () => {
 		const picked: string[] = [];
-		render(TagManager, { tags: scene.tags, counts: {}, onchange: () => {}, onfieldend: () => {}, ondelete: () => {}, onadd: () => {}, palette: 'nocturne', onpalette: id => picked.push(id) });
+		await render(TagManager, { tags: scene.tags, counts: {}, onchange: () => {}, onfieldend: () => {}, ondelete: () => {}, onadd: () => {}, palette: 'nocturne', onpalette: id => picked.push(id) });
 		await expect.element(page.getByRole('radio', { name: /Nocturne/ })).toHaveAttribute('aria-checked', 'true');
 		await page.getByRole('radio', { name: /Nocturne/ }).click();
 		await page.getByRole('radio', { name: /Accessible/ }).click();
