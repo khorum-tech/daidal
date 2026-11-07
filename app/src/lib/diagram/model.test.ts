@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE } from '../fixtures/docs';
 import { catalogue } from './icons';
-import { bounds, C4, c4Desc, c4Height, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
+import { bounds, C4, C4_PERSON_H, c4Desc, c4Height, c4Top, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
 
 describe('typeName', () => {
 	it("turns a slug back into the prototype's own type name", () => {
@@ -191,5 +191,14 @@ describe('C4 cards', () => {
 		const lines = c4Desc(long.desc, 190);
 		expect(lines).toHaveLength(C4.maxDesc);
 		expect(lines.at(-1)).toMatch(/…$/);
+	});
+});
+
+describe('C4 person cards', () => {
+	it('leave room under the head, which takes only what it covers', () => {
+		const person = toScene({ version: 1, diagram: { kind: 'c4-context' }, nodes: [{ id: 'p', name: 'Staff', type: 'actor' }] }).nodes[0];
+		expect(person.h).toBe(C4_PERSON_H);
+		expect(c4Top('person')).toBe(C4.pad + C4.head);
+		expect(c4Top('container')).toBe(C4.pad);
 	});
 });

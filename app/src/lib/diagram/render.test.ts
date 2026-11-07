@@ -81,3 +81,15 @@ describe('toSvg and C4 cards', () => {
 		expect(svg).not.toContain('>SERVICE<');
 	});
 });
+
+describe('toSvg and C4 text placement', () => {
+	it('centres a C4 card text in the room under the head', () => {
+		const scene = toScene({ version: 1, diagram: { kind: 'c4-context' }, nodes: [{ id: 'p', name: 'Staff', type: 'actor', layout: { x: 0, y: 0, h: 200 } }] });
+		const { svg } = toSvg(scene, { on: tagsOn(scene, null) });
+		const ys = [...svg.matchAll(/<text x="95" y="([\d.]+)"/g)].map(m => Number(m[1]));
+		// Name then [Person]: 18 + 15 tall, in the room from 26 (under the head) to 188 (above the bottom padding).
+		const top = ys[0] - 9;
+		const bottom = ys[1] + 7.5;
+		expect(Math.abs(top - 26 - (188 - bottom))).toBeLessThan(1);
+	});
+});

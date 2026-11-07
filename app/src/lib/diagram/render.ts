@@ -1,6 +1,6 @@
 import { edgePath, type Box } from './geometry';
 import { ICON_PATHS } from './icons';
-import { bounds, C4, c4Desc, c4Kind, c4Name, c4Top, isHidden, NOTE, noteLines, wrapText, type Scene, type SceneNode } from './model';
+import { bounds, C4, c4Desc, c4Kind, c4Name, c4Text, c4Top, isHidden, NOTE, noteLines, wrapText, type Scene, type SceneNode } from './model';
 
 /**
  * A diagram as a standalone SVG image, drawn from the scene the way the canvas draws it: containers, connections
@@ -119,7 +119,9 @@ function c4Markup(n: SceneNode, dash: string, edge: string | undefined): string 
 	const fill = C.c4[role];
 	const stroke = role === 'external' ? C.c4External : C.c4Border;
 	const cx = n.x + n.w / 2;
-	let y = n.y + c4Top(role);
+	// Centred in the room under the head or rim, as the canvas card's flex column does.
+	const room = n.h - c4Top(role) - C4.pad;
+	let y = n.y + c4Top(role) + Math.max(0, (room - c4Text(n.name, n.c4!.line, n.c4!.desc, n.w)) / 2);
 	const text = (line: string, size: number, lineH: number, extra: string) => {
 		const t = `<text x="${cx}" y="${y + lineH / 2}" text-anchor="middle" dominant-baseline="middle" font-size="${size}" xml:space="preserve"${extra}>${esc(line)}</text>`;
 		y += lineH;
