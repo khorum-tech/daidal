@@ -157,7 +157,7 @@ describe('the inspector and new diagrams below a node', () => {
 	it('offers the next C4 level for a node that zooms into nothing, and shows a failure', async () => {
 		const { kindOf } = await import('../diagram/kinds');
 		let calls = 0;
-		render(Inspector, {
+		await render(Inspector, {
 			node: plain,
 			tags: {},
 			editable: true,
@@ -170,12 +170,12 @@ describe('the inspector and new diagrams below a node', () => {
 		});
 		await page.getByRole('button', { name: 'New C4 Component diagram' }).click();
 		expect(calls).toBe(1);
-		await expect.element(page.getByRole('alert')).toHaveTextContent('You can own at most 2 diagrams');
+		await expect.element(page.getByRole('alert')).toMatchTextContent('You can own at most 2 diagrams');
 	});
 
 	it('offers nothing below at the bottom of C4', async () => {
 		const { kindOf } = await import('../diagram/kinds');
-		render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-code'), onzoomnew: async () => {} });
+		await render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-code'), onzoomnew: async () => {} });
 		expect(page.getByRole('button', { name: /^New .* diagram$/ }).elements()).toHaveLength(0);
 	});
 });
@@ -186,14 +186,14 @@ describe('the inspector and new diagrams above a node', () => {
 	it('offers the C4 level above below Context, and nothing above Context', async () => {
 		const { kindOf } = await import('../diagram/kinds');
 		let calls = 0;
-		render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-component'), onzoomup: async () => void calls++ });
+		await render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-component'), onzoomup: async () => void calls++ });
 		await page.getByRole('button', { name: 'New C4 Container diagram above' }).click();
 		expect(calls).toBe(1);
 	});
 
 	it('offers none in a C4 Context diagram', async () => {
 		const { kindOf } = await import('../diagram/kinds');
-		render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-context'), onzoomup: async () => {} });
+		await render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-context'), onzoomup: async () => {} });
 		expect(page.getByRole('button', { name: /diagram above$/ }).elements()).toHaveLength(0);
 	});
 });
