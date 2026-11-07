@@ -154,7 +154,7 @@ describe("stage seed", () => {
     expect(nodes.some(n => n.layout.h)).toBe(true);
     for (const key of ["label", "line", "direction", "route", "anchors", "width", "showLabel"]) expect(edges.some(e => key in e), `edge ${key}`).toBe(true);
     for (const key of ["border", "moveContents", "labelPosition"]) expect(boundaries.some(b => key in b), `boundary ${key}`).toBe(true);
-    expect(new Set(docs.map(d => d.diagram.kind))).toEqual(new Set(["c4", "infra", "freeform"]));
+    expect(new Set(docs.map(d => d.diagram.kind))).toEqual(new Set(["c4-container", "deployment", "freeform"]));
     // An edge may end on a boundary, as the prototype allows.
     const boundaryIds = new Set(boundaries.map(b => b.id));
     expect(edges.some(e => boundaryIds.has(e.to))).toBe(true);

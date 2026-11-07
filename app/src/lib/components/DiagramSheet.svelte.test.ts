@@ -32,6 +32,15 @@ describe('the diagram sheet', () => {
 		expect(calls).toEqual([['rename', 'ledger-core'], ['copy', { workspace: 'p', name: 'ledger copy', follow: true }], ['delete']]);
 	});
 
+	it('lets the owner change the kind, which says what it does', async () => {
+		const kinds: string[] = [];
+		render(DiagramSheet, { name: 'ledger', mine: true, workspaces, here: 't', kind: 'c4-container', onkind: k => kinds.push(k), onrename: () => {}, oncopy: async () => {}, ondelete: async () => {} });
+		await expect.element(page.getByLabelText('Kind', { exact: true })).toHaveValue('c4-container');
+		await expect.element(page.getByText(/Level 2: the apps and data stores inside one system/)).toBeVisible();
+		await page.getByLabelText('Kind', { exact: true }).selectOptions('C4 Component');
+		expect(kinds).toEqual(['c4-component']);
+	});
+
 	it('only offers a copy to someone who does not own the diagram, and shows a failure', async () => {
 		render(DiagramSheet, {
 			name: 'ledger',

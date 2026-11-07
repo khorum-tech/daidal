@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE } from '../fixtures/docs';
 import { catalogue } from './icons';
-import { bounds, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
+import { bounds, C4, C4_PERSON_H, c4Desc, c4Height, c4Top, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
 
 describe('typeName', () => {
 	it("turns a slug back into the prototype's own type name", () => {
@@ -158,5 +158,47 @@ describe('sticky notes', () => {
 		expect(toScene(doc(long.desc, 150)).nodes[0].h).toBeGreaterThan(long.h);
 		expect(iconScene(toScene(doc('x'))).nodes[0]).toEqual(toScene(doc('x')).nodes[0]);
 		expect(noteLines(long.desc, long.w).length).toBeGreaterThan(4);
+	});
+});
+
+describe('C4 cards', () => {
+	const doc = (kind: string, notes = '') => ({
+		version: 1 as const,
+		diagram: { kind },
+		nodes: [
+			{ id: 'api', name: 'Postings', type: 'service', subtitle: 'Kotlin', notes, layout: { x: 0, y: 0, w: 190 } },
+			{ id: 'n', name: 'A note', type: 'note' }
+		]
+	});
+
+	it('draws C4 cards only in Context, Container and Component diagrams, and never for notes', () => {
+		expect(toScene(doc('c4-container')).nodes[0].c4).toEqual({ role: 'container', line: '[Container: Kotlin]', desc: '' });
+		expect(toScene(doc('c4-container')).nodes[1].c4).toBeNull();
+		for (const k of ['freeform', 'c4-code', 'deployment', 'C4 nonsense']) expect(toScene(doc(k)).nodes[0].c4, k).toBeNull();
+		// A person or system has no technology in its line, so its subtitle describes it when it has no notes.
+		const person = toScene({ version: 1, diagram: { kind: 'c4-context' }, nodes: [{ id: 'p', name: 'Staff', type: 'actor', subtitle: 'Reconciles' }] }).nodes[0];
+		expect(person.c4).toEqual({ role: 'person', line: '[Person]', desc: 'Reconciles' });
+		// The older "C4" reads as C4 Container.
+		expect(toScene(doc('C4')).nodes[0].c4?.role).toBe('container');
+	});
+
+	it('grows to fit its description, which stops after three lines', () => {
+		const short = toScene(doc('c4-container')).nodes[0];
+		expect(short.h).toBe(NODE_H);
+		const long = toScene(doc('c4-container', 'Double-entry postings. Rejects any batch that does not balance, and logs why. '.repeat(3))).nodes[0];
+		expect(long.h).toBe(c4Height('container', 'Postings', '[Container: Kotlin]', long.desc, 190));
+		expect(long.h).toBeGreaterThan(NODE_H);
+		const lines = c4Desc(long.desc, 190);
+		expect(lines).toHaveLength(C4.maxDesc);
+		expect(lines.at(-1)).toMatch(/…$/);
+	});
+});
+
+describe('C4 person cards', () => {
+	it('leave room under the head, which takes only what it covers', () => {
+		const person = toScene({ version: 1, diagram: { kind: 'c4-context' }, nodes: [{ id: 'p', name: 'Staff', type: 'actor' }] }).nodes[0];
+		expect(person.h).toBe(C4_PERSON_H);
+		expect(c4Top('person')).toBe(C4.pad + C4.head);
+		expect(c4Top('container')).toBe(C4.pad);
 	});
 });

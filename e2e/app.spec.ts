@@ -78,7 +78,7 @@ async function saved(page: Page, request: APIRequestContext, id: string): Promis
     boundaries: SavedBox[];
     tags: Record<string, { label: string; color: string; group?: string }>;
     views: { name: string; tags: string[]; locked?: boolean }[];
-    diagram: { view?: string };
+    diagram: { view?: string; kind?: string };
   };
 }> {
   await expect(page.getByTestId("save-status")).toHaveText(/^\s*Saved/);
@@ -238,10 +238,13 @@ test.describe("the app at /app", () => {
     await expect(page.getByTestId("save-status")).toContainText("Saved · double-click the canvas to add a node");
     const box = (await page.locator('[data-node="journal"]').boundingBox())!;
     const scale = await page.getByTestId("diagram-sheet").evaluate(el => Number(/scale\(([-\d.]+)\)/.exec((el as HTMLElement).style.transform)![1]));
+    // Alt places it exactly where it's dropped: C4 cards are as tall as their text, so a neighbour could catch it.
+    await page.keyboard.down("Alt");
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
     await page.mouse.move(box.x + box.width / 2 + 50 * scale, box.y + box.height / 2 + 20 * scale, { steps: 6 });
     await page.mouse.up();
+    await page.keyboard.up("Alt");
     await expect(page.getByTestId("save-status")).toContainText("Saved");
     const saved = await (await request.get(`/api/diagrams/${id}`)).json();
     // Journal DB starts at (900, 150).
@@ -805,7 +808,7 @@ test.describe("the app at /app", () => {
     await expect(page.locator("[data-node]")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Core only" })).toBeVisible();
     const made = await (await request.get(`/api/diagrams/${page.url().split("/d/")[1]}`)).json();
-    expect(made.doc).toMatchObject({ diagram: { name: "context-only", kind: "C4" }, nodes: [], tags: { core: { label: "Core" } } });
+    expect(made.doc).toMatchObject({ diagram: { name: "context-only", kind: "c4-context" }, nodes: [], tags: { core: { label: "Core" } } });
   });
 
   test("rolls back to any edit of the visit from the edit list, and forward again", async ({ page, request }) => {
@@ -1056,7 +1059,10 @@ test.describe("the app at /app", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "Telemetry: Collector" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Database: Ledger DB" }).click();
+    const ledgerDb = page.getByRole("button", { name: "Database: Ledger DB" });
+    await ledgerDb.click();
+    // A C4 card is drawn as tall as its text needs, so the resize starts from that height.
+    const drawnH = Number((await ledgerDb.evaluate(el => (el as HTMLElement).style.height)).replace("px", ""));
     await dragBy(page, ".n-resize", 60, 30);
     await expect(page.getByRole("button", { name: "Undo Resize “Ledger DB”" })).toBeVisible();
     const { doc } = await saved(page, request, id);
@@ -1064,7 +1070,7 @@ test.describe("the app at /app", () => {
     expect(doc.nodes.some(n => n.name === "Not this")).toBe(false);
     const journal = doc.nodes.find(n => n.id === "journal")!;
     expect(journal.name).toBe("Ledger DB");
-    expect(journal.layout).toEqual({ x: 900, y: 150, w: 250, h: 118 });
+    expect(journal.layout).toEqual({ x: 900, y: 150, w: 250, h: drawnH + 30 });
   });
 
   test("switches snapping off from the zoom bar, and remembers it", async ({ page, request }) => {
@@ -1333,6 +1339,49 @@ test.describe("the app at /app", () => {
     expect(parsed.texts).toEqual(expect.arrayContaining(["Edge Router", "Collector", "gRPC"]));
     expect(parsed.texts).not.toContain("Journal DB"); // switched off by On call, and left out
     await expect(page.getByTestId("save-status")).toContainText("Downloaded ledger-platform-On-call.svg");
+  });
+  test("draws a C4 diagram's cards in C4 notation, and plain cards again once it's freeform", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    const postings = page.getByRole("button", { name: "Service: Postings Service" });
+    await expect(postings).toContainText("[Container: Kotlin · Ktor]");
+    await expect(postings).toContainText("Double-entry postings.");
+    await expect(page.getByRole("button", { name: "Database: Journal DB" })).toHaveAttribute("data-role", "store");
+    await page.getByRole("button", { name: "ledger-platform" }).click();
+    await page.getByRole("dialog", { name: "Diagram" }).getByLabel("Kind", { exact: true }).selectOption("Freeform");
+    await page.keyboard.press("Escape");
+    await expect(postings).not.toContainText("[Container");
+    await expect(postings).toContainText("Kotlin · Ktor");
+  });
+
+  test("changes a diagram's kind, which puts that kind's types first in the Add menu, and undoes it", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const id = diagrams["ledger-platform"];
+    await page.goto(`/app/d/${id}`);
+    const addMenu = async () => {
+      await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).click();
+      return page.getByRole("dialog", { name: "Add a node" });
+    };
+    let menu = await addMenu();
+    await expect(menu.getByText("Common in C4 Container")).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await page.getByRole("button", { name: "ledger-platform" }).click();
+    const sheet = page.getByRole("dialog", { name: "Diagram" });
+    await expect(sheet.getByLabel("Kind", { exact: true })).toHaveValue("c4-container");
+    await sheet.getByLabel("Kind", { exact: true }).selectOption("C4 Component");
+    await expect(sheet.getByText(/Level 3: the parts inside one container/)).toBeVisible();
+    expect((await saved(page, request, id)).doc.diagram.kind).toBe("c4-component");
+    await page.keyboard.press("Escape");
+
+    menu = await addMenu();
+    await expect(menu.getByText("Common in C4 Component")).toBeVisible();
+    await menu.getByRole("button", { name: "Component" }).first().click();
+    await expect(page.getByRole("button", { name: /^Component: / })).toBeVisible();
+
+    await page.getByRole("button", { name: "Undo Add component" }).click();
+    await page.getByRole("button", { name: "Undo Make it C4 Component" }).click();
+    expect((await saved(page, request, id)).doc.diagram.kind).toBe("c4-container");
   });
   test("shows a note as a sticky note that grows with its text, and exports it the same way", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);

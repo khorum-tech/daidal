@@ -187,6 +187,10 @@ describe("the MCP server", () => {
     expect(fromConfig.nodes).toBe(2);
     const fromTemplate = await tool("create_diagram", { workspace: personal(email), name: "c4", template: "C4 Container", examples: true });
     expect(fromTemplate.nodes).toBeGreaterThan(0);
+    // A template sets a kind; kind overrides it, and the outline names it by its id.
+    expect((await tool("get_diagram", { diagram: fromTemplate.diagram })).kind).toBe("c4-container");
+    const component = await tool("create_diagram", { workspace: personal(email), name: "parts", template: "C4 Container", kind: "c4-component" });
+    expect((await tool("get_diagram", { diagram: component.diagram })).kind).toBe("c4-component");
     const snap = await tool("take_snapshot", { diagram: fromConfig.diagram, label: "before the AI" });
     expect(snap.label).toBe("before the AI");
     expect((await tool("list_snapshots", { diagram: fromConfig.diagram })).snapshots).toEqual([expect.objectContaining({ label: "before the AI", by: "you" })]);

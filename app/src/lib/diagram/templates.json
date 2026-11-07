@@ -1,5 +1,124 @@
 [
 	{
+		"id": "c4context",
+		"name": "C4 Context",
+		"desc": "People and external systems around yours.",
+		"doc": {
+			"version": 1,
+			"diagram": {
+				"name": "C4 Context",
+				"kind": "c4-context",
+				"view": "Full system"
+			},
+			"tags": {
+				"core": {
+					"label": "Core",
+					"color": "#968ae0",
+					"group": "Layer"
+				},
+				"external": {
+					"label": "External",
+					"color": "#9397ab",
+					"group": "Layer"
+				}
+			},
+			"views": [
+				{
+					"name": "Full system",
+					"tags": [
+						"core",
+						"external"
+					]
+				},
+				{
+					"name": "Core only",
+					"tags": [
+						"core"
+					]
+				}
+			],
+			"nodes": [
+				{
+					"id": "u",
+					"name": "Customer",
+					"type": "actor",
+					"subtitle": "end user",
+					"notes": "Primary persona.",
+					"tags": [
+						"core"
+					],
+					"layout": {
+						"x": 70,
+						"y": 180,
+						"w": 180
+					}
+				},
+				{
+					"id": "s",
+					"name": "Your System",
+					"type": "system",
+					"subtitle": "the thing you build",
+					"notes": "The system in scope.",
+					"tags": [
+						"core"
+					],
+					"layout": {
+						"x": 380,
+						"y": 300,
+						"w": 220
+					}
+				},
+				{
+					"id": "p",
+					"name": "Payments Provider",
+					"type": "external",
+					"subtitle": "Stripe",
+					"notes": "Charges cards on your behalf.",
+					"tags": [
+						"external"
+					],
+					"layout": {
+						"x": 740,
+						"y": 180,
+						"w": 200
+					}
+				},
+				{
+					"id": "e",
+					"name": "Email Service",
+					"type": "external",
+					"subtitle": "SES",
+					"notes": "Transactional email delivery.",
+					"tags": [
+						"external"
+					],
+					"layout": {
+						"x": 740,
+						"y": 440,
+						"w": 200
+					}
+				}
+			],
+			"edges": [
+				{
+					"from": "u",
+					"to": "s",
+					"label": "uses"
+				},
+				{
+					"from": "s",
+					"to": "p",
+					"label": "charges via"
+				},
+				{
+					"from": "s",
+					"to": "e",
+					"label": "sends via"
+				}
+			]
+		}
+	},
+	{
 		"id": "c4container",
 		"name": "C4 Container",
 		"desc": "Containers of one system and how they talk.",
@@ -7,7 +126,7 @@
 			"version": 1,
 			"diagram": {
 				"name": "C4 Container",
-				"kind": "C4",
+				"kind": "c4-container",
 				"view": "Full system"
 			},
 			"tags": {
@@ -122,14 +241,14 @@
 		}
 	},
 	{
-		"id": "c4context",
-		"name": "C4 Context",
-		"desc": "People and external systems around yours.",
+		"id": "c4component",
+		"name": "C4 Component",
+		"desc": "The parts inside one container.",
 		"doc": {
 			"version": 1,
 			"diagram": {
-				"name": "C4 Context",
-				"kind": "C4",
+				"name": "C4 Component",
+				"kind": "c4-component",
 				"view": "Full system"
 			},
 			"tags": {
@@ -161,81 +280,264 @@
 			],
 			"nodes": [
 				{
-					"id": "u",
-					"name": "Customer",
-					"type": "actor",
-					"subtitle": "end user",
-					"notes": "Primary persona.",
+					"id": "web",
+					"name": "Web App",
+					"type": "web-app",
+					"subtitle": "SvelteKit",
+					"notes": "Calls the API.",
 					"tags": [
-						"core"
+						"external"
 					],
 					"layout": {
-						"x": 70,
-						"y": 180,
+						"x": 40,
+						"y": 200,
 						"w": 180
 					}
 				},
 				{
-					"id": "s",
-					"name": "Your System",
-					"type": "system",
-					"subtitle": "the thing you build",
-					"notes": "The system in scope.",
+					"id": "h",
+					"name": "API Handlers",
+					"type": "component",
+					"subtitle": "HTTP routes",
+					"notes": "Validates requests and calls the services.",
+					"tags": [
+						"core"
+					],
+					"layout": {
+						"x": 340,
+						"y": 120,
+						"w": 200
+					}
+				},
+				{
+					"id": "svc",
+					"name": "Order Service",
+					"type": "component",
+					"subtitle": "Domain logic",
+					"notes": "Prices and places orders.",
+					"tags": [
+						"core"
+					],
+					"layout": {
+						"x": 340,
+						"y": 320,
+						"w": 200
+					}
+				},
+				{
+					"id": "repo",
+					"name": "Order Repository",
+					"type": "component",
+					"subtitle": "SQL",
+					"notes": "Reads and writes orders.",
+					"tags": [
+						"core"
+					],
+					"layout": {
+						"x": 640,
+						"y": 320,
+						"w": 200
+					}
+				},
+				{
+					"id": "db",
+					"name": "Orders DB",
+					"type": "database",
+					"subtitle": "PostgreSQL",
+					"notes": "Orders and their lines.",
+					"tags": [
+						"external"
+					],
+					"layout": {
+						"x": 960,
+						"y": 320,
+						"w": 180
+					}
+				}
+			],
+			"edges": [
+				{
+					"from": "web",
+					"to": "h",
+					"label": "JSON/HTTPS"
+				},
+				{
+					"from": "h",
+					"to": "svc",
+					"label": "calls"
+				},
+				{
+					"from": "svc",
+					"to": "repo",
+					"label": "uses"
+				},
+				{
+					"from": "repo",
+					"to": "db",
+					"label": "SQL"
+				}
+			],
+			"boundaries": [
+				{
+					"id": "scope",
+					"label": "API Container",
+					"layout": {
+						"x": 300,
+						"y": 70,
+						"w": 610,
+						"h": 400
+					}
+				}
+			]
+		}
+	},
+	{
+		"id": "c4code",
+		"name": "C4 Code",
+		"desc": "Classes, functions and tables inside one component.",
+		"doc": {
+			"version": 1,
+			"diagram": {
+				"name": "C4 Code",
+				"kind": "c4-code",
+				"view": "Full system"
+			},
+			"tags": {
+				"core": {
+					"label": "Core",
+					"color": "#968ae0",
+					"group": "Layer"
+				},
+				"external": {
+					"label": "External",
+					"color": "#9397ab",
+					"group": "Layer"
+				}
+			},
+			"views": [
+				{
+					"name": "Full system",
+					"tags": [
+						"core",
+						"external"
+					]
+				},
+				{
+					"name": "Core only",
+					"tags": [
+						"core"
+					]
+				}
+			],
+			"nodes": [
+				{
+					"id": "ctl",
+					"name": "OrderController",
+					"type": "class",
+					"subtitle": "handlers/orders.ts",
+					"notes": "Maps HTTP to the service.",
+					"tags": [
+						"core"
+					],
+					"layout": {
+						"x": 60,
+						"y": 140,
+						"w": 200
+					}
+				},
+				{
+					"id": "svc",
+					"name": "OrderService",
+					"type": "class",
+					"subtitle": "services/orders.ts",
+					"notes": "place(), cancel(), total().",
 					"tags": [
 						"core"
 					],
 					"layout": {
 						"x": 380,
-						"y": 300,
-						"w": 220
-					}
-				},
-				{
-					"id": "p",
-					"name": "Payments Provider",
-					"type": "external",
-					"subtitle": "Stripe",
-					"notes": "Charges cards on your behalf.",
-					"tags": [
-						"external"
-					],
-					"layout": {
-						"x": 740,
-						"y": 180,
+						"y": 140,
 						"w": 200
 					}
 				},
 				{
-					"id": "e",
-					"name": "Email Service",
-					"type": "external",
-					"subtitle": "SES",
-					"notes": "Transactional email delivery.",
+					"id": "price",
+					"name": "priceOrder",
+					"type": "function",
+					"subtitle": "pricing.ts",
+					"notes": "Applies discounts and tax.",
+					"tags": [
+						"core"
+					],
+					"layout": {
+						"x": 380,
+						"y": 340,
+						"w": 200
+					}
+				},
+				{
+					"id": "tbl",
+					"name": "orders",
+					"type": "table",
+					"subtitle": "orders, order_lines",
+					"notes": "One row per order.",
 					"tags": [
 						"external"
 					],
 					"layout": {
-						"x": 740,
-						"y": 440,
+						"x": 700,
+						"y": 140,
+						"w": 200
+					}
+				},
+				{
+					"id": "f",
+					"name": "schema.sql",
+					"type": "file",
+					"subtitle": "migrations/",
+					"notes": "Creates the orders tables.",
+					"tags": [
+						"external"
+					],
+					"layout": {
+						"x": 700,
+						"y": 340,
 						"w": 200
 					}
 				}
 			],
 			"edges": [
 				{
-					"from": "u",
-					"to": "s",
+					"from": "ctl",
+					"to": "svc",
+					"label": "calls"
+				},
+				{
+					"from": "svc",
+					"to": "price",
 					"label": "uses"
 				},
 				{
-					"from": "s",
-					"to": "p",
-					"label": "charges via"
+					"from": "svc",
+					"to": "tbl",
+					"label": "writes"
 				},
 				{
-					"from": "s",
-					"to": "e",
-					"label": "sends via"
+					"from": "f",
+					"to": "tbl",
+					"label": "creates"
+				}
+			],
+			"boundaries": [
+				{
+					"id": "scope",
+					"label": "Order Service component",
+					"layout": {
+						"x": 30,
+						"y": 90,
+						"w": 930,
+						"h": 400
+					}
 				}
 			]
 		}
@@ -248,7 +550,7 @@
 			"version": 1,
 			"diagram": {
 				"name": "Deployment topology",
-				"kind": "Infra",
+				"kind": "deployment",
 				"view": "Full system"
 			},
 			"tags": {
@@ -382,7 +684,7 @@
 			"version": 1,
 			"diagram": {
 				"name": "Freeform",
-				"kind": "Freeform",
+				"kind": "freeform",
 				"view": "Everything"
 			},
 			"tags": {

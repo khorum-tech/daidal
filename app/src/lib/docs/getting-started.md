@@ -13,7 +13,7 @@ Prefer to be shown? [Take the tour](/app/?tour=start): ten short steps on a prac
 ## Your first diagram
 
 1. On the home screen, pick a workspace on the left (everyone starts with **Personal**) and press **+ New diagram**.
-2. Give it a name. Start from a **blank canvas** or a template (C4 Container, C4 Context, Deployment topology or Freeform), with or without its example nodes.
+2. Give it a name. Start from a **blank canvas** or a template (C4 Context, C4 Container, C4 Component, C4 Code, Deployment topology or Freeform), with or without its example nodes.
 3. On the canvas, press **+ Add** in the toolbar and pick a type, say **Service**. It lands in free space and opens its details on the right.
 4. Type a name. Add a second node, then drag the **+** port on the first one onto the second to connect them.
 5. That's it: every change saves as you go. ⌘Z undoes and ⇧⌘Z redoes.

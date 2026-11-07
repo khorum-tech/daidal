@@ -9,7 +9,7 @@ describe('the template picker', () => {
 		const props = $state({ picked: null as string | null, examples: false });
 		render(TemplatePicker, props);
 		const radios = page.getByRole('radio');
-		await expect.poll(() => radios.elements().length).toBe(5);
+		await expect.poll(() => radios.elements().length).toBe(7);
 		await expect.element(page.getByRole('radio', { name: /^Blank/ })).toHaveAttribute('aria-checked', 'true');
 		await expect.element(page.getByRole('checkbox')).not.toBeInTheDocument();
 		await page.getByRole('radio', { name: /Deployment topology/ }).click();

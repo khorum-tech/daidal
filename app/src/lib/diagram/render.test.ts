@@ -60,3 +60,36 @@ describe('toSvg and sticky notes', () => {
 		expect(svg).not.toContain('>NOTE<');
 	});
 });
+
+describe('toSvg and C4 cards', () => {
+	it('draws a C4 card with its name, element line and description, escaped, and a person with a head', () => {
+		const scene = toScene({
+			version: 1,
+			diagram: { kind: 'c4-container' },
+			nodes: [
+				{ id: 'api', name: 'Postings <API>', type: 'service', subtitle: 'Kotlin & Ktor', notes: 'Posts entries.', layout: { x: 0, y: 0 } },
+				{ id: 'who', name: 'Staff', type: 'actor', layout: { x: 300, y: 0 } }
+			]
+		});
+		const { svg } = toSvg(scene, { on: tagsOn(scene, null) });
+		expect(svg).toContain('>Postings &lt;API&gt;<');
+		expect(svg).toContain('>[Container: Kotlin &amp; Ktor]<');
+		expect(svg).toContain('>Posts entries.<');
+		expect(svg).toContain('>[Person]<');
+		expect(svg).toMatch(/<circle cx="395"/);
+		// No type label in C4 notation.
+		expect(svg).not.toContain('>SERVICE<');
+	});
+});
+
+describe('toSvg and C4 text placement', () => {
+	it('centres a C4 card text in the room under the head', () => {
+		const scene = toScene({ version: 1, diagram: { kind: 'c4-context' }, nodes: [{ id: 'p', name: 'Staff', type: 'actor', layout: { x: 0, y: 0, h: 200 } }] });
+		const { svg } = toSvg(scene, { on: tagsOn(scene, null) });
+		const ys = [...svg.matchAll(/<text x="95" y="([\d.]+)"/g)].map(m => Number(m[1]));
+		// Name then [Person]: 18 + 15 tall, in the room from 26 (under the head) to 188 (above the bottom padding).
+		const top = ys[0] - 9;
+		const bottom = ys[1] + 7.5;
+		expect(Math.abs(top - 26 - (188 - bottom))).toBeLessThan(1);
+	});
+});

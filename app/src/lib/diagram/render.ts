@@ -1,6 +1,6 @@
 import { edgePath, type Box } from './geometry';
 import { ICON_PATHS } from './icons';
-import { bounds, isHidden, NOTE, noteLines, wrapText, type Scene, type SceneNode } from './model';
+import { bounds, C4, c4Desc, c4Kind, c4Name, c4Text, c4Top, isHidden, NOTE, noteLines, wrapText, type Scene, type SceneNode } from './model';
 
 /**
  * A diagram as a standalone SVG image, drawn from the scene the way the canvas draws it: containers, connections
@@ -26,7 +26,11 @@ const C = {
 	faint: '#75798c',
 	line: '#595d6c',
 	note: '#3a3730',
-	noteBorder: '#6b5f3e'
+	noteBorder: '#6b5f3e',
+	/** C4 fills by role, as the canvas mixes them from the accent (Nocturne). */
+	c4: { person: '#3e3a58', system: '#3e3a58', container: '#363449', store: '#363449', component: '#2c2d3c', external: '#34363f' },
+	c4Border: '#6a62a0',
+	c4External: '#4a4d5a'
 };
 const FONT = 'Inter, system-ui, -apple-system, Segoe UI, sans-serif';
 const PAD = 40;
@@ -109,6 +113,37 @@ function noteMarkup(n: SceneNode, dash: string): string {
 	return `<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="10" fill="${C.note}" stroke="${C.noteBorder}"${dash}/>` + head.join('') + body.join('');
 }
 
+/** A card in C4 notation: the name, its element line and its description, centred, in its role's fill and shape. */
+function c4Markup(n: SceneNode, dash: string, edge: string | undefined): string {
+	const role = n.c4!.role;
+	const fill = C.c4[role];
+	const stroke = role === 'external' ? C.c4External : C.c4Border;
+	const cx = n.x + n.w / 2;
+	// Centred in the room under the head or rim, as the canvas card's flex column does.
+	const room = n.h - c4Top(role) - C4.pad;
+	let y = n.y + c4Top(role) + Math.max(0, (room - c4Text(n.name, n.c4!.line, n.c4!.desc, n.w)) / 2);
+	const text = (line: string, size: number, lineH: number, extra: string) => {
+		const t = `<text x="${cx}" y="${y + lineH / 2}" text-anchor="middle" dominant-baseline="middle" font-size="${size}" xml:space="preserve"${extra}>${esc(line)}</text>`;
+		y += lineH;
+		return t;
+	};
+	const corner = role === 'person' ? 22 : 10;
+	let shape = `<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="${corner}" fill="${fill}" stroke="${stroke}"${dash}/>`;
+	if (role === 'store') {
+		shape =
+			`<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="${n.w / 2}" ry="14" fill="${fill}" stroke="${stroke}"${dash}/>` +
+			`<ellipse cx="${cx}" cy="${n.y + 14}" rx="${n.w / 2}" ry="${C4.rim}" fill="none" stroke="${stroke}"/>`;
+	}
+	const head = role === 'person' ? `<circle cx="${cx}" cy="${n.y + 3}" r="17" fill="${fill}" stroke="${stroke}"/>` : '';
+	const mark = edge ? `<rect x="${n.x}" y="${n.y + 10}" width="3" height="${Math.max(0, n.h - 20)}" fill="${esc(edge)}"/>` : '';
+	const name = c4Name(n.name, n.w).map(l => text(l, C4.nameSize, C4.nameLine, ` font-weight="600" fill="${C.text}"`));
+	const kind = c4Kind(n.c4!.line, n.w).map(l => text(l, C4.kindSize, C4.kindLine, ` fill="${C.muted}"`));
+	const about = n.c4!.desc;
+	if (about.trim()) y += C4.gap;
+	const desc = about.trim() ? c4Desc(about, n.w).map(l => text(l, C4.descSize, C4.descLine, ` fill="${C.text}"`)) : [];
+	return shape + head + mark + name.join('') + kind.join('') + desc.join('');
+}
+
 function nodeMarkup(scene: Scene, shown: (id: string) => number | null): string {
 	const tagColor = new Map(scene.tags.map(t => [t.key, t.color]));
 	return scene.nodes
@@ -121,6 +156,7 @@ function nodeMarkup(scene: Scene, shown: (id: string) => number | null): string 
 			}
 			const dash = op < 1 ? ' stroke-dasharray="4 3"' : '';
 			if (n.isNote) return [g(noteMarkup(n, dash))];
+			if (n.c4) return [g(c4Markup(n, dash, n.tags[0] ? tagColor.get(n.tags[0]) : undefined))];
 			const icon = ICON_PATHS[n.icon] ?? ICON_PATHS.cube;
 			const dot = n.tags[0] && tagColor.get(n.tags[0]) ? `<circle cx="${n.x + n.w - 16}" cy="${n.y + 18}" r="3.5" fill="${esc(tagColor.get(n.tags[0])!)}"/>` : '';
 			const sub = n.sub.trim() ? `<text x="${n.x + 13}" y="${n.y + 66}" font-size="11.5" fill="${C.muted}">${esc(fit(n.sub, n.w - 26, 11.5))}</text>` : '';

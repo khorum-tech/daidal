@@ -1,5 +1,6 @@
 import type { DocBoundary, DocEdge, DocNode, SkopeDoc } from '../types';
 import { isNodeIcon, TYPE_CATS, typeIcon, typeKey, type TypeCats } from './icons';
+import { c4Line, c4Role, kindOf, type C4Role, type Kind } from './kinds';
 
 /**
  * A document turned into what the canvas draws. The rules follow the prototype's config import
@@ -47,6 +48,11 @@ export interface SceneNode {
 	isText: boolean;
 	/** A sticky note: its name as a heading and its notes written out beneath, with no icon or type. */
 	isNote: boolean;
+	/**
+	 * In a C4 diagram (Context, Container, Component): its role, C4 element line, and the description under them (its
+	 * notes; for a person or system, whose line has no technology, its subtitle when it has no notes). Otherwise null.
+	 */
+	c4: { role: C4Role; line: string; desc: string } | null;
 }
 
 export interface SceneEdge {
@@ -168,10 +174,62 @@ export function noteHeight(name: string, notes: string, w: number): number {
 
 const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
 
-function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats): SceneNode {
+/**
+ * How a C4 card is laid out, in pixels: shared by the canvas card and the SVG export so they agree. A person's card
+ * leaves room at the top for a head; a store's, for a cylinder's rim.
+ */
+export const C4 = { pad: 12, nameSize: 14, nameLine: 18, kindSize: 11, kindLine: 15, descSize: 11.5, descLine: 15, gap: 6, maxDesc: 3, head: 14, rim: 10 } as const;
+
+/** A person's card is taller than most: its head takes room at the top, and the body keeps room for the text. */
+export const C4_PERSON_H = NODE_H + 16;
+
+/** A C4 card's description at width [w]: its notes wrapped, at most [C4.maxDesc] lines, the last cut with an ellipsis. */
+export function c4Desc(notes: string, w: number): string[] {
+	const lines = wrapText(notes, w - 2 * C4.pad, C4.descSize);
+	if (lines.length <= C4.maxDesc) return lines;
+	const kept = lines.slice(0, C4.maxDesc);
+	kept[C4.maxDesc - 1] = `${kept[C4.maxDesc - 1].slice(0, -1).trimEnd()}…`;
+	return kept;
+}
+
+/** The lines of a C4 card's name and element line at width [w]. */
+export const c4Name = (name: string, w: number) => wrapText(name, w - 2 * C4.pad, C4.nameSize);
+export const c4Kind = (line: string, w: number) => wrapText(line, w - 2 * C4.pad, C4.kindSize);
+
+/** Where a C4 card's text starts below its top: past the head or rim its shape has. */
+const SHAPE_TOP: Partial<Record<C4Role, number>> = { person: C4.head, store: C4.rim };
+export const c4Top = (role: C4Role) => C4.pad + (SHAPE_TOP[role] ?? 0);
+
+/** The height a C4 card needs for its name, element line and description at width [w]. */
+export function c4Height(role: C4Role, name: string, line: string, notes: string, w: number): number {
+	const needed = Math.ceil(c4Top(role) + c4Text(name, line, notes, w) + C4.pad);
+	return role === 'person' ? Math.max(needed, C4_PERSON_H) : needed;
+}
+
+/** How tall a C4 card's text is at width [w]: its name, element line and description, stacked. */
+export function c4Text(name: string, line: string, notes: string, w: number): number {
+	const desc = c4Desc(notes, w).length;
+	return c4Name(name, w).length * C4.nameLine + c4Kind(line, w).length * C4.kindLine + (desc ? C4.gap + desc * C4.descLine : 0);
+}
+
+/** What a C4 card says under its element line: its notes; for a person or system, whose line has no technology, its subtitle when it has no notes. */
+function c4About(role: C4Role, n: DocNode): string {
+	if (n.notes?.trim()) return n.notes;
+	return role === 'person' || role === 'system' || role === 'external' ? (n.subtitle ?? '') : '';
+}
+
+function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind: Kind): SceneNode {
 	const lay = n.layout ?? { x: 60 + (i % 4) * 280, y: 80 + Math.floor(i / 4) * 160 };
 	const type = typeName(n.type, cats);
 	const ownIcon = isNodeIcon(n.icon) ? n.icon : null;
+	const role = type === 'Note' || type === 'Text' ? null : c4Role(kind, type);
+	const c4 = role ? { role, line: c4Line(role, kind, n.subtitle ?? ''), desc: c4About(role, n) } : null;
+	const w = num(lay.w, NODE_W);
+	const h = num(lay.h, NODE_H);
+	const name = String(n.name ?? n.id);
+	let drawnH = h;
+	if (c4) drawnH = Math.max(h, c4Height(c4.role, name, c4.line, c4.desc, w));
+	else if (type === 'Note') drawnH = Math.max(h, noteHeight(name, n.notes ?? '', w));
 	return {
 		id: String(n.id),
 		name: String(n.name ?? n.id),
@@ -185,10 +243,11 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats): Scen
 		links: Array.isArray(n.links) ? n.links.filter(l => l && typeof l.url === 'string') : [],
 		x: num(lay.x, 0),
 		y: num(lay.y, 0),
-		w: num(lay.w, NODE_W),
-		h: type === 'Note' ? Math.max(num(lay.h, NODE_H), noteHeight(String(n.name ?? n.id), n.notes ?? '', num(lay.w, NODE_W))) : num(lay.h, NODE_H),
+		w,
+		h: drawnH,
 		isText: type === 'Text',
-		isNote: type === 'Note'
+		isNote: type === 'Note',
+		c4
 	};
 }
 
@@ -238,6 +297,7 @@ export function isColor(v: unknown): v is string {
 
 /** [doc] as the canvas draws it, its types read against [cats] (a workspace's catalogue; the built-ins unless given). */
 export function toScene(doc: SkopeDoc, cats: TypeCats = TYPE_CATS): Scene {
+	const kind = kindOf(doc.diagram?.kind);
 	const tags = Object.entries(doc.tags ?? {}).map(([key, t]) => ({
 		key,
 		label: t.label ?? key,
@@ -255,7 +315,7 @@ export function toScene(doc: SkopeDoc, cats: TypeCats = TYPE_CATS): Scene {
 		tags,
 		views,
 		initialView: views.some(v => v.label === want) ? want! : null,
-		nodes: (doc.nodes ?? []).map((n, i) => node(n, i, tagKeys, cats)),
+		nodes: (doc.nodes ?? []).map((n, i) => node(n, i, tagKeys, cats, kind)),
 		edges: (doc.edges ?? []).map((e, i) => edge(e, i)),
 		boundaries: (doc.boundaries ?? []).map((b, i) => boundary(b, i))
 	};

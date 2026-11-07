@@ -59,7 +59,7 @@ boundaries:
 
 ## Fields
 
-**`diagram`**: `name`, `kind` (C4, Infra, Freeform…), `view` (the view it opens on).
+**`diagram`**: `name`, `kind` (`freeform`, `c4-context`, `c4-container`, `c4-component`, `c4-code` or `deployment`; see [Types and icons](/app/docs/types-and-icons)), `view` (the view it opens on).
 
 **`tags`**: a map from a key to `{ label, color, group }`. Tags a node uses that aren't defined here are made up for you.
 

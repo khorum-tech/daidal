@@ -25,6 +25,7 @@ import {
   updateView,
 } from "../../../app/src/lib/diagram/edit";
 import { catalogue, isNodeIcon, typeKey, type TypeCats } from "../../../app/src/lib/diagram/icons";
+import { KINDS, kindOf, type KindId } from "../../../app/src/lib/diagram/kinds";
 import { toScene } from "../../../app/src/lib/diagram/model";
 import { fromTemplate, TEMPLATES } from "../../../app/src/lib/diagram/templates";
 import type { CustomType, DocEdge, SkopeDoc } from "../../../app/src/lib/types";
@@ -249,7 +250,7 @@ function outline(d: Diagram, me: string, workspace?: string): Row {
     name: d.name,
     ...(workspace ? { workspace } : { workspaceId: d.workspaceId }),
     owner: whoIs(d.ownerEmail, me),
-    kind: doc.diagram?.kind ?? "",
+    kind: kindOf(doc.diagram?.kind).id,
     nodes: toScene(doc).nodes.map(n => ({
       id: n.id,
       name: n.name,
@@ -405,7 +406,7 @@ export const TOOLS: Tool[] = [
   {
     name: "create_diagram",
     title: "Create a diagram",
-    description: `A new diagram in a workspace: blank, from a Skope config (YAML or JSON), or from a template (${TEMPLATES.map(t => t.name).join(", ")}). You become its owner.`,
+    description: `A new diagram in a workspace: blank, from a Skope config (YAML or JSON), or from a template (${TEMPLATES.map(t => t.name).join(", ")}). You become its owner. Its kind (${KINDS.map(k => k.id).join(", ")}) decides which types the app offers first; a template sets one, and kind overrides it.`,
     readOnly: false,
     inputSchema: schema(
       {
@@ -414,6 +415,7 @@ export const TOOLS: Tool[] = [
         config: { type: "string", description: "A Skope config, YAML or JSON" },
         template: { type: "string", enum: TEMPLATES.map(t => t.name) },
         examples: { type: "boolean", description: "With a template: keep its example nodes" },
+        kind: { type: "string", enum: KINDS.map(k => k.id), description: "The kind of diagram; freeform if left out and no template sets one" },
       },
       ["workspace", "name"],
     ),
@@ -426,6 +428,7 @@ export const TOOLS: Tool[] = [
         doc = { ...read, diagram: { ...read.diagram, name } };
       }
       else if (str(args.template)) doc = fromTemplate(name, TEMPLATES.find(t => t.name === str(args.template)) ?? null, args.examples === true);
+      if (str(args.kind)) doc = { ...doc, diagram: { ...doc.diagram, kind: kindOf(str(args.kind)).id satisfies KindId } };
       const made = (await api("POST", "/api/diagrams", { workspace: w.id, name, doc })) as Diagram;
       return { ...summary(made, "created"), workspace: w.name };
     },
