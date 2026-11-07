@@ -127,7 +127,7 @@ describe('the inspector and diagrams to zoom into', () => {
 	it('opens a linked diagram, links another, and hides one the viewer cannot see', async () => {
 		const changes: NodeChange[] = [];
 		const zooms: string[] = [];
-		render(Inspector, { node: linked, tags: {}, editable: true, diagrams, onzoom: z => zooms.push(z.diagram), onchange: c => changes.push(c) });
+		await render(Inspector, { node: linked, tags: {}, editable: true, diagrams, onzoom: z => zooms.push(z.diagram), onchange: c => changes.push(c) });
 		await page.getByRole('button', { name: /^API parts/ }).click();
 		expect(zooms).toEqual(['parts']);
 		expect(page.getByText('secret').elements()).toHaveLength(0);
@@ -137,7 +137,7 @@ describe('the inspector and diagrams to zoom into', () => {
 
 	it('keeps the diagram links when a web link is removed, and the web links when a diagram is unlinked', async () => {
 		const changes: NodeChange[] = [];
-		render(Inspector, { node: linked, tags: {}, editable: true, diagrams, onchange: c => changes.push(c) });
+		await render(Inspector, { node: linked, tags: {}, editable: true, diagrams, onchange: c => changes.push(c) });
 		await page.getByRole('button', { name: 'Remove link Runbook' }).click();
 		expect(changes.at(-1)!.links).toEqual([{ diagram: 'parts', view: 'Ops' }, { diagram: 'secret' }]);
 		await page.getByRole('button', { name: 'Stop zooming into API parts' }).click();
@@ -145,7 +145,7 @@ describe('the inspector and diagrams to zoom into', () => {
 	});
 
 	it('lets a viewer zoom in but not link', async () => {
-		render(Inspector, { node: linked, tags: {}, diagrams });
+		await render(Inspector, { node: linked, tags: {}, diagrams });
 		await expect.element(page.getByRole('button', { name: /^API parts/ })).toBeVisible();
 		expect(page.getByLabelText('Link a diagram to zoom into').elements()).toHaveLength(0);
 	});
