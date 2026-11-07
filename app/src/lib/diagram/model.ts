@@ -201,7 +201,10 @@ const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.i
  * How a C4 card is laid out, in pixels: shared by the canvas card and the SVG export so they agree. A person's card
  * leaves room at the top for a head; a store's, for a cylinder's rim.
  */
-export const C4 = { pad: 12, nameSize: 14, nameLine: 18, kindSize: 11, kindLine: 15, descSize: 11.5, descLine: 15, gap: 6, maxDesc: 3, head: 22, rim: 10 } as const;
+export const C4 = { pad: 12, nameSize: 14, nameLine: 18, kindSize: 11, kindLine: 15, descSize: 11.5, descLine: 15, gap: 6, maxDesc: 3, head: 14, rim: 10 } as const;
+
+/** A person's card is taller than most: its head takes room at the top, and the body keeps room for the text. */
+export const C4_PERSON_H = NODE_H + 16;
 
 /** A C4 card's description at width [w]: its notes wrapped, at most [C4.maxDesc] lines, the last cut with an ellipsis. */
 export function c4Desc(notes: string, w: number): string[] {
@@ -222,8 +225,14 @@ export const c4Top = (role: C4Role) => C4.pad + (SHAPE_TOP[role] ?? 0);
 
 /** The height a C4 card needs for its name, element line and description at width [w]. */
 export function c4Height(role: C4Role, name: string, line: string, notes: string, w: number): number {
+	const needed = Math.ceil(c4Top(role) + c4Text(name, line, notes, w) + C4.pad);
+	return role === 'person' ? Math.max(needed, C4_PERSON_H) : needed;
+}
+
+/** How tall a C4 card's text is at width [w]: its name, element line and description, stacked. */
+export function c4Text(name: string, line: string, notes: string, w: number): number {
 	const desc = c4Desc(notes, w).length;
-	return Math.ceil(c4Top(role) + c4Name(name, w).length * C4.nameLine + c4Kind(line, w).length * C4.kindLine + (desc ? C4.gap + desc * C4.descLine : 0) + C4.pad);
+	return c4Name(name, w).length * C4.nameLine + c4Kind(line, w).length * C4.kindLine + (desc ? C4.gap + desc * C4.descLine : 0);
 }
 
 /** What a C4 card says under its element line: its notes; for a person or system, whose line has no technology, its subtitle when it has no notes. */
