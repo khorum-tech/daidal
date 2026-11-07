@@ -4,7 +4,7 @@ import { fromTemplate, TEMPLATES } from './templates';
 
 describe('templates', () => {
 	it('are whole documents: every connection and view points at what is there', () => {
-		expect(TEMPLATES.map(t => t.name)).toEqual(['C4 Container', 'C4 Context', 'Deployment topology', 'Freeform']);
+		expect(TEMPLATES.map(t => t.name)).toEqual(['C4 Context', 'C4 Container', 'C4 Component', 'C4 Code', 'Deployment topology', 'Freeform']);
 		for (const t of TEMPLATES) {
 			const ids = new Set(t.doc.nodes?.map(n => n.id));
 			expect(t.doc.edges?.every(e => ids.has(e.from) && ids.has(e.to))).toBe(true);
