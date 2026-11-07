@@ -369,7 +369,7 @@
 	}
 	.zooms {
 		list-style: none;
-		margin: 0 0 6px;
+		margin: 8px 0 6px;
 		padding: 0;
 		display: flex;
 		flex-direction: column;
@@ -380,10 +380,15 @@
 		align-items: center;
 		gap: 4px;
 	}
+	.zooms .zoom {
+		margin-top: 0;
+	}
 	.zoom {
 		flex: 1;
 		justify-content: flex-start;
 		gap: 6px;
+		margin-top: 8px;
+		font-size: 12.5px;
 	}
 	.z-view {
 		margin-left: auto;
