@@ -17,7 +17,7 @@
 	import EditList from '#lib/components/EditList.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import BoxInspector from '#lib/components/BoxInspector.svelte';
-	import DiagramSheet from '#lib/components/DiagramSheet.svelte';
+	import DiagramSheet, { type LinkedDiagram } from '#lib/components/DiagramSheet.svelte';
 	import EdgeInspector from '#lib/components/EdgeInspector.svelte';
 	import Inspector from '#lib/components/Inspector.svelte';
 	import Sheet from '#lib/components/Sheet.svelte';
@@ -93,14 +93,20 @@
 	// carries the diagrams it was reached from (?from=parent,grandparent…), so the header can show the way back up.
 	/** The workspace's other diagrams, by id and name: what a node can zoom into, and the names on the way back. */
 	let linkable = $state<{ id: string; name: string }[] | null>(null);
+	/** Of those, the ones with a node that zooms into this diagram: the diagrams above it. */
+	let above = $state<{ id: string; name: string }[]>([]);
 	$effect(() => {
 		const ws = data.diagram.workspaceId;
 		const self = data.diagram.id;
 		linkable = null;
+		above = [];
 		api
 			.diagrams(ws, { limit: 100 })
 			.then(list => {
-				if (data.diagram.workspaceId === ws) linkable = list.filter(d => d.id !== self).map(d => ({ id: d.id, name: d.name }));
+				if (data.diagram.workspaceId !== ws) return;
+				const others = list.filter(d => d.id !== self);
+				linkable = others.map(d => ({ id: d.id, name: d.name }));
+				above = others.filter(d => d.summary?.zooms?.includes(self)).map(d => ({ id: d.id, name: d.name }));
 			})
 			.catch(() => (linkable = []));
 	});
@@ -122,11 +128,34 @@
 		const n = scene.nodes.find(x => x.id === nodeId);
 		return n && linkable ? n.zooms.filter(z => linkable!.some(d => d.id === z.diagram)) : [];
 	}
-	function zoomIn(z: ZoomLink) {
+	function zoomInHref(z: ZoomLink): string {
 		const params = new URLSearchParams({ from: [data.diagram.id, ...trail].join(',') });
 		if (z.view) params.set('view', z.view);
-		void goto(`${resolve('/d/[id]', { id: z.diagram })}?${params}`);
+		return `${resolve('/d/[id]', { id: z.diagram })}?${params}`;
 	}
+	function zoomIn(z: ZoomLink) {
+		void goto(zoomInHref(z));
+	}
+	/**
+	 * Every diagram linked to this one by zooming, for the diagram menu: above, opened with the node that zooms in here
+	 * selected; below, the diagrams this one's nodes zoom into (that this person can see), with those nodes' names.
+	 */
+	const linked = $derived.by(() => {
+		const below = new Map<string, LinkedDiagram>();
+		for (const n of scene.nodes) {
+			for (const z of n.zooms) {
+				const d = linkable?.find(x => x.id === z.diagram);
+				if (!d) continue;
+				const seen = below.get(d.id);
+				if (seen) seen.via = [...new Set([...(seen.via ?? []), n.name])];
+				else below.set(d.id, { id: d.id, name: d.name, href: zoomInHref(z), via: [n.name] });
+			}
+		}
+		return {
+			above: above.map(d => ({ ...d, href: `${resolve('/d/[id]', { id: d.id })}?${new URLSearchParams({ focus: data.diagram.id })}` })),
+			below: [...below.values()]
+		};
+	});
 	/** The address [levels] diagrams back up the way this was reached, with the node that zoomed in selected there. */
 	function zoomOutHref(levels: number): string {
 		const params = new URLSearchParams({ focus: levels === 1 ? data.diagram.id : trail[levels - 2] });
@@ -913,6 +942,11 @@
 		return () => mq.removeEventListener('change', update);
 	});
 	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | 'box' | 'tags' | 'diagram' | 'multi' | 'config' | null>(null);
+	// Going to another diagram (from the diagram menu's linked diagrams, say) closes whatever sheet was open here.
+	$effect.pre(() => {
+		void data.diagram.id;
+		sheet = null;
+	});
 	// The updates are beside the canvas on a wide screen, and lead the History sheet on a phone.
 	function showUpdates() {
 		if (narrow) sheet = 'history';
@@ -1154,7 +1188,12 @@
 		...(workspace ? [{ label: workspace.name, href: `${resolve('/')}?ws=${encodeURIComponent(workspace.id)}` }] : []),
 		// The way back up, outermost first.
 		...trail.map((id, i) => ({ label: trailName(id), href: zoomOutHref(i + 1) })).reverse(),
-		{ label: working.name, onclick: () => (sheet = 'diagram'), title: mine ? 'Rename, copy or delete this diagram' : 'Copy this diagram' }
+		{
+			label: working.name,
+			onclick: () => (sheet = 'diagram'),
+			title: mine ? 'Rename, copy or delete this diagram' : 'Copy this diagram',
+			links: { above: linked.above.length, below: linked.below.length }
+		}
 	]}
 />
 
@@ -1585,6 +1624,7 @@
 		onexport={exportImage}
 		onconfig={openConfig}
 		onmove={moveTo}
+		{linked}
 	/>
 </Sheet>
 <!-- The tag manager opens from the tags panel on any screen: a dialog on a wide one, a sheet on a phone. -->

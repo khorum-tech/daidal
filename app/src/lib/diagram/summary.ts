@@ -4,10 +4,12 @@ import { toScene } from './model';
 const MAX_NAMES = 300;
 const MAX_NAME = 100;
 const MAX_BOXES = 400;
+const MAX_ZOOMS = 100;
 
 /**
  * What a card shows of a diagram without its document: its kind, counts, the first five tag colours, node names
- * (what search looks through) and the boxes its thumbnail draws, laid out by the canvas's own rules. The Worker
+ * (what search looks through), the boxes its thumbnail draws, laid out by the canvas's own rules, and the diagrams
+ * its nodes zoom into (so a diagram can find the ones above it). The Worker
  * works it out on every save (worker/src/summary.ts).
  */
 export function cardSummary(doc: SkopeDoc): CardSummary {
@@ -23,6 +25,7 @@ export function cardSummary(doc: SkopeDoc): CardSummary {
 			.filter(Boolean)
 			.slice(0, MAX_NAMES),
 		boxes: scene.nodes.slice(0, MAX_BOXES).map(box),
-		frames: scene.boundaries.slice(0, MAX_BOXES).map(box)
+		frames: scene.boundaries.slice(0, MAX_BOXES).map(box),
+		zooms: [...new Set(scene.nodes.flatMap(n => n.zooms.map(z => z.diagram)))].slice(0, MAX_ZOOMS)
 	};
 }

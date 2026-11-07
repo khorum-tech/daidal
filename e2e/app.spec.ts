@@ -1414,6 +1414,21 @@ test.describe("the app at /app", () => {
     await expect(page).toHaveURL(new RegExp(`/app/d/${child}`));
     await crumbs.getByRole("link", { name: "ledger-platform" }).click();
     await expect(page).toHaveURL(new RegExp(`/app/d/${top}`));
+
+    // The diagram's name in the header shows it has a diagram below, and its menu lists them all in one place.
+    await expect(crumbs.getByTestId("links-badge")).toHaveText("↓1");
+    await crumbs.getByRole("button", { name: "ledger-platform" }).click();
+    const linked = page.getByRole("region", { name: "Linked diagrams" });
+    await expect(linked.getByText("from Edge Router")).toBeVisible();
+    await linked.getByRole("link", { name: /ledger-platform \(DR drill\)/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${child}\\?from=${top}`));
+
+    // From below, the one above is listed too, and opens with the node that zooms in selected.
+    await expect(crumbs.getByTestId("links-badge")).toHaveText("↑1");
+    await crumbs.getByRole("button", { name: "ledger-platform (DR drill)" }).click();
+    await linked.getByRole("link", { name: /^ledger-platform$/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${top}\\?focus=${child}`));
+    await expect(inspector.getByLabel("Name")).toHaveValue("Edge Router");
   });
 
   test("walks a linked C4 set down and up, and makes the level below a node as a new diagram", async ({ page, request }) => {
