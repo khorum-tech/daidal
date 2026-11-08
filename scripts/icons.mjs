@@ -36,7 +36,7 @@ const ICONS = `
 	.split(/\s+/)
 	.filter(Boolean);
 /** Phosphor names for the app's own controls (the phone's bottom bars): marked "ui", so not offered for nodes. */
-const UI = ['pencil-simple', 'arrows-out-cardinal', 'info', 'x'];
+const UI = new Set(['pencil-simple', 'arrows-out-cardinal', 'info', 'x']);
 
 const camel = name => name.replace(/-(\w)/g, (_, c) => c.toUpperCase());
 const words = name => name.replaceAll('-', ' ').replace(/^\w/, c => c.toUpperCase());
@@ -61,7 +61,7 @@ for (const name of [...ICONS, ...UI]) {
 		missing.push(`${name} (not a single path)`);
 		continue;
 	}
-	library[key] = { path: paths[0], label: words(name), keywords: info.tags.filter(t => !t.startsWith('*')), ...(UI.includes(name) ? { ui: true } : {}) };
+	library[key] = { path: paths[0], label: words(name), keywords: info.tags.filter(t => !t.startsWith('*')), ...(UI.has(name) ? { ui: true } : {}) };
 }
 if (missing.length) {
 	console.error(`Not added: ${missing.join(', ')}`);
