@@ -5,23 +5,33 @@
 	/**
 	 * A node's detail while presenting: the prototype's hover card. Its type, name and subtitle, its notes, its tags,
 	 * and a few of its connections. The page places it, beside the node on a wide screen and along the bottom on a
-	 * phone.
+	 * phone. [full] is the phone's View of a selected node, in a sheet: every connection, and its links to open.
 	 */
 	let {
 		node,
 		tags,
-		connections
+		connections,
+		full = false
 	}: {
 		node: SceneNode;
 		tags: Record<string, SceneTag>;
 		/** Its connections, each with the node at the other end. */
 		connections: { out: boolean; name: string; label: string }[];
+		full?: boolean;
 	} = $props();
 
 	const SHOWN = 4;
+	const shown = $derived(full ? connections : connections.slice(0, SHOWN));
+	const hostOf = (url: string) => {
+		try {
+			return new URL(url).host;
+		} catch {
+			return url;
+		}
+	};
 </script>
 
-<div class="tip" role="tooltip" aria-label="About {node.name}">
+<div class="tip" class:full role={full ? 'region' : 'tooltip'} aria-label="About {node.name}">
 	<div class="glow" aria-hidden="true"></div>
 	<div class="head">
 		<span class="icon"><Icon name={node.icon} size={14} /></span>
@@ -39,10 +49,17 @@
 	{/if}
 	{#if connections.length}
 		<ul class="edges">
-			{#each connections.slice(0, SHOWN) as c, i (i)}
+			{#each shown as c, i (i)}
 				<li><span class="dir">{c.out ? '→' : '←'}</span><span class="other">{c.name}</span>{#if c.label}<span class="label">{c.label}</span>{/if}</li>
 			{/each}
-			{#if connections.length > SHOWN}<li class="more">and {connections.length - SHOWN} more</li>{/if}
+			{#if connections.length > shown.length}<li class="more">and {connections.length - shown.length} more</li>{/if}
+		</ul>
+	{/if}
+	{#if full && node.links.length}
+		<ul class="edges links" aria-label="Links">
+			{#each node.links as l, i (i)}
+				<li><Icon name="link" size={12} /><a href={l.url} target="_blank" rel="noopener noreferrer">{l.label || hostOf(l.url)}</a></li>
+			{/each}
 		</ul>
 	{/if}
 </div>
@@ -60,6 +77,17 @@
 		box-shadow: var(--shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.4));
 		overflow: hidden;
 		pointer-events: none;
+	}
+	.tip.full {
+		width: 100%;
+		pointer-events: auto;
+		box-shadow: none;
+	}
+	.links a {
+		color: var(--color-accent);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.glow {
 		position: absolute;
