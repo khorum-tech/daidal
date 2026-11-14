@@ -6,19 +6,46 @@ on:
   pull_request:
     # closed: so stage passes to the next PR in line when the one on it is merged or closed.
     types: [opened, synchronize, reopened, ready_for_review, closed]
+  # Put a branch on stage by hand: Actions → deploy → Run workflow, from main. Only code owners (.github/CODEOWNERS)
+  # get past the stage job's check. See the stage job and docs/stage.md.
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to put on stage (a branch of this repository)"
+        type: string
+        required: false
+      hold:
+        description: "Hold stage on this branch: no PR push or close moves it until released"
+        type: boolean
+        default: true
+      reset_data:
+        description: "Reset stage's data to the stage data (untick to keep stage's data; migrations still run)"
+        type: boolean
+        default: true
+      release:
+        description: "Release the hold instead: the PR first in line deploys (branch is ignored)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   test:
-    # A closed PR has nothing left to test; its run only hands stage on.
-    if: github.event.action != 'closed'
+    # A closed PR has nothing left to test; its run only hands stage on. Nor has a release by hand.
+    if: github.event.action != 'closed' && !(github.event_name == 'workflow_dispatch' && inputs.release)
     runs-on: ubuntu-latest
+    outputs:
+      # By hand, stage deploys exactly the commit tested here, even if the branch moves on meanwhile.
+      sha: ${{ steps.sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # By hand, the branch named; otherwise the event's own commit.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || '' }}
           persist-credentials: false
+      - id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -76,18 +103,29 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
 
-  # Stage: one shared site, https://skope-stage.khorum-oss.org, that goes to open PRs in turn. The oldest open PR
-  # from this repository that isn't a draft has it: its pushes re-deploy stage and reset its data to invented stage
-  # data (stage/diagrams.ts). A newer PR waits, and says so on itself; when the PR on stage is merged or closed, the
-  # next one in line deploys. Fork PRs never get it: GitHub gives them no secrets, and this job never runs their code
-  # with the Cloudflare token (never switch to pull_request_target). One-time setup: docs/stage.md.
+  # Stage: one shared site, https://skope-stage.khorum-oss.org.
+  #
+  # The line: the oldest open PR from this repository, opened by a code owner (.github/CODEOWNERS on main), that
+  # isn't a draft has stage: its pushes re-deploy it and reset its data to the invented stage data
+  # (stage/diagrams.ts). A newer PR waits, and says so on itself; when the PR on stage is merged or closed, the next
+  # one in line deploys. A PR from anyone else never deploys by itself; a code owner can put it there by hand.
+  #
+  # By hand: Actions → deploy → Run workflow (from main), naming a branch. Tests run on that branch, then it goes on
+  # stage whatever the line says. With "hold" ticked (the default) the line stops: no PR push or close moves stage
+  # until a code owner runs it again with "release" (or deploys another branch). The hold is kept as a GitHub
+  # deployment on the `stage-hold` environment.
+  #
+  # Fork PRs never get stage: GitHub gives them no secrets, and this job never runs their code with the Cloudflare
+  # token (never switch to pull_request_target). One-time setup: docs/stage.md.
   stage:
     needs: test
-    # needs.test is skipped on a closed PR (nothing to test), which still hands stage on; a failed test stops it.
+    # needs.test is skipped on a closed PR and on a release (nothing to test), which still runs this job; a failed
+    # test stops it. By hand it runs only from main, so the workflow that checks for a code owner is main's.
     if: >-
-      always() && needs.test.result != 'failure' && needs.test.result != 'cancelled' &&
-      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.user.type != 'Bot' && !endsWith(github.event.pull_request.user.login, '[bot]')
+      always() && needs.test.result != 'failure' && needs.test.result != 'cancelled' && (
+        (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.user.type != 'Bot' && !endsWith(github.event.pull_request.user.login, '[bot]')) ||
+        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
     runs-on: ubuntu-latest
     # Stage's settings live in the `stage` environment (repository-level ones are read too); it must allow PR branches.
     environment: stage
@@ -98,6 +136,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      # The hold is a deployment on `stage-hold`.
+      deployments: write
     steps:
       # STAGE_OWNER_EMAIL is a secret so it stays masked in this public repository's logs; it is passed only to
       # the step that needs it. Readiness is computed from expressions, so no value is ever echoed.
@@ -122,52 +162,106 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "::notice title=Stage not set up yet::Missing from the stage environment and repository settings:$missing. STAGE_D1_ID, STAGE_ACCESS_AUD and STAGE_CLOUDFLARE_ACCOUNT_ID may be secrets or variables; the rest are secrets (docs/stage.md)."
           fi
-      # Who has stage: the oldest open PR from this repository that isn't a draft. On a push, this PR deploys only if
-      # it is that one; on a close, the next in line deploys, but only if the closed PR was the one on stage.
+      # What goes on stage, if anything: by hand, the named branch (or, on a release, the PR first in line); from a
+      # PR, the line decides, unless stage is held.
       - if: steps.setup.outputs.ready == 'true'
         id: line
-        name: Who is first in line
+        name: Decide what goes on stage
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          ACTOR: ${{ github.actor }}
           PR: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           ACTION: ${{ github.event.action }}
           # Event values go in through the environment, never into the script's text: a branch name is chosen by
           # whoever pushes it.
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.head_ref }}
           IS_DRAFT: ${{ github.event.pull_request.draft }}
+          INPUT_BRANCH: ${{ inputs.branch }}
+          INPUT_RELEASE: ${{ inputs.release }}
+          TESTED_SHA: ${{ needs.test.outputs.sha }}
         run: |
-          # "number sha branch" for each open PR in line, oldest first. Bots' PRs (Dependabot's) never take stage:
-          # their runs get none of its secrets, so they would hold it without ever deploying.
-          line="$(gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
-            --jq ".[] | select(.draft | not) | select(.user.type != \"Bot\" and (.user.login | endswith(\"[bot]\") | not)) | select(.head.repo.full_name == \"$REPO\") | \"\(.number) \(.head.sha) \(.head.ref)\"" \
-            | grep -v "^$PR " | sort -n || true)"
+          out() { echo "$1" >> "$GITHUB_OUTPUT"; }
+          # Code owners: the users named in main's .github/CODEOWNERS (never the PR's copy, which its author could
+          # edit). Teams (@org/team) aren't read: name people. No file means no code owners, so nothing auto-deploys.
+          owners="$(gh api "repos/$REPO/contents/.github/CODEOWNERS" -H "Accept: application/vnd.github.raw" 2>/dev/null \
+            | sed 's/#.*//' | grep -o '@[A-Za-z0-9_./-]*' | grep -v / | cut -c2- | tr 'A-Z' 'a-z' | sort -u || true)"
+          is_owner() { [ -n "$1" ] && printf '%s\n' "$owners" | grep -qxF "$(printf '%s' "$1" | tr 'A-Z' 'a-z')"; }
+
+          # The hold: the latest deployment on `stage-hold`, if its latest status is success.
+          hold_id=""; hold_branch=""
+          latest="$(gh api "repos/$REPO/deployments?environment=stage-hold&per_page=1" --jq '.[0] | "\(.id) \(.payload.branch // "")"' 2>/dev/null || true)"
+          if [ -n "$latest" ] && [ "$latest" != "null " ]; then
+            read -r id branch_held <<< "$latest"
+            state="$(gh api "repos/$REPO/deployments/$id/statuses?per_page=1" --jq '.[0].state // ""' || true)"
+            if [ "$state" = "success" ]; then hold_id="$id"; hold_branch="$branch_held"; fi
+          fi
+          out "hold_id=$hold_id"
+
+          # "number sha branch" for each open PR in line, oldest first: from this repository, not a draft, opened by
+          # a code owner. (Bots are never code owners: their runs get no secrets, so they would hold the line.)
+          line=""
+          while read -r n sha ref login; do
+            [ -n "$n" ] && is_owner "$login" && line="$line$n $sha $ref"$'\n'
+          done < <(gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
+            --jq ".[] | select(.draft | not) | select(.head.repo.full_name == \"$REPO\") | \"\(.number) \(.head.sha) \(.head.ref) \(.user.login)\"")
+          line="$(printf '%s' "$line" | grep -v "^${PR:-none} " | sort -n || true)"
           first="$(printf '%s\n' "$line" | head -n 1)"
           first_pr="${first%% *}"
-          if [ "$ACTION" = "closed" ]; then
-            # The closed PR had stage if no open PR is older than it.
+
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            if ! is_owner "$ACTOR"; then
+              echo "::error title=Not a code owner::Only the code owners in .github/CODEOWNERS can put a branch on stage by hand."
+              exit 1
+            fi
+            out "manual=true"
+            if [ "$INPUT_RELEASE" = "true" ]; then
+              # Release: the line takes over again; the PR first in line deploys now.
+              out "release=true"
+              if [ -n "$first" ]; then
+                read -r pr sha branch <<< "$first"
+                out "deploy=true"
+              else
+                out "deploy=false"
+              fi
+            else
+              [ -n "$INPUT_BRANCH" ] || { echo "::error::Name a branch to deploy (or tick release)."; exit 1; }
+              branch="$INPUT_BRANCH"; sha="$TESTED_SHA"
+              pr="$(gh api "repos/$REPO/pulls?state=open&head=${REPO%%/*}:$branch" --jq '.[0].number // empty' || true)"
+              out "deploy=true"
+              if [ -n "$first_pr" ] && [ "$first_pr" != "$pr" ]; then out "first=$first_pr"; fi
+            fi
+          elif [ -n "$hold_id" ]; then
+            # Held by hand: no PR moves stage.
+            out "deploy=false"
+            out "held=$hold_branch"
+          elif ! is_owner "$PR_AUTHOR"; then
+            out "deploy=false"
+            out "not_owner=true"
+          elif [ "$ACTION" = "closed" ]; then
+            # The closed PR had stage if no open PR in line is older than it.
             if [ -n "$first" ] && [ "$first_pr" -gt "$PR" ]; then
               read -r pr sha branch <<< "$first"
-              echo "deploy=true" >> "$GITHUB_OUTPUT"
+              out "deploy=true"
             else
-              echo "deploy=false" >> "$GITHUB_OUTPUT"
+              out "deploy=false"
             fi
           elif [ -n "$first" ] && [ "$first_pr" -lt "$PR" ]; then
-            echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "first=$first_pr" >> "$GITHUB_OUTPUT"
+            out "deploy=false"
+            out "first=$first_pr"
           elif [ "$IS_DRAFT" = "true" ]; then
-            echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "draft=true" >> "$GITHUB_OUTPUT"
+            out "deploy=false"
+            out "draft=true"
           else
-            pr="$PR"
-            sha="$HEAD_SHA"
-            branch="$HEAD_REF"
-            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            pr="$PR"; sha="$HEAD_SHA"; branch="$HEAD_REF"
+            out "deploy=true"
           fi
-          if [ -n "${pr:-}" ]; then
-            { echo "pr=$pr"; echo "sha=$sha"; echo "branch=$branch"; } >> "$GITHUB_OUTPUT"
-          fi
+          [ -n "${sha:-}" ] && { out "sha=$sha"; out "branch=$branch"; }
+          [ -n "${pr:-}" ] && out "pr=$pr"
+          true
       - if: steps.line.outputs.deploy == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -195,12 +289,13 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.STAGE_CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID || vars.STAGE_CLOUDFLARE_ACCOUNT_ID }}
-      - if: steps.line.outputs.deploy == 'true'
+      # By hand, "reset data" can be unticked to keep what's in stage's database (migrations still run).
+      - if: steps.line.outputs.deploy == 'true' && (github.event_name != 'workflow_dispatch' || inputs.release || inputs.reset_data)
         name: Generate seed.sql
         run: npm run stage-seed
         env:
           STAGE_OWNER_EMAIL: ${{ secrets.STAGE_OWNER_EMAIL }}
-      - if: steps.line.outputs.deploy == 'true'
+      - if: steps.line.outputs.deploy == 'true' && (github.event_name != 'workflow_dispatch' || inputs.release || inputs.reset_data)
         name: Reset the stage database to the stage data
         run: ./node_modules/.bin/wrangler d1 execute skope-stage --remote --file seed.sql -c wrangler.stage.jsonc --yes
         env:
@@ -212,8 +307,33 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.STAGE_CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID || vars.STAGE_CLOUDFLARE_ACCOUNT_ID }}
-      # One comment per PR, kept up to date: live on stage, or waiting behind the PR that has it.
-      - if: steps.setup.outputs.ready == 'true' && (steps.line.outputs.deploy == 'true' || github.event.action != 'closed')
+      # By hand: set or clear the hold, once the deploy (if any) has gone through. A new hold replaces the old one;
+      # a deploy without hold, or a release, clears it.
+      - if: steps.line.outputs.manual == 'true'
+        name: Record the hold
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HOLD_ID: ${{ steps.line.outputs.hold_id }}
+          SET_HOLD: ${{ !inputs.release && inputs.hold }}
+          BRANCH: ${{ steps.line.outputs.branch }}
+          SHA: ${{ steps.line.outputs.sha }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          if [ -n "$HOLD_ID" ]; then
+            gh api "repos/$REPO/deployments/$HOLD_ID/statuses" -f state=inactive -f description="Released" > /dev/null
+          fi
+          if [ "$SET_HOLD" = "true" ]; then
+            id="$(jq -n --arg ref "$SHA" --arg branch "$BRANCH" --arg by "$ACTOR" \
+              '{ref: $ref, environment: "stage-hold", auto_merge: false, required_contexts: [], transient_environment: true,
+                description: "Stage held by hand", payload: {branch: $branch, by: $by}}' \
+              | gh api "repos/$REPO/deployments" --input - --jq .id)"
+            gh api "repos/$REPO/deployments/$id/statuses" -f state=success -f description="Held on $BRANCH" \
+              -f environment_url="https://skope-stage.khorum-oss.org" > /dev/null
+            echo "::notice title=Stage held::Stage stays on $BRANCH until a code owner runs this workflow with release ticked."
+          fi
+      # One comment per PR, kept up to date: live on stage, or why not.
+      - if: steps.setup.outputs.ready == 'true' && (steps.line.outputs.deploy == 'true' || (github.event_name == 'pull_request' && github.event.action != 'closed'))
         name: Say on the PR where stage stands
         env:
           GH_TOKEN: ${{ github.token }}
@@ -224,23 +344,47 @@ jobs:
           LIVE_BRANCH: ${{ steps.line.outputs.branch }}
           FIRST: ${{ steps.line.outputs.first }}
           DRAFT: ${{ steps.line.outputs.draft }}
+          HELD: ${{ steps.line.outputs.held }}
+          NOT_OWNER: ${{ steps.line.outputs.not_owner }}
+          MANUAL: ${{ steps.line.outputs.manual }}
+          RELEASE: ${{ steps.line.outputs.release }}
+          HOLD: ${{ inputs.hold }}
           THIS_PR: ${{ github.event.pull_request.number }}
         run: |
           marker='<!-- skope-stage -->'
+          live="https://skope-stage.khorum-oss.org (the app, with the stage data: https://skope-stage.khorum-oss.org/app/)"
           if [ "$DEPLOYED" = "true" ]; then
+            # A branch put on stage by hand that has no open PR: nothing to tell.
+            [ -n "$LIVE_PR" ] || exit 0
             target="$LIVE_PR"
+            if [ "$MANUAL" = "true" ] && [ "$RELEASE" != "true" ]; then
+              if [ "$HOLD" = "true" ]; then
+                tail="Stage is **held** here by hand: no PR moves it until a code owner releases it (Actions → deploy → Run workflow, tick release)."
+              else
+                tail="Put here by hand.${FIRST:+ The next push to #$FIRST, first in line, takes stage back.}"
+              fi
+            else
+              tail="This PR has stage until it is merged or closed; newer PRs wait their turn. Stage data is invented and **resets on every push** to this PR, so nothing entered there is kept."
+            fi
             body="$marker
-          **Stage:** \`$LIVE_BRANCH\` at \`${LIVE_SHA:0:7}\` is live at https://skope-stage.khorum-oss.org (the app, with the stage data: https://skope-stage.khorum-oss.org/app/)
+          **Stage:** \`$LIVE_BRANCH\` at \`${LIVE_SHA:0:7}\` is live at $live
 
-          This PR has stage until it is merged or closed; newer PRs wait their turn. Stage data is invented and **resets on every push** to this PR, so nothing entered there is kept."
-          elif [ "$DRAFT" = "true" ]; then
-            target="$THIS_PR"
-            body="$marker
-          **Stage:** not deployed: this PR is a draft. Mark it ready for review to take its place in line for stage."
+          $tail"
           else
             target="$THIS_PR"
-            body="$marker
+            if [ -n "$HELD" ]; then
+              body="$marker
+          **Stage:** not deployed: stage is held by hand on \`$HELD\`. It deploys again from the line once a code owner releases it."
+            elif [ "$NOT_OWNER" = "true" ]; then
+              body="$marker
+          **Stage:** not deployed: only PRs opened by a code owner (.github/CODEOWNERS) deploy to stage by themselves. A code owner can put this branch there by hand (Actions → deploy → Run workflow)."
+            elif [ "$DRAFT" = "true" ]; then
+              body="$marker
+          **Stage:** not deployed: this PR is a draft. Mark it ready for review to take its place in line for stage."
+            else
+              body="$marker
           **Stage:** waiting. Stage shows #$FIRST, the oldest open PR; this one deploys there when #$FIRST is merged or closed (or on its next push after that)."
+            fi
           fi
           id="$(gh api --paginate "repos/$REPO/issues/$target/comments" --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id" | head -n 1)"
           if [ -n "$id" ]; then
