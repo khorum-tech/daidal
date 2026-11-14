@@ -175,7 +175,7 @@
 		color: var(--color-neutral-500);
 	}
 	.panel {
-		width: 232px;
+		width: 248px;
 		flex: none;
 		overflow-y: auto;
 		border-right: 1px solid var(--color-divider);

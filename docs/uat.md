@@ -297,6 +297,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | C4-5 | Select a node with no link in a C4 Container diagram: **Zoom in → New C4 Component diagram** | A new diagram named after it opens, with it as a container and its neighbours around it; back up, the node now zooms into it | D P | |
 | C4-7 | In **postings-components**, select **Postings API**: **Zoom out → New C4 Container diagram above** | A new diagram named after it opens with it selected and its neighbours around it; a double-click on it comes back down | D P | |
 | C4-6 | Export a workspace with linked diagrams, import the file | The imported diagrams link to each other, not to the originals | D | |
+| C4-8 | Open **ledger-context**, double-click down to **postings-components**, and look at the header | Before each diagram's name sit four small bars with its C4 level lit (hover names it); the diagram you're in also says its kind, e.g. **C4 Component**. A freeform diagram shows none. On a phone only the bars show | D P | |
 
 ## Regressions
 

@@ -165,7 +165,7 @@
 				{#each zooms as z (z.diagram)}
 					<li>
 						<button type="button" class="btn btn-secondary zoom" onclick={() => onzoom?.(z)}>
-							<Icon name="magnifyingGlassPlus" size={14} />{z.label || nameOf.get(z.diagram)}{#if z.view}<span class="z-view">{z.view}</span>{/if}
+							<Icon name="magnifyingGlassPlus" size={14} /><span class="z-name">{z.label || nameOf.get(z.diagram)}</span>{#if z.view}<span class="z-view">{z.view}</span>{/if}
 						</button>
 						{#if editable}
 							<button type="button" class="x" aria-label="Stop zooming into {nameOf.get(z.diagram)}" onclick={() => unlinkDiagram(z.diagram)}>×</button>
@@ -176,7 +176,7 @@
 		{/if}
 		{#if below}
 			<button type="button" class="btn btn-secondary zoom" disabled={making} onclick={() => zoomNew()}>
-				<Icon name="magnifyingGlassPlus" size={14} />New {below.label} diagram
+				<Icon name="magnifyingGlassPlus" size={14} /><span class="z-name">New {below.label} diagram</span>
 			</button>
 			{#if madeError}<p class="error" role="alert">{madeError}</p>{/if}
 		{/if}
@@ -193,7 +193,7 @@
 	{#if above}
 		<h3>Zoom out</h3>
 		<button type="button" class="btn btn-secondary zoom" disabled={making} onclick={() => zoomNew(onzoomup)}>
-			<Icon name="treeStructure" size={14} />New {above.label} diagram above
+			<Icon name="treeStructure" size={14} /><span class="z-name">New {above.label} diagram above</span>
 		</button>
 	{/if}
 {/snippet}
@@ -383,12 +383,29 @@
 	.zooms .zoom {
 		margin-top: 0;
 	}
+	/* The size of the "Link a diagram to zoom into" dropdown beside it: full width, one line, the same height. */
 	.zoom {
 		flex: 1;
+		box-sizing: border-box;
+		width: 100%;
+		min-width: 0;
+		height: 29px;
 		justify-content: flex-start;
 		gap: 6px;
 		margin-top: 8px;
+		padding-block: 0;
 		font-size: 12.5px;
+		text-align: left;
+	}
+	.zoom + .input,
+	.zooms + .input {
+		margin-top: 6px;
+	}
+	.z-name {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.z-view {
 		margin-left: auto;

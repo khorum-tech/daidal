@@ -1446,6 +1446,9 @@ test.describe("the app at /app", () => {
     await page.getByRole("button", { name: "Service: Postings Service" }).dblclick();
     await expect(page).toHaveURL(new RegExp(`/app/d/${id("postings-components")}`));
     await expect(crumbs.getByRole("link")).toHaveText(["Ledger C4", "ledger-context", "ledger-containers"]);
+    // The header says which C4 level each diagram is: the way back up by its pips, this one by name.
+    await expect(crumbs.getByTestId("kind-badge")).toHaveText(["C4 Context", "C4 Container", "C4 Component"]);
+    await expect(crumbs.getByTestId("kind-badge").last()).toHaveAttribute("data-level", "3");
 
     // Back up one, then make the level below the console.
     await crumbs.getByRole("link", { name: "ledger-containers" }).click();
