@@ -66,3 +66,9 @@ describe('C4 notation', () => {
 		expect(c4Line('system', kindOf('c4-context'), 'Ledger')).toBe('[Software System]');
 	});
 });
+
+describe('C4 levels, up', () => {
+	it('stacks each C4 level under the one above, and nothing above Context', () => {
+		expect(['c4-code', 'c4-component', 'c4-container', 'c4-context', 'freeform'].map(k => kindOf(k).parent ?? null)).toEqual(['c4-component', 'c4-container', 'c4-context', null, null]);
+	});
+});

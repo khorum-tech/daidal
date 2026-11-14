@@ -105,6 +105,8 @@ export interface DocNode {
 	notes?: string;
 	/** Web pages ({ url }) and diagrams to zoom into ({ diagram, view? }), in one list. */
 	links?: NodeLink[];
+	/** "<diagram id>#<node id>": this node is the same thing as that node in another diagram. */
+	ref?: string;
 }
 
 /** A node's link: a web page by its url, or another diagram in the workspace (and one of its views) to zoom into. */
@@ -134,6 +136,8 @@ export interface DocBoundary {
 	moveContents?: boolean;
 	layout?: { x: number; y: number; w: number; h: number };
 	labelPosition?: string;
+	/** "<diagram id>#<node id>": the node in another diagram this container expands (a C4 child diagram's scope). */
+	ref?: string;
 }
 
 export interface SkopeDoc {

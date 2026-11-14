@@ -73,7 +73,8 @@
 	import { History } from '#lib/history.svelte.ts';
 	import { iconScene, tagsOn, toScene, type Anchor, type ZoomLink } from '#lib/diagram/model.ts';
 	import { catalogue } from '#lib/diagram/icons.ts';
-	import { kindOf, type KindId } from '#lib/diagram/kinds.ts';
+	import { kindOf, type Kind, type KindId } from '#lib/diagram/kinds.ts';
+	import { childDoc, parentDoc } from '#lib/diagram/drill.ts';
 	import { appearance } from '#lib/appearance.svelte.ts';
 	import { distinguishable } from '#lib/diagram/colour.ts';
 	import { followState } from '#lib/follow.ts';
@@ -91,7 +92,7 @@
 	// Drill-down. A node can zoom into another diagram in the workspace (its links[].diagram); this one's address
 	// carries the diagrams it was reached from (?from=parent,grandparent…), so the header can show the way back up.
 	/** The workspace's other diagrams, by id and name: what a node can zoom into, and the names on the way back. */
-	let linkable = $state<{ id: string; name: string }[] | null>(null);
+	let linkable = $state<{ id: string; name: string; kind?: string }[] | null>(null);
 	/** Of those, the ones with a node that zooms into this diagram: the diagrams above it. */
 	let above = $state<{ id: string; name: string }[]>([]);
 	$effect(() => {
@@ -104,7 +105,7 @@
 			.then(list => {
 				if (data.diagram.workspaceId !== ws) return;
 				const others = list.filter(d => d.id !== self);
-				linkable = others.map(d => ({ id: d.id, name: d.name }));
+				linkable = others.map(d => ({ id: d.id, name: d.name, kind: d.summary?.kind }));
 				above = others.filter(d => d.summary?.zooms?.includes(self)).map(d => ({ id: d.id, name: d.name }));
 			})
 			.catch(() => (linkable = []));
@@ -122,6 +123,12 @@
 		}
 	});
 	const trailName = (id: string) => linkable?.find(d => d.id === id)?.name ?? farNames[id] ?? '…';
+	/** What the header says of a diagram's kind: nothing for freeform, which has no level to be in. */
+	const kindCrumb = (k: Kind) => (k.id === 'freeform' ? undefined : { label: k.label, level: k.level, hint: k.hint });
+	const trailKind = (id: string) => {
+		const raw = linkable?.find(d => d.id === id)?.kind;
+		return raw ? kindCrumb(kindOf(raw)) : undefined;
+	};
 	/** The links of [nodeId] this person can follow: to diagrams they can see. */
 	function zoomsFrom(nodeId: string): ZoomLink[] {
 		const n = scene.nodes.find(x => x.id === nodeId);
@@ -164,6 +171,36 @@
 	}
 	function zoomOut() {
 		if (trail.length) void goto(zoomOutHref(1));
+	}
+	/**
+	 * Zoom in → New diagram: the next C4 level below the selected node, in this workspace, named after it and seeded
+	 * with it as the scope and its neighbours around it; the node links to it (an edit, so Undo takes the link back),
+	 * and it opens. A failure to make it is reported to the caller and changes nothing here.
+	 */
+	async function zoomNew() {
+		const nodeId = selected;
+		const below = kind.child;
+		const node = nodeId ? scene.nodes.find(n => n.id === nodeId) : undefined;
+		if (!node || !below || !mine) return;
+		const made = await api.createDiagram({ workspace: data.diagram.workspaceId, name: node.name, doc: childDoc(current(), data.diagram.id, node.id, below) });
+		const before = current();
+		const zooms = [...node.zooms, { diagram: made.id }];
+		apply(updateNode(before, node.id, { links: [...node.links, ...zooms] }), before, `Zoom into a new ${kindOf(below).label} diagram`);
+		await working.saver.flush();
+		zoomIn({ diagram: made.id });
+	}
+	/**
+	 * A new diagram one C4 level above the selected node, in this workspace: it and its neighbours, as they sit here,
+	 * each with a ref back; the node zooms down to this diagram. It opens with that node selected. This diagram isn't
+	 * changed: the link lives in the new one.
+	 */
+	async function zoomNewAbove() {
+		const node = selected ? current().nodes?.find(n => n.id === selected) : undefined;
+		const up = kind.parent;
+		if (!node || !up || !mine) return;
+		await working.saver.flush();
+		const made = await api.createDiagram({ workspace: data.diagram.workspaceId, name: node.name, doc: parentDoc(current(), data.diagram.id, node.id, up) });
+		void goto(`${resolve('/d/[id]', { id: made.id })}?${new URLSearchParams({ focus: data.diagram.id })}`);
 	}
 	/** A double-click (or ⌘↓) on a node: one diagram to zoom into goes there; several open the node's details to choose. */
 	function drill(nodeId: string): boolean {
@@ -1156,9 +1193,10 @@
 	crumbs={[
 		...(workspace ? [{ label: workspace.name, href: `${resolve('/')}?ws=${encodeURIComponent(workspace.id)}` }] : []),
 		// The way back up, outermost first.
-		...trail.map((id, i) => ({ label: trailName(id), href: zoomOutHref(i + 1) })).reverse(),
+		...trail.map((id, i) => ({ label: trailName(id), href: zoomOutHref(i + 1), kind: trailKind(id) })).reverse(),
 		{
 			label: working.name,
+			kind: kindCrumb(kind),
 			onclick: () => (sheet = 'diagram'),
 			title: mine ? 'Rename, copy or delete this diagram' : 'Copy this diagram',
 			links: { above: linked.above.length, below: linked.below.length }
@@ -1222,6 +1260,8 @@
 			{kind}
 			diagrams={linkable}
 			onzoom={zoomIn}
+			onzoomnew={zoomNew}
+			onzoomup={zoomNewAbove}
 			node={selectedNode}
 			tags={tagByKey}
 			{editable}
@@ -1912,7 +1952,7 @@
 		width: 440px;
 	}
 	.right {
-		width: 260px;
+		width: 288px;
 		flex: none;
 		overflow-y: auto;
 		border-left: 1px solid var(--color-divider);
