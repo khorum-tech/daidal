@@ -37,6 +37,7 @@ describe("diagrams", () => {
       names: ["Gateway"],
       boxes: [[10, 20, 190, 88]],
       frames: [],
+      zooms: [],
     });
   });
 
@@ -54,6 +55,13 @@ describe("diagrams", () => {
     await env.DB.prepare("UPDATE diagrams SET summary = NULL WHERE id = ?").bind(d.id).run();
     const [filled] = (await call.get("d-summary@example.com", `/api/diagrams?workspace=${ws}`)).body;
     expect(filled.summary).toEqual(saved.summary);
+
+    // One kept before summaries listed what a diagram zooms into is worked out again.
+    const { zooms, ...older } = saved.summary;
+    expect(zooms).toEqual([]);
+    await env.DB.prepare("UPDATE diagrams SET summary = ? WHERE id = ?").bind(JSON.stringify(older), d.id).run();
+    const [refilled] = (await call.get("d-summary@example.com", `/api/diagrams?workspace=${ws}`)).body;
+    expect(refilled.summary).toEqual(saved.summary);
   });
 
   it("searches names and node names, and pages through a long list", async () => {

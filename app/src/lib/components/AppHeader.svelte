@@ -25,7 +25,16 @@
 		me: Me;
 		homeHref: string;
 		/** Where you are. A crumb with [onclick] is a button (the diagram's name opens what can be done with it). */
-		crumbs?: { label: string; href?: string; onclick?: () => void; title?: string }[];
+		/** The path to this page. The last can open a menu, with [links]: the diagrams above and below it by zooming. */
+		/** A diagram's crumb can carry its [kind]: a C4 level shows as four pips with its own lit, and the last crumb names it. */
+		crumbs?: {
+			label: string;
+			href?: string;
+			onclick?: () => void;
+			title?: string;
+			links?: { above: number; below: number };
+			kind?: { label: string; level?: number; hint: string };
+		}[];
 	} = $props();
 	let open = $state(false);
 	let userEl = $state<HTMLElement>();
@@ -94,9 +103,34 @@
 		<nav aria-label="Breadcrumb" class="crumbs">
 			{#each crumbs as c, i (i)}
 				{#if i > 0}<span aria-hidden="true" class="slash">/</span>{/if}
+				{#if c.kind}
+					<span class="kind" class:named={!c.href} title="{c.kind.label} · {c.kind.hint}" data-testid="kind-badge" data-level={c.kind.level}>
+						{#if c.kind.level}
+							<span class="pips" aria-hidden="true">
+								{#each [1, 2, 3, 4] as l (l)}<i class:on={l === c.kind.level}></i>{/each}
+							</span>
+						{/if}
+						<span class="kind-label" class:sr={!!c.href}>{c.kind.label}</span>
+					</span>
+				{/if}
 				{#if c.href}<a href={c.href}>{c.label}</a>{:else if c.onclick}
-					<button type="button" class="crumb-btn" aria-current="page" aria-haspopup="dialog" title={c.title} onclick={c.onclick}>
-						<span>{c.label}</span><Icon name="caretDown" size={11} />
+					<button
+						type="button"
+						class="crumb-btn"
+						aria-current="page"
+						aria-haspopup="dialog"
+						title={c.title}
+						aria-describedby={c.links && (c.links.above || c.links.below) ? 'crumb-links' : undefined}
+						onclick={c.onclick}
+					>
+						<span>{c.label}</span>
+						{#if c.links && (c.links.above || c.links.below)}
+							<span id="crumb-links" hidden>Linked diagrams: {c.links.above} above, {c.links.below} below</span>
+							<span class="links-badge" aria-hidden="true" data-testid="links-badge">
+								<Icon name="treeStructure" size={11} />{#if c.links.above}<span>↑{c.links.above}</span>{/if}{#if c.links.below}<span>↓{c.links.below}</span>{/if}
+							</span>
+						{/if}
+						<Icon name="caretDown" size={11} />
 					</button>
 				{:else}<span aria-current="page">{c.label}</span>{/if}
 			{/each}
@@ -316,6 +350,82 @@
 	.menu button:hover,
 	.menu a:hover {
 		background: color-mix(in srgb, var(--color-text) 8%, transparent);
+	}
+	.links-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+		flex: none;
+		padding: 1px 6px;
+		border: 1px solid var(--color-divider);
+		border-radius: 999px;
+		font-size: 11px;
+		font-variant-numeric: tabular-nums;
+		color: var(--color-neutral-400);
+	}
+	/* What kind of diagram a crumb is. A C4 level reads as four pips, the lit one its level, from Context (narrowest, top) down to Code. */
+	.kind {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		flex: none;
+		color: var(--color-neutral-400);
+		font-size: 11px;
+	}
+	.kind.named {
+		padding: 2px 8px;
+		border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-divider));
+		border-radius: 999px;
+		color: var(--color-text);
+	}
+	.pips {
+		display: inline-flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 1.5px;
+		width: 12px;
+	}
+	.pips i {
+		height: 1.5px;
+		border-radius: 1px;
+		background: var(--color-neutral-600);
+	}
+	.pips i:nth-child(1) {
+		width: 4px;
+	}
+	.pips i:nth-child(2) {
+		width: 7px;
+	}
+	.pips i:nth-child(3) {
+		width: 10px;
+	}
+	.pips i:nth-child(4) {
+		width: 12px;
+	}
+	.pips i.on {
+		height: 2.5px;
+		background: var(--color-accent);
+	}
+	.sr {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+	@media (max-width: 600px) {
+		/* A phone's bar has no room for the name: the pips say the level, and the diagram menu names the kind. */
+		.kind.named .pips + .kind-label {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+		}
+		.kind.named {
+			padding: 3px 5px;
+		}
 	}
 	.crumb-btn {
 		display: inline-flex;

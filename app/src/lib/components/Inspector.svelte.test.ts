@@ -113,3 +113,87 @@ describe('the inspector', () => {
 		expect(changes).toEqual([{ icon: null }]);
 	});
 });
+
+describe('the inspector and diagrams to zoom into', () => {
+	const linked = toScene({
+		version: 1,
+		nodes: [{ id: 'api', name: 'API', type: 'service', links: [{ label: 'Runbook', url: 'example.com' }, { diagram: 'parts', view: 'Ops' }, { diagram: 'secret' }] }]
+	}).nodes[0];
+	const diagrams = [
+		{ id: 'parts', name: 'API parts' },
+		{ id: 'data', name: 'Data stores' }
+	];
+
+	it('opens a linked diagram, links another, and hides one the viewer cannot see', async () => {
+		const changes: NodeChange[] = [];
+		const zooms: string[] = [];
+		await render(Inspector, { node: linked, tags: {}, editable: true, diagrams, onzoom: z => zooms.push(z.diagram), onchange: c => changes.push(c) });
+		await page.getByRole('button', { name: /^API parts/ }).click();
+		expect(zooms).toEqual(['parts']);
+		expect(page.getByText('secret').elements()).toHaveLength(0);
+		await page.getByLabelText('Link a diagram to zoom into').selectOptions('Data stores');
+		expect(changes.at(-1)!.links).toEqual([{ label: 'Runbook', url: 'example.com' }, { diagram: 'parts', view: 'Ops' }, { diagram: 'secret' }, { diagram: 'data' }]);
+	});
+
+	it('keeps the diagram links when a web link is removed, and the web links when a diagram is unlinked', async () => {
+		const changes: NodeChange[] = [];
+		await render(Inspector, { node: linked, tags: {}, editable: true, diagrams, onchange: c => changes.push(c) });
+		await page.getByRole('button', { name: 'Remove link Runbook' }).click();
+		expect(changes.at(-1)!.links).toEqual([{ diagram: 'parts', view: 'Ops' }, { diagram: 'secret' }]);
+		await page.getByRole('button', { name: 'Stop zooming into API parts' }).click();
+		expect(changes.at(-1)!.links).toEqual([{ label: 'Runbook', url: 'example.com' }, { diagram: 'secret' }]);
+	});
+
+	it('lets a viewer zoom in but not link', async () => {
+		await render(Inspector, { node: linked, tags: {}, diagrams });
+		await expect.element(page.getByRole('button', { name: /^API parts/ })).toBeVisible();
+		expect(page.getByLabelText('Link a diagram to zoom into').elements()).toHaveLength(0);
+	});
+});
+
+describe('the inspector and new diagrams below a node', () => {
+	const plain = toScene({ version: 1, nodes: [{ id: 'api', name: 'API', type: 'service' }] }).nodes[0];
+
+	it('offers the next C4 level for a node that zooms into nothing, and shows a failure', async () => {
+		const { kindOf } = await import('../diagram/kinds');
+		let calls = 0;
+		await render(Inspector, {
+			node: plain,
+			tags: {},
+			editable: true,
+			diagrams: [],
+			kind: kindOf('c4-container'),
+			onzoomnew: async () => {
+				calls++;
+				throw new Error('You can own at most 2 diagrams');
+			}
+		});
+		await page.getByRole('button', { name: 'New C4 Component diagram' }).click();
+		expect(calls).toBe(1);
+		await expect.element(page.getByRole('alert')).toMatchTextContent('You can own at most 2 diagrams');
+	});
+
+	it('offers nothing below at the bottom of C4', async () => {
+		const { kindOf } = await import('../diagram/kinds');
+		await render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-code'), onzoomnew: async () => {} });
+		expect(page.getByRole('button', { name: /^New .* diagram$/ }).elements()).toHaveLength(0);
+	});
+});
+
+describe('the inspector and new diagrams above a node', () => {
+	const plain = toScene({ version: 1, nodes: [{ id: 'api', name: 'API', type: 'service' }] }).nodes[0];
+
+	it('offers the C4 level above below Context, and nothing above Context', async () => {
+		const { kindOf } = await import('../diagram/kinds');
+		let calls = 0;
+		await render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-component'), onzoomup: async () => void calls++ });
+		await page.getByRole('button', { name: 'New C4 Container diagram above' }).click();
+		expect(calls).toBe(1);
+	});
+
+	it('offers none in a C4 Context diagram', async () => {
+		const { kindOf } = await import('../diagram/kinds');
+		await render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-context'), onzoomup: async () => {} });
+		expect(page.getByRole('button', { name: /diagram above$/ }).elements()).toHaveLength(0);
+	});
+});

@@ -126,12 +126,12 @@ const boundedInt = (raw: string | null, min: number, max: number, fallback: numb
 const FILL_AT_ONCE = 200;
 
 /**
- * Works out summaries a workspace's diagrams are missing: only ones written before summaries were kept, so this
- * finds nothing once a workspace has been listed.
+ * Works out summaries a workspace's diagrams are missing, or that were kept before they listed the diagrams their
+ * nodes zoom into: so this finds nothing once a workspace has been listed.
  */
 async function fillSummaries(db: D1Database, workspace: string): Promise<void> {
   const { results } = await db
-    .prepare("SELECT id, doc FROM diagrams WHERE workspace_id = ? AND summary IS NULL LIMIT ?")
+    .prepare("SELECT id, doc FROM diagrams WHERE workspace_id = ? AND (summary IS NULL OR json_type(summary, '$.zooms') IS NULL) LIMIT ?")
     .bind(workspace, FILL_AT_ONCE)
     .all<{ id: string; doc: string }>();
   if (results.length) await db.batch(results.map(r => db.prepare("UPDATE diagrams SET summary = ? WHERE id = ?").bind(summaryText(r.doc), r.id)));
