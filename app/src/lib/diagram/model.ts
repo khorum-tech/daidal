@@ -40,7 +40,10 @@ export interface SceneNode {
 	desc: string;
 	flags: string[];
 	tags: string[];
+	/** Its web links. */
 	links: { label?: string; url: string }[];
+	/** The diagrams it zooms into, in its links' order. */
+	zooms: ZoomLink[];
 	x: number;
 	y: number;
 	w: number;
@@ -172,6 +175,26 @@ export function noteHeight(name: string, notes: string, w: number): number {
 	return Math.ceil(2 * NOTE.pad + head + (body ? NOTE.gap + body * NOTE.line : 0));
 }
 
+/** A link from a node to another diagram (and one of its views) to zoom into. */
+export interface ZoomLink {
+	diagram: string;
+	view?: string;
+	label?: string;
+}
+
+/** [n]'s links to diagrams, the first per diagram; web links are left out. */
+export function zoomsOf(n: DocNode): ZoomLink[] {
+	const out: ZoomLink[] = [];
+	for (const l of Array.isArray(n.links) ? n.links : []) {
+		if (!l || typeof l.diagram !== 'string' || !l.diagram || out.some(z => z.diagram === l.diagram)) continue;
+		out.push({ diagram: l.diagram, ...(l.view ? { view: l.view } : {}), ...(l.label ? { label: l.label } : {}) });
+	}
+	return out;
+}
+
+/** A node's links in the document's shape: its web links, then the diagrams it zooms into. */
+export const docLinks = (web: SceneNode['links'], zooms: ZoomLink[]): NonNullable<DocNode['links']> => [...web, ...zooms];
+
 const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
 
 /**
@@ -240,7 +263,8 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind:
 		desc: n.notes ?? '',
 		flags: Array.isArray(n.flags) ? n.flags : [],
 		tags: (Array.isArray(n.tags) ? n.tags : []).filter(t => tagKeys.has(t)),
-		links: Array.isArray(n.links) ? n.links.filter(l => l && typeof l.url === 'string') : [],
+		links: (Array.isArray(n.links) ? n.links : []).filter(l => l && typeof l.url === 'string').map(l => ({ ...(l.label ? { label: l.label } : {}), url: l.url! })),
+		zooms: zoomsOf(n),
 		x: num(lay.x, 0),
 		y: num(lay.y, 0),
 		w,

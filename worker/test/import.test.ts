@@ -79,6 +79,31 @@ describe("POST /api/workspaces/import", () => {
     expect(mine).toHaveLength(2);
   });
 
+  it("points links and refs between diagrams in the file at their new ids, and leaves others alone", async () => {
+    const email = "i-links@example.com";
+    const zoom = { id: "gw", name: "Gateway", type: "service", links: [{ diagram: "parts", view: "All" }, { diagram: "elsewhere" }, { url: "example.com" }] };
+    const file = backup([
+      {
+        name: "Linked",
+        diagrams: [
+          { id: "top", doc: doc("top", { nodes: [zoom] }), snapshots: [{ id: "s1", label: "cut", doc: doc("top-1", { nodes: [zoom] }) }] },
+          { id: "parts", doc: doc("parts", { nodes: [{ id: "a", name: "A", type: "component", ref: "top#gw" }], boundaries: [{ id: "b", ref: "top#gw" }] }) },
+        ],
+      },
+    ]);
+    const res = await call.post(email, "/api/workspaces/import", file);
+    expect(res.status).toBe(201);
+    const list = (await call.get(email, `/api/diagrams?workspace=${res.body.workspaces[0].id}`)).body as { id: string; name: string }[];
+    const id = (name: string) => list.find(d => d.name === name)!.id;
+    const top = (await call.get(email, `/api/diagrams/${id("top")}`)).body;
+    expect(top.doc.nodes[0].links).toEqual([{ diagram: id("parts"), view: "All" }, { diagram: "elsewhere" }, { url: "example.com" }]);
+    const snaps = (await call.get(email, `/api/diagrams/${id("top")}/snapshots`)).body;
+    expect(snaps[0].doc.nodes[0].links[0]).toEqual({ diagram: id("parts"), view: "All" });
+    const parts = (await call.get(email, `/api/diagrams/${id("parts")}`)).body;
+    expect(parts.doc.nodes[0].ref).toBe(`${id("top")}#gw`);
+    expect(parts.doc.boundaries[0].ref).toBe(`${id("top")}#gw`);
+  });
+
   it("round-trips through export: same diagrams, history and follows", async () => {
     const file = backup([
       {

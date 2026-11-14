@@ -1,7 +1,7 @@
 import { cardSummary } from "../../app/src/lib/diagram/summary";
 import type { SkopeDoc } from "../../app/src/lib/types";
 
-const EMPTY = { kind: "", nodes: 0, edges: 0, tags: [], names: [], boxes: [], frames: [] };
+const EMPTY = { kind: "", nodes: 0, edges: 0, tags: [], names: [], boxes: [], frames: [], zooms: [] };
 
 /**
  * A diagram's card summary as stored in `diagrams.summary`, from its document's JSON: what the home page draws and

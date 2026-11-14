@@ -180,6 +180,19 @@ describe("the MCP server", () => {
     expect(out.nodes.map((n: { name: string; type: string }) => [n.name, n.type])).toEqual([["Bot", "Billing Bot"], ["Agent", "MCP Server"]]);
   });
 
+  it("links a node to another diagram to zoom into, and refuses one the person can't see", async () => {
+    const email = "mcp-zoom@example.com";
+    const { tool } = await client(email);
+    const top = await tool("create_diagram", { workspace: personal(email), name: "top", config: "nodes:\n  - { id: api, name: API }\n" });
+    const parts = await tool("create_diagram", { workspace: personal(email), name: "api parts", kind: "c4-component" });
+    await tool("update_node", { diagram: top.diagram, node: "API", links: [{ url: "example.com/runbook" }, { diagram: "api parts", view: "All" }] });
+    const node = (await tool("get_diagram", { diagram: top.diagram })).nodes[0];
+    expect(node.zoomsInto).toEqual([{ diagram: parts.diagram, view: "All" }]);
+    const { body: theirs } = await call.post("mcp-stranger@example.com", "/api/diagrams", { workspace: personal("mcp-stranger@example.com"), doc: doc("hidden") });
+    expect((await tool("update_node", { diagram: top.diagram, node: "API", links: [{ diagram: theirs.id }] })).error).toBeTruthy();
+    expect((await tool("update_node", { diagram: top.diagram, node: "API", links: [{ label: "nothing" }] })).error).toContain("needs a url");
+  });
+
   it("creates from a config or a template, and takes a snapshot", async () => {
     const email = "mcp-create@example.com";
     const { tool } = await client(email);

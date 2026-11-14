@@ -113,3 +113,40 @@ describe('the inspector', () => {
 		expect(changes).toEqual([{ icon: null }]);
 	});
 });
+
+describe('the inspector and diagrams to zoom into', () => {
+	const linked = toScene({
+		version: 1,
+		nodes: [{ id: 'api', name: 'API', type: 'service', links: [{ label: 'Runbook', url: 'example.com' }, { diagram: 'parts', view: 'Ops' }, { diagram: 'secret' }] }]
+	}).nodes[0];
+	const diagrams = [
+		{ id: 'parts', name: 'API parts' },
+		{ id: 'data', name: 'Data stores' }
+	];
+
+	it('opens a linked diagram, links another, and hides one the viewer cannot see', async () => {
+		const changes: NodeChange[] = [];
+		const zooms: string[] = [];
+		await render(Inspector, { node: linked, tags: {}, editable: true, diagrams, onzoom: z => zooms.push(z.diagram), onchange: c => changes.push(c) });
+		await page.getByRole('button', { name: /^API parts/ }).click();
+		expect(zooms).toEqual(['parts']);
+		expect(page.getByText('secret').elements()).toHaveLength(0);
+		await page.getByLabelText('Link a diagram to zoom into').selectOptions('Data stores');
+		expect(changes.at(-1)!.links).toEqual([{ label: 'Runbook', url: 'example.com' }, { diagram: 'parts', view: 'Ops' }, { diagram: 'secret' }, { diagram: 'data' }]);
+	});
+
+	it('keeps the diagram links when a web link is removed, and the web links when a diagram is unlinked', async () => {
+		const changes: NodeChange[] = [];
+		await render(Inspector, { node: linked, tags: {}, editable: true, diagrams, onchange: c => changes.push(c) });
+		await page.getByRole('button', { name: 'Remove link Runbook' }).click();
+		expect(changes.at(-1)!.links).toEqual([{ diagram: 'parts', view: 'Ops' }, { diagram: 'secret' }]);
+		await page.getByRole('button', { name: 'Stop zooming into API parts' }).click();
+		expect(changes.at(-1)!.links).toEqual([{ label: 'Runbook', url: 'example.com' }, { diagram: 'secret' }]);
+	});
+
+	it('lets a viewer zoom in but not link', async () => {
+		await render(Inspector, { node: linked, tags: {}, diagrams });
+		await expect.element(page.getByRole('button', { name: /^API parts/ })).toBeVisible();
+		expect(page.getByLabelText('Link a diagram to zoom into').elements()).toHaveLength(0);
+	});
+});

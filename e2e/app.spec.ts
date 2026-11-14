@@ -10,7 +10,7 @@ interface SavedNode {
   notes?: string;
   flags?: string[];
   tags?: string[];
-  links?: { label?: string; url: string }[];
+  links?: { label?: string; url?: string; diagram?: string; view?: string }[];
   layout: { x: number; y: number; w?: number; h?: number };
 }
 
@@ -1383,6 +1383,53 @@ test.describe("the app at /app", () => {
     await page.getByRole("button", { name: "Undo Make it C4 Component" }).click();
     expect((await saved(page, request, id)).doc.diagram.kind).toBe("c4-container");
   });
+  test("links a node to another diagram, zooms in by double-click, and comes back up with ⌘↑ and the breadcrumb", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const top = diagrams["ledger-platform"];
+    const child = diagrams["ledger-platform (DR drill)"];
+    await page.goto(`/app/d/${top}`);
+    const node = page.getByRole("button", { name: "Service: Edge Router" });
+    await node.click();
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    await inspector.getByLabel("Link a diagram to zoom into").selectOption("ledger-platform (DR drill)");
+    await expect(inspector.getByRole("button", { name: /^ledger-platform \(DR drill\)/ })).toBeVisible();
+    await expect(node.getByRole("img", { name: "Zooms in" })).toBeVisible();
+    expect((await saved(page, request, top)).doc.nodes.find(n => n.id === "edge")!.links).toEqual([{ diagram: child }]);
+
+    // A double-click opens it, and the header shows the way back.
+    await node.dblclick();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${child}\\?from=${top}`));
+    const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
+    await expect(crumbs.getByRole("link", { name: "ledger-platform" })).toBeVisible();
+    await expect(crumbs.getByRole("button", { name: "ledger-platform (DR drill)" })).toBeVisible();
+
+    // ⌘↑ goes back up, with the node that zoomed in selected.
+    await page.keyboard.press("ControlOrMeta+ArrowUp");
+    await expect(page).toHaveURL(new RegExp(`/app/d/${top}\\?focus=${child}`));
+    await expect(inspector.getByLabel("Name")).toHaveValue("Edge Router");
+
+    // ⌘↓ zooms in again from the selected node; the breadcrumb comes back up.
+    await page.keyboard.press("ControlOrMeta+ArrowDown");
+    await expect(page).toHaveURL(new RegExp(`/app/d/${child}`));
+    await crumbs.getByRole("link", { name: "ledger-platform" }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${top}`));
+
+    // The diagram's name in the header shows it has a diagram below, and its menu lists them all in one place.
+    await expect(crumbs.getByTestId("links-badge")).toHaveText("↓1");
+    await crumbs.getByRole("button", { name: "ledger-platform" }).click();
+    const linked = page.getByRole("region", { name: "Linked diagrams" });
+    await expect(linked.getByText("from Edge Router")).toBeVisible();
+    await linked.getByRole("link", { name: /ledger-platform \(DR drill\)/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${child}\\?from=${top}`));
+
+    // From below, the one above is listed too, and opens with the node that zooms in selected.
+    await expect(crumbs.getByTestId("links-badge")).toHaveText("↑1");
+    await crumbs.getByRole("button", { name: "ledger-platform (DR drill)" }).click();
+    await linked.getByRole("link", { name: /^ledger-platform$/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${top}\\?focus=${child}`));
+    await expect(inspector.getByLabel("Name")).toHaveValue("Edge Router");
+  });
+
   test("shows a note as a sticky note that grows with its text, and exports it the same way", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];

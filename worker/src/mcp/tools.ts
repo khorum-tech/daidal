@@ -28,7 +28,7 @@ import { catalogue, isNodeIcon, typeKey, type TypeCats } from "../../../app/src/
 import { KINDS, kindOf, type KindId } from "../../../app/src/lib/diagram/kinds";
 import { toScene } from "../../../app/src/lib/diagram/model";
 import { fromTemplate, TEMPLATES } from "../../../app/src/lib/diagram/templates";
-import type { CustomType, DocEdge, SkopeDoc } from "../../../app/src/lib/types";
+import type { CustomType, DocEdge, DocNode, SkopeDoc } from "../../../app/src/lib/types";
 
 /** A call to this Worker's API as the MCP client: the parsed JSON, or a thrown ToolError saying why not. */
 export type Api = (method: string, path: string, body?: unknown) => Promise<any>;
@@ -163,6 +163,19 @@ function strangers(before: SkopeDoc, next: SkopeDoc, cats: TypeCats): string[] {
   return (next.nodes ?? []).filter(n => had.get(n.id) !== n.type && !known.has(typeKey(n.type ?? ""))).map(n => `${n.name} (${n.type})`);
 }
 
+/** Links as update_node takes them: a web page needs a url; a diagram to zoom into must be one this person can see. */
+async function linksIn(api: Api, given: Row[]): Promise<NonNullable<DocNode["links"]>> {
+  if (given.some(l => !str(l.diagram) && !str(l.url))) throw new ToolError("a link needs a url (a web page) or a diagram (to zoom into)");
+  return Promise.all(
+    given.map(async l => {
+      const label = str(l.label) ? { label: str(l.label) } : {};
+      if (!str(l.diagram)) return { ...label, url: str(l.url) };
+      const target = await diagramOf(api, l.diagram);
+      return { ...label, diagram: target.id, ...(str(l.view) ? { view: str(l.view) } : {}) };
+    }),
+  );
+}
+
 function nodeOf(doc: SkopeDoc, param: unknown, label = "node"): string {
   const wanted = str(param).trim();
   if (!wanted) throw new ToolError(`${label} is required (a node id, or an exact name)`);
@@ -258,6 +271,7 @@ function outline(d: Diagram, me: string, workspace?: string): Row {
       ...(n.sub ? { subtitle: n.sub } : {}),
       ...(n.tags.length ? { tags: n.tags } : {}),
       ...(n.ownIcon ? { icon: n.ownIcon } : {}),
+      ...(n.zooms.length ? { zoomsInto: n.zooms } : {}),
       x: n.x,
       y: n.y,
     })),
@@ -506,7 +520,7 @@ export const TOOLS: Tool[] = [
   {
     name: "update_node",
     title: "Change a node",
-    description: "Changes what you name on a node: name, type, subtitle, notes, tags (replaces them), flags (db, cache, mq), links, its own icon (null for its type's), or where it sits (x, y).",
+    description: "Changes what you name on a node: name, type, subtitle, notes, tags (replaces them), flags (db, cache, mq), links (web pages, or diagrams to zoom into; replaces them), its own icon (null for its type's), or where it sits (x, y).",
     readOnly: false,
     inputSchema: schema(
       {
@@ -518,7 +532,11 @@ export const TOOLS: Tool[] = [
         notes: { type: "string" },
         tags: { type: "array", items: { type: "string" } },
         flags: { type: "array", items: { type: "string", enum: ["db", "cache", "mq"] } },
-        links: { type: "array", items: { type: "object", properties: { label: { type: "string" }, url: { type: "string" } }, required: ["url"], additionalProperties: false } },
+        links: {
+          type: "array",
+          description: "Replaces its links. Each is a web page (url) or another diagram in the workspace to zoom into (diagram: its id, view: optionally one of its views)",
+          items: { type: "object", properties: { label: { type: "string" }, url: { type: "string" }, diagram: { type: "string" }, view: { type: "string" } }, additionalProperties: false },
+        },
         icon: { type: ["string", "null"], description: "An icon from the library, or null for the type's" },
         x: { type: "number" },
         y: { type: "number" },
@@ -527,6 +545,7 @@ export const TOOLS: Tool[] = [
     ),
     run: async (args, api) => {
       const type = typeof args.type === "string" ? typeIn(await typesOf(api, args.diagram), args.type) : undefined;
+      const links = Array.isArray(args.links) ? await linksIn(api, args.links as Row[]) : undefined;
       return save(
         api,
         args.diagram,
@@ -537,7 +556,7 @@ export const TOOLS: Tool[] = [
           for (const key of ["name", "subtitle", "notes"] as const) if (typeof args[key] === "string") change[key] = args[key];
           if (type) change.type = type;
           if (Array.isArray(args.flags)) change.flags = list(args.flags);
-          if (Array.isArray(args.links)) change.links = (args.links as Row[]).filter(l => str(l.url)).map(l => ({ ...(str(l.label) ? { label: str(l.label) } : {}), url: str(l.url) }));
+          if (links) change.links = links;
           if (args.icon === null) change.icon = null;
           else if (typeof args.icon === "string") {
             if (!isNodeIcon(args.icon)) throw new ToolError(`no icon ${JSON.stringify(args.icon)} in the library`);

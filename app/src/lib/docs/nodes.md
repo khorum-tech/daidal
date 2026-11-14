@@ -46,3 +46,12 @@ A mouse resting on a node shows its card: notes, tags and connections.
 ## Many at once
 
 Shift-click (or ⌘-click) adds nodes and connections to the pick; a drag on empty canvas with Shift held draws a box that picks what it touches; ⌘A picks every node. The details then change the type or tags of every picked node at once, and dragging any of them moves them all. ⌘C, ⌘X and ⌘V copy, cut and paste nodes with the connections between them, in the same diagram or another.
+
+## Zooming into another diagram
+
+A node can open another diagram in the same workspace: a system into its containers, a container into its components. In the node's details, under **Zoom in**, pick **Link a diagram to zoom into**. The card then shows a magnifying glass.
+
+- **Zoom in** with a double-click on the node, ⌘↓ with it selected, or its button under **Zoom in** in the details (on a phone, the only way). A node that zooms into several diagrams opens its details to choose.
+- The header shows the way back up: the diagrams you came through, outermost first. Press one, or ⌘↑ for the one just above, and you're back with the node that zoomed in selected.
+- When a diagram has others above or below it, the header shows a small badge by its name, such as **↑1 ↓2**. Press the name: **Linked diagrams** lists them all, above (diagrams with a node that zooms into this one) and below (the ones this one's nodes zoom into, with which nodes), each one press away.
+- A link to a diagram you can't see doesn't show. Links follow a workspace through a backup and import.

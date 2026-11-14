@@ -15,6 +15,7 @@ order: 11
 | Delete or Backspace | Delete the selection |
 | ⌘A | Pick every node |
 | ⌘C / ⌘X / ⌘V | Copy / cut / paste nodes |
+| ⌘↓ / ⌘↑ | Zoom into the selected node's diagram / back up to the one you came from |
 | Escape | Stop connecting or picking; end presenting |
 | Arrow keys | Pan (with the canvas focused) |
 | `+` / `-` / `0` | Zoom in / out / fit |
@@ -25,7 +26,7 @@ On Windows and Linux, Ctrl stands in for ⌘.
 
 ## Mouse
 
-Drag empty canvas to pan; scroll to pan; ctrl+scroll or pinch to zoom. Double-click empty canvas to add a node, or a node's name to rename it. Shift-drag on empty canvas draws a box that picks what it touches.
+Drag empty canvas to pan; scroll to pan; ctrl+scroll or pinch to zoom. Double-click empty canvas to add a node, or a node's name to rename it; a node that zooms into another diagram opens it instead. Shift-drag on empty canvas draws a box that picks what it touches.
 
 ## Touch
 
