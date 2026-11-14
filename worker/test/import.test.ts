@@ -93,8 +93,10 @@ describe("POST /api/workspaces/import", () => {
     ]);
     const res = await call.post(email, "/api/workspaces/import", file);
     expect(res.status).toBe(201);
-    const list = (await call.get(email, `/api/diagrams?workspace=${res.body.workspaces[0].id}`)).body as { id: string; name: string }[];
+    const list = (await call.get(email, `/api/diagrams?workspace=${res.body.workspaces[0].id}`)).body as { id: string; name: string; summary: { zooms: string[] } }[];
     const id = (name: string) => list.find(d => d.name === name)!.id;
+    // The card summary names what it zooms into by the new id too: that is how a diagram knows what is above it.
+    expect(list.find(d => d.name === "top")!.summary.zooms).toEqual([id("parts"), "elsewhere"]);
     const top = (await call.get(email, `/api/diagrams/${id("top")}`)).body;
     expect(top.doc.nodes[0].links).toEqual([{ diagram: id("parts"), view: "All" }, { diagram: "elsewhere" }, { url: "example.com" }]);
     const snaps = (await call.get(email, `/api/diagrams/${id("top")}/snapshots`)).body;

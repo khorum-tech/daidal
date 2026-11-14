@@ -169,7 +169,7 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
       const where = `diagram ${local}`;
       const updated = time(d.updated, now);
       const doc = docText(d.doc, `${where}'s doc`);
-      diagrams.push({ id, workspace_id: workspaceId, name: nameOf(d.name ?? docName(d.doc), `${where}'s name`), doc, summary: summaryText(doc), updated_at: updated });
+      diagrams.push({ id, workspace_id: workspaceId, name: nameOf(d.name ?? docName(d.doc), `${where}'s name`), doc, summary: "", updated_at: updated });
       entry.diagrams += 1;
 
       const ids = new Map<string, string>();
@@ -228,6 +228,9 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
   // A node's links to other diagrams (links[].diagram) and its ref ("<diagram>#<node>") name diagrams by their id in
   // the file; once every diagram has its new id, they follow. One pointing outside the file is left as it is.
   for (const row of [...diagrams, ...snapshots]) row.doc = withNewDiagramIds(row.doc, newId);
+  // The card summary lists the diagrams a diagram zooms into, so it is worked out from the renamed document: from the
+  // file's ids it would name diagrams that don't exist, and nothing would know what sits above an imported diagram.
+  for (const row of diagrams) row.summary = summaryText(row.doc);
 
   const cols = (names: string[]) => names.map(n => `json_extract(value, '$.${n}')`).join(", ");
   statements.push(
