@@ -1,0 +1,8 @@
+[
+  { "scene": "intro", "overlay": { "type": "headline-card", "kicker": "Daidal", "title": "The architecture diagram that stays true", "placement": "center", "motion": "fade-in" } },
+  { "scene": "typed", "overlay": { "type": "lower-third", "text": "Typed nodes with details, not loose shapes", "placement": "bottom-center", "motion": "slide-in" } },
+  { "scene": "tags", "overlay": { "type": "lower-third", "text": "Tags and views slice the same diagram", "placement": "bottom-center", "motion": "slide-in" } },
+  { "scene": "context", "overlay": { "type": "lower-third", "text": "C4: start at the Context level", "placement": "bottom-center", "motion": "slide-in" } },
+  { "scene": "zoom", "overlay": { "type": "lower-third", "text": "Double-click to zoom in. The header shows every level above", "placement": "bottom-center", "motion": "fade-in" } },
+  { "scene": "outro", "overlay": { "type": "headline-card", "kicker": "Daidal", "title": "Diagrams an AI can read and write", "body": "Source-available. Self-host on Cloudflare.", "placement": "center", "motion": "fade-in" } }
+]

@@ -12,12 +12,14 @@
     "stage-seed": "tsx scripts/stage-seed.ts",
     "e2e": "playwright test",
     "playwright:install": "playwright install --with-deps chromium",
+    "demo": "argo pipeline tour",
     "docs:shots": "npm run build && playwright test -c playwright.docs.config.ts"
   },
   "dependencies": {
     "jose": "^6.2.15"
   },
   "devDependencies": {
+    "@argo-video/cli": "0.42.1",
     "@cloudflare/vitest-plugin": "^1.5.0",
     "@cloudflare/workers-types": "^5.20261012.1",
     "@phosphor-icons/core": "^2.1.1",
