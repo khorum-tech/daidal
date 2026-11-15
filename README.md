@@ -9,6 +9,10 @@
 small YAML/JSON format an AI can read and write; and, with the planned C4 work, levels that link to each other and
 tell you when they disagree.
 
+![A 50-second tour: typed nodes and their details, tags filtering a diagram, and a C4 set walked from Context down to Components](docs/demo/tour.gif)
+
+<sub>[The same tour as a video](docs/demo/tour.mp4) · [how it is recorded](docs/demo.md)</sub>
+
 Say it *DAY-dal* — after Daidalos, the architect who could still find his way out of the labyrinth.
 
 > **Status:** source-available, early. The hosted instance is invite-only while sign-in moves off Cloudflare

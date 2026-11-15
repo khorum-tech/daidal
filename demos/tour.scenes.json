@@ -1,8 +1,77 @@
 [
-  { "scene": "intro", "overlay": { "type": "headline-card", "kicker": "Daidal", "title": "The architecture diagram that stays true", "placement": "center", "motion": "fade-in" } },
-  { "scene": "typed", "overlay": { "type": "lower-third", "text": "Typed nodes with details, not loose shapes", "placement": "bottom-center", "motion": "slide-in" } },
-  { "scene": "tags", "overlay": { "type": "lower-third", "text": "Tags and views slice the same diagram", "placement": "bottom-center", "motion": "slide-in" } },
-  { "scene": "context", "overlay": { "type": "lower-third", "text": "C4: start at the Context level", "placement": "bottom-center", "motion": "slide-in" } },
-  { "scene": "zoom", "overlay": { "type": "lower-third", "text": "Double-click to zoom in. The header shows every level above", "placement": "bottom-center", "motion": "fade-in" } },
-  { "scene": "outro", "overlay": { "type": "headline-card", "kicker": "Daidal", "title": "Diagrams an AI can read and write", "body": "Source-available. Self-host on Cloudflare.", "placement": "center", "motion": "fade-in" } }
+  {
+    "scene": "intro",
+    "overlay": {
+      "type": "block",
+      "block": "logo-outro",
+      "props": {
+        "title": "Daidal",
+        "tagline": "The architecture diagram that stays true",
+        "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIxNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48c3R5bGU+c3Zne2NvbG9yOiM5NTg1ZGN9PC9zdHlsZT48cGF0aCBkPSJNMTI4IDIwIDIyMS41IDc0VjE4MkwxMjggMjM2IDM0LjUgMTgyVjc0WiIvPjxwYXRoIGQ9Ik0zNC41IDc0IDE1OCAxNDUuMyAxMjggMTYyLjZWMjM2Ii8+PHBhdGggZD0iTTIyMS41IDc0IDE3Ni41IDEwMCAxMjggNzIiLz48Y2lyY2xlIGN4PSIxMjgiIGN5PSI3MiIgcj0iMTciIGZpbGw9ImN1cnJlbnRDb2xvciIgc3Ryb2tlPSJub25lIi8+PGNpcmNsZSBjeD0iMTU4IiBjeT0iMTQ1LjMiIHI9IjE3IiBmaWxsPSJjdXJyZW50Q29sb3IiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==",
+        "accentColor": "#9585dc"
+      },
+      "placement": "center",
+      "autoBackground": false
+    }
+  },
+  {
+    "scene": "typed",
+    "overlay": {
+      "type": "lower-third",
+      "text": "Typed nodes with details, not loose shapes",
+      "placement": "bottom-center",
+      "motion": "slide-in"
+    }
+  },
+  {
+    "scene": "tags",
+    "overlay": {
+      "type": "lower-third",
+      "text": "Tags and views slice the same diagram",
+      "placement": "bottom-center",
+      "motion": "slide-in"
+    }
+  },
+  {
+    "scene": "context",
+    "overlay": {
+      "type": "lower-third",
+      "text": "C4: start at the Context level",
+      "placement": "bottom-center",
+      "motion": "slide-in"
+    }
+  },
+  {
+    "scene": "zoom",
+    "overlay": {
+      "type": "lower-third",
+      "text": "Double-click a node to zoom in a level",
+      "placement": "bottom-center",
+      "motion": "fade-in"
+    }
+  },
+  {
+    "scene": "levels",
+    "overlay": {
+      "type": "lower-third",
+      "text": "The header shows every level above",
+      "placement": "bottom-center",
+      "motion": "fade-in"
+    }
+  },
+  {
+    "scene": "outro",
+    "overlay": {
+      "type": "block",
+      "block": "logo-outro",
+      "props": {
+        "title": "Daidal",
+        "tagline": "Diagrams an AI can read and write",
+        "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIxNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48c3R5bGU+c3Zne2NvbG9yOiM5NTg1ZGN9PC9zdHlsZT48cGF0aCBkPSJNMTI4IDIwIDIyMS41IDc0VjE4MkwxMjggMjM2IDM0LjUgMTgyVjc0WiIvPjxwYXRoIGQ9Ik0zNC41IDc0IDE1OCAxNDUuMyAxMjggMTYyLjZWMjM2Ii8+PHBhdGggZD0iTTIyMS41IDc0IDE3Ni41IDEwMCAxMjggNzIiLz48Y2lyY2xlIGN4PSIxMjgiIGN5PSI3MiIgcj0iMTciIGZpbGw9ImN1cnJlbnRDb2xvciIgc3Ryb2tlPSJub25lIi8+PGNpcmNsZSBjeD0iMTU4IiBjeT0iMTQ1LjMiIHI9IjE3IiBmaWxsPSJjdXJyZW50Q29sb3IiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==",
+        "accentColor": "#9585dc"
+      },
+      "placement": "center",
+      "autoBackground": false
+    }
+  }
 ]

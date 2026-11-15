@@ -3,7 +3,7 @@
  * It runs against the stage data (docs/demo.md says how to load it), signed in through the localhost dev sign-in.
  * Silent: the captions in tour.scenes.json carry it. `test` must come from Argo, which supplies `narration`.
  */
-import { test, showOverlay, createHumanCursor, resetCursor } from '@argo-video/cli';
+import { test, showOverlay, createHumanCursor, resetCursor, zoomTo } from '@argo-video/cli';
 
 const hold = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -30,7 +30,7 @@ test('tour', async ({ page, narration }) => {
   try {
     // ---- 1. What it is.
     narration.mark('intro');
-    await showOverlay(page, 'intro', 3600);
+    await showOverlay(page, 'intro', 3200);
 
     // ---- 2. A node is a typed thing with details, not a loose shape.
     narration.mark('typed');
@@ -59,30 +59,40 @@ test('tour', async ({ page, narration }) => {
     await cursor.moveTo(page.getByRole('button', { name: 'System: Ledger' }), { durationMs: 900 });
     await hold(1900);
 
-    // ---- 5. …zooms into Containers, then Components; the header keeps the way back.
+    // ---- 5. …zooms into Containers, then Components.
     narration.mark('zoom');
-    showOverlay(page, 'zoom', 7400);
+    showOverlay(page, 'zoom', 6200);
     await page.getByRole('button', { name: 'System: Ledger' }).dblclick();
     await page.getByRole('button', { name: 'Service: Postings Service' }).waitFor();
-    await hold(1500);
+    await hold(1400);
     await cursor.moveTo(page.getByRole('button', { name: 'Service: Postings Service' }), { durationMs: 900 });
     await hold(500);
     await page.getByRole('button', { name: 'Service: Postings Service' }).dblclick();
     await page.getByTestId('kind-badge').last().waitFor();
-    await hold(1300);
-    await cursor.moveTo(page.getByRole('navigation', { name: 'Breadcrumb' }), { durationMs: 1000 });
-    await hold(1800);
+    await cursor.moveTo(page.getByRole('button', { name: 'Component: Postings API' }), { durationMs: 900 });
+    await hold(1200);
 
-    // ---- 6. Close.
+    // ---- 6. The header keeps the way back: the camera goes in on it (a zoom added at export, so captions stay put).
+    narration.mark('levels');
+    // The caption comes first: the zoom crops the frame to the header, which would cut a caption off.
+    const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' });
+    showOverlay(page, 'levels', 1900);
+    await cursor.moveTo(crumbs, { durationMs: 1500 });
+    await hold(500);
+    await zoomTo(page, crumbs, { narration, scale: 1.7, holdMs: 2400 });
+    await cursor.moveTo(page.getByTestId('kind-badge').last(), { durationMs: 1200 });
+    await hold(2600);
+
+    // ---- 7. Close.
     narration.mark('outro');
-    showOverlay(page, 'outro', 6000);
+    showOverlay(page, 'outro', 4600);
     // The capture takes a frame when the page paints, so the pointer keeps moving under the closing card: a still
     // screen would end the film where the card appears.
     await cursor.moveTo(page.getByRole('link', { name: 'Skope' }), { durationMs: 1800 });
     await hold(600);
     await cursor.moveTo(page.getByRole('navigation', { name: 'Breadcrumb' }), { durationMs: 1400 });
-    await hold(1500);
-    await cursor.moveTo(page.getByRole('link', { name: 'Skope' }), { durationMs: 900 });
+    await hold(900);
+    await cursor.moveTo(page.getByRole('link', { name: 'Skope' }), { durationMs: 700 });
   } finally {
     await cursor.dispose();
     await resetCursor(page);

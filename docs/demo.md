@@ -23,7 +23,15 @@ The second line clears your local database and loads the stage data ([stage.md](
 npm run demo
 ```
 
-`videos/`, `.argo/` and `test-results/` are not committed. `npx argo preview tour` opens an editor for the captions
+`videos/`, `.argo/` and `test-results/` are not committed. The README shows `docs/demo/tour.gif`, with
+`docs/demo/tour.mp4` beside it; after a take you want to keep, refresh both:
+
+```sh
+cp videos/tour.mp4 docs/demo/tour.mp4
+ffmpeg -y -i videos/tour.mp4 -vf "fps=8,scale=800:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" docs/demo/tour.gif
+```
+
+(Argo's own `videos/tour.gif` is full size, about 6 MB: too heavy for a README.) `npx argo preview tour` opens an editor for the captions
 and timing on 127.0.0.1.
 
 ## Change it
@@ -32,5 +40,10 @@ and timing on 127.0.0.1.
   `@argo-video/cli`.
 - What the captions say: `demos/tour.scenes.json`, one entry per scene, same names. Adding `"text"` to a scene
   makes it spoken, which needs a voice engine (`npx argo doctor` lists them).
+- The opening and closing cards are Argo's built-in `logo-outro` block, with the mark inlined as a data URI. They
+  animate with GSAP, loaded as an inline script, so the recording browser alone runs with `bypassCSP`
+  (`argo.config.mjs`); the app's own policy is untouched.
+- `zoomTo(..., { narration })` adds its zoom at export by cropping the frame, which cuts off any caption showing
+  at the time: show the caption first, then zoom.
 - The capture takes a frame when the page paints. A scene that ends on a still screen is cut short, so keep the
   pointer moving under a closing card.
