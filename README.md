@@ -9,9 +9,9 @@
 small YAML/JSON format an AI can read and write; and, with the planned C4 work, levels that link to each other and
 tell you when they disagree.
 
-![A 50-second tour: typed nodes and their details, tags filtering a diagram, and a C4 set walked from Context down to Components](docs/demo/tour.gif)
+![A one-minute tour of one freeform diagram: tags switched off to fade what isn't needed, one tag soloed, saved views a click apart, a new view saved from the tags on, and a node's tags isolated](docs/demo/tour.gif)
 
-<sub>[The same tour as a video](docs/demo/tour.mp4) · [how it is recorded](docs/demo.md)</sub>
+<sub>[The same tour as a video](docs/demo/tour.mp4) · [C4 drill-down, in 35 seconds](docs/demo/c4.gif) · [how they are recorded](docs/demo.md)</sub>
 
 Say it *DAY-dal* — after Daidalos, the architect who could still find his way out of the labyrinth.
 

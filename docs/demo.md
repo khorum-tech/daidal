@@ -1,8 +1,16 @@
-# The product demo
+# The product demos
 
-`demos/tour.demo.ts` is a Playwright script that [Argo](https://github.com/shreyaskarnik/argo) records into
-`videos/tour.mp4` and `videos/tour.gif`: about 40 seconds, silent, with the captions in `demos/tour.scenes.json`.
-It runs against the stage data on your own machine; nothing leaves it, and no voice engine or API key is involved.
+Two short films, each a Playwright script that [Argo](https://github.com/shreyaskarnik/argo) records. Both are
+silent, with captions, and run against the stage data on your own machine; nothing leaves it, and no voice engine
+or API key is involved.
+
+| Film | Script and captions | About |
+|---|---|---|
+| **The tour** (on the README, about a minute) | `demos/tour.demo.ts`, `demos/tour.scenes.json` | One freeform diagram and the ways to show a slice of it: tags off, solo, saved views, saving a view, isolating a node's tags |
+| **C4 drill-down** (35 seconds) | `demos/c4.demo.ts`, `demos/c4.scenes.json` | A linked C4 set walked from Context down to Components, and the header's way back |
+
+The tour makes the stage data's `ledger-platform` freeform before it starts (a C4 Container diagram otherwise), and
+saves a view in it on camera. Load the stage data afresh before each take.
 
 **Argo is not one of this project's dependencies.** It is a recording tool that runs shell commands and can reach
 the network, so it stays out of `package.json` and the lockfile and is installed only when a new take is wanted:
@@ -24,11 +32,12 @@ The second line clears your local database and loads the stage data ([stage.md](
 
 ```sh
 npm i --no-save @argo-video/cli@0.42.1
-npm run demo
+npm run demo        # the tour  → videos/tour.mp4
+npm run demo:c4     # C4        → videos/c4.mp4
 ```
 
-`videos/`, `.argo/` and `test-results/` are not committed. The README shows `docs/demo/tour.gif`, with
-`docs/demo/tour.mp4` beside it; after a take you want to keep, refresh both:
+`videos/`, `.argo/` and `test-results/` are not committed. The README shows `docs/demo/tour.gif` and links
+the rest of `docs/demo/`; after a take you want to keep, refresh it (and the same for `c4`):
 
 ```sh
 cp videos/tour.mp4 docs/demo/tour.mp4
@@ -40,14 +49,15 @@ and timing on 127.0.0.1.
 
 ## Change it
 
-- What happens: `demos/tour.demo.ts`. Each `narration.mark('<scene>')` starts a scene; keep `test` imported from
+- What happens: the `.demo.ts` file. Each `narration.mark('<scene>')` starts a scene; keep `test` imported from
   `@argo-video/cli`.
-- What the captions say: `demos/tour.scenes.json`, one entry per scene, same names. Adding `"text"` to a scene
+- What the captions say: the `.scenes.json` file, one entry per scene, same names. Adding `"text"` to a scene
   makes it spoken, which needs a voice engine (`npx argo doctor` lists them).
 - The opening and closing cards are Argo's built-in `logo-outro` block, with the mark inlined as a data URI. They
   animate with GSAP, loaded as an inline script, so the recording browser alone runs with `bypassCSP`
   (`argo.config.mjs`); the app's own policy is untouched.
 - `zoomTo(..., { narration })` adds its zoom at export by cropping the frame, which cuts off any caption showing
-  at the time: show the caption first, then zoom.
+  at the time: show the caption first, then zoom. The zoom is kept in `.argo/<film>/`; delete that folder when a
+  script stops zooming, or the old zoom is applied to the new take.
 - The capture takes a frame when the page paints. A scene that ends on a still screen is cut short, so keep the
   pointer moving under a closing card.
