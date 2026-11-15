@@ -10,6 +10,8 @@ if (!existsSync("app/build/index.html")) {
 }
 rmSync(out, { recursive: true, force: true });
 cpSync("app/build", `${out}/app`, { recursive: true });
+// Browsers ask the site root for /favicon.ico whatever the page says, so the icons sit there too.
+for (const icon of ["favicon.ico", "favicon.svg"]) cpSync(`app/build/${icon}`, `${out}/${icon}`);
 const lines = Object.entries(SECURITY_HEADERS).map(([k, v]) => `  ${k}: ${v}`);
 writeFileSync(`${out}/_headers`, `/*\n${lines.join("\n")}\n`);
 console.log(`assembled ${out}/ (app at /app, which / redirects to; security headers in _headers)`);

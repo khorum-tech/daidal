@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/daidal-mark-dark.svg">
+  <img src="docs/brand/daidal-mark-light.svg" alt="" width="56">
+</picture>
+
 # Daidal
 
 **The architecture diagram that stays true.** Typed nodes, tags, views and boundaries instead of loose shapes; a

@@ -9,6 +9,7 @@
 	import type { Workspace } from '../types';
 	import AccessTokens from './AccessTokens.svelte';
 	import Icon from './Icon.svelte';
+	import Logo from './Logo.svelte';
 	import ProfileSheet from './ProfileSheet.svelte';
 	import { startTour } from '../tour';
 	import Sheet from './Sheet.svelte';
@@ -95,7 +96,7 @@
 
 <header class="bar">
 	<a class="brand" href={homeHref}>
-		<span class="mark"><Icon name="logo" size={20} /></span>
+		<span class="mark"><Logo size={22} /></span>
 		<span>Skope</span>
 	</a>
 	{#if crumbs.length}
