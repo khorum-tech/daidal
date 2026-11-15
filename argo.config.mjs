@@ -1,4 +1,5 @@
 // Argo (https://github.com/shreyaskarnik/argo) records the product demo: `npm run demo` with the app on :8790.
+// Argo is not a dependency here: install it first, unsaved (`npm i --no-save @argo-video/cli@0.42.1`).
 // Silent by design (captions only), so it needs no voice engine and no API key. See docs/demo.md.
 import { defineConfig } from '@argo-video/cli';
 

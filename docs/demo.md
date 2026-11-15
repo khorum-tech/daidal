@@ -4,8 +4,11 @@
 `videos/tour.mp4` and `videos/tour.gif`: about 40 seconds, silent, with the captions in `demos/tour.scenes.json`.
 It runs against the stage data on your own machine; nothing leaves it, and no voice engine or API key is involved.
 
-Argo is pinned (`@argo-video/cli` 0.42.1, the version that was read through before it was added). Don't run
-`argo add` (it fetches third-party overlay code) and leave `overlays.allowRawGsap` off.
+**Argo is not one of this project's dependencies.** It is a recording tool that runs shell commands and can reach
+the network, so it stays out of `package.json` and the lockfile and is installed only when a new take is wanted:
+`--no-save` below puts it in `node_modules` without recording it, and the next `npm ci` removes it. Use 0.42.1,
+the version that was read through; read a newer one before moving to it. Don't run `argo add` (it fetches
+third-party overlay code) and leave `overlays.allowRawGsap` off.
 
 ## Record it
 
@@ -20,6 +23,7 @@ npx wrangler dev --port 8790 --var DEV_USER_EMAIL:demo@example.com
 The second line clears your local database and loads the stage data ([stage.md](stage.md)). Then, in another shell:
 
 ```sh
+npm i --no-save @argo-video/cli@0.42.1
 npm run demo
 ```
 
