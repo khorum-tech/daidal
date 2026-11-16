@@ -19,7 +19,7 @@ describe('the config panel', () => {
 	it('shows the diagram as YAML or JSON, and only copying and downloading when read-only', async () => {
 		const got: [string, string][] = [];
 		await render(ConfigPanel, { doc, ondownload: (text: string, lang: string) => got.push([lang, text]) });
-		await expect.element(area()).toHaveValue(expect.stringContaining('# checkout: a Skope diagram config'));
+		await expect.element(area()).toHaveValue(expect.stringContaining('# checkout: a Daidal diagram config'));
 		await expect.element(area()).toHaveAttribute('readonly');
 		await page.getByRole('radio', { name: 'JSON' }).click();
 		await expect.element(area()).toHaveValue(expect.stringMatching(/^\{\n {2}"version": 1/));

@@ -51,8 +51,8 @@ export interface DiagramSummary {
 
 /**
  * What a card shows of a diagram without its document (the server works it out on every save; see
- * worker/src/summary.ts): its kind, counts, the first five tag colours, node names, and its thumbnail's boxes as
- * [x, y, w, h], nodes then containers.
+ * worker/src/summary.ts): its kind, counts, the first five tag colours, node names, its thumbnail's boxes as
+ * [x, y, w, h], nodes then containers, and the diagrams its nodes zoom into.
  */
 export interface CardSummary {
 	kind: string;
@@ -62,6 +62,8 @@ export interface CardSummary {
 	names: string[];
 	boxes: number[][];
 	frames: number[][];
+	/** Ids of the diagrams its nodes zoom into. Missing in a summary kept before drill-down. */
+	zooms?: string[];
 }
 
 /** A diagram as the list returns it: with its card summary and, for a follower, its lead's name if it can be seen. */
@@ -101,7 +103,18 @@ export interface DocNode {
 	tags?: string[];
 	layout?: { x: number; y: number; w?: number; h?: number };
 	notes?: string;
-	links?: { label?: string; url: string }[];
+	/** Web pages ({ url }) and diagrams to zoom into ({ diagram, view? }), in one list. */
+	links?: NodeLink[];
+	/** "<diagram id>#<node id>": this node is the same thing as that node in another diagram. */
+	ref?: string;
+}
+
+/** A node's link: a web page by its url, or another diagram in the workspace (and one of its views) to zoom into. */
+export interface NodeLink {
+	label?: string;
+	url?: string;
+	diagram?: string;
+	view?: string;
 }
 
 export interface DocEdge {
@@ -123,6 +136,8 @@ export interface DocBoundary {
 	moveContents?: boolean;
 	layout?: { x: number; y: number; w: number; h: number };
 	labelPosition?: string;
+	/** "<diagram id>#<node id>": the node in another diagram this container expands (a C4 child diagram's scope). */
+	ref?: string;
 }
 
 export interface SkopeDoc {

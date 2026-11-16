@@ -79,6 +79,9 @@
 		<!-- C4 notation: the name, its element line ("[Container: Kotlin]"), and its notes as a short description. -->
 		{#if first}<span class="c4-edge" title={tagTitle} style:background={first.color}></span>{/if}
 		{#if node.c4.role === 'person'}<span class="c4-head" aria-hidden="true"></span>{/if}
+		{#if node.zooms.length}
+			<span class="zoom-mark c4-zoom" title="Zooms into {node.zooms.length === 1 ? 'a diagram' : `${node.zooms.length} diagrams`}"><Icon name="magnifyingGlassPlus" size={12} label="Zooms in" /></span>
+		{/if}
 		{#each c4Name(node.name, node.w) as line, i (i)}<span class="c4-name">{line}</span>{/each}
 		{#each c4Kind(node.c4.line, node.w) as line, i (i)}<span class="c4-kind">{line}</span>{/each}
 		{#if node.c4.desc.trim()}
@@ -95,6 +98,9 @@
 				{#each flags as f (f.id)}<span title={f.label} class="flag"><Icon name={f.icon} size={11} label={f.label} /></span>{/each}
 				{#if first}<span class="dot" title={tagTitle} style:background={first.color}></span>{/if}
 			</span>
+			{#if node.zooms.length}
+				<span class="zoom-mark" title="Zooms into {node.zooms.length === 1 ? 'a diagram' : `${node.zooms.length} diagrams`}"><Icon name="magnifyingGlassPlus" size={11} label="Zooms in" /></span>
+			{/if}
 			{#if node.links.length}
 				<span class="links" title={linkTitle}><Icon name="globe" size={11} />{node.links.length}</span>
 			{/if}
@@ -221,6 +227,11 @@
 		border: inherit;
 		box-sizing: border-box;
 	}
+	.c4-zoom {
+		position: absolute;
+		top: 8px;
+		right: 8px;
+	}
 	.c4-edge {
 		position: absolute;
 		left: 0;
@@ -287,6 +298,11 @@
 		width: 7px;
 		height: 7px;
 		border-radius: 50%;
+	}
+	.zoom-mark {
+		display: flex;
+		flex: none;
+		color: var(--color-accent-300);
 	}
 	.links {
 		display: flex;

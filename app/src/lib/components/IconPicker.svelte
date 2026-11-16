@@ -3,7 +3,7 @@
 	import Icon from './Icon.svelte';
 
 	/**
-	 * Picks an icon from Skope's library (diagram/icon-library.json), searched by name, label and keyword. Every icon
+	 * Picks an icon from Daidal's library (diagram/icon-library.json), searched by name, label and keyword. Every icon
 	 * comes from the one set, so whatever is picked matches the rest of the app. [current] is marked; picking one
 	 * calls [onpick] with its name.
 	 */

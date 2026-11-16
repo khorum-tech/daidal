@@ -37,6 +37,7 @@ describe("diagrams", () => {
       names: ["Gateway"],
       boxes: [[10, 20, 190, 88]],
       frames: [],
+      zooms: [],
     });
   });
 
@@ -54,6 +55,13 @@ describe("diagrams", () => {
     await env.DB.prepare("UPDATE diagrams SET summary = NULL WHERE id = ?").bind(d.id).run();
     const [filled] = (await call.get("d-summary@example.com", `/api/diagrams?workspace=${ws}`)).body;
     expect(filled.summary).toEqual(saved.summary);
+
+    // One kept before summaries listed what a diagram zooms into is worked out again.
+    const { zooms, ...older } = saved.summary;
+    expect(zooms).toEqual([]);
+    await env.DB.prepare("UPDATE diagrams SET summary = ? WHERE id = ?").bind(JSON.stringify(older), d.id).run();
+    const [refilled] = (await call.get("d-summary@example.com", `/api/diagrams?workspace=${ws}`)).body;
+    expect(refilled.summary).toEqual(saved.summary);
   });
 
   it("searches names and node names, and pages through a long list", async () => {
@@ -199,7 +207,7 @@ describe("diagrams", () => {
 
   it.each([
     [{ doc: "nope" }, "doc must be a JSON object"],
-    [{ doc: { version: 2 } }, "doc must be a version 1 Skope document"],
+    [{ doc: { version: 2 } }, "doc must be a version 1 Daidal document"],
     [{ doc: { version: 1, blob: "x".repeat(1024 * 1024) } }, "doc must be 1 MB or less"],
     [{ doc: { version: 1 } }, "name is required"],
     [{ doc: doc(), from: "x" }, "send either doc or from, not both"],
@@ -212,7 +220,7 @@ describe("diagrams", () => {
     const email = "d-colour@example.com";
     const bad = { ...doc(), tags: { a: { label: "A", color: "red;position:fixed;inset:0" } } };
     expect((await call.post(email, "/api/diagrams", { workspace: `personal:${email}`, doc: bad })).body).toEqual({
-      error: "doc: tag “a” has a colour Skope can't use; give it as #rrggbb",
+      error: "doc: tag “a” has a colour Daidal can't use; give it as #rrggbb",
     });
     const good = { ...doc(), tags: { a: { label: "A", color: "#a1b2c3" } } };
     expect((await call.post(email, "/api/diagrams", { workspace: `personal:${email}`, doc: good })).status).toBe(201);

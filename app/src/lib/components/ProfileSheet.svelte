@@ -7,7 +7,7 @@
 
 	/**
 	 * The prototype's profile and appearance settings, as two tabs. The profile (name and title) is saved to the
-	 * account; appearance is how this browser shows Skope: the theme, a colour-vision condition (which strikes the
+	 * account; appearance is how this browser shows Daidal: the theme, a colour-vision condition (which strikes the
 	 * colours that collide under it from the tag pickers, and can be simulated) and icon-only cards when presenting.
 	 */
 	let {
@@ -27,7 +27,7 @@
 		light: boolean;
 		onchange: (change: Partial<Settings>) => void;
 		onsave: (profile: { name: string; title: string }) => Promise<void>;
-		/** Downloads everything Skope keeps about you; without it the Your data section has no download. */
+		/** Downloads everything Daidal keeps about you; without it the Your data section has no download. */
 		ondownload?: () => Promise<void>;
 		/** Deletes the account, given the typed confirmation; without it there's no delete. */
 		ondelete?: (confirm: string) => Promise<void>;

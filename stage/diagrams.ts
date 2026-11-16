@@ -246,3 +246,62 @@ export function priyaBackup() {
     ],
   };
 }
+
+// ---- Ledger C4: a linked C4 set, Context → Containers → Components. Each level's scope container has a ref to the
+// node above it, and that node links down (links[].diagram). Ids here are the file's; the importer renames them. ----
+
+const c4Tags = { people: tag("People", P[0], "Who"), internal: tag("Ours", P[1], "Who"), external: tag("Theirs", P[5], "Who") };
+const c4Views = [{ name: "All", tags: Object.keys(c4Tags) }];
+const c4 = (id: string, name: string, kind: string, parts: { nodes: Json[]; edges: Json[]; boundaries?: Json[] }) =>
+  diagramDoc(id, name, kind, "All", { tags: c4Tags, views: c4Views, ...parts });
+
+const ledgerContext = c4("ledger-context", "ledger-context", "c4-context", {
+  nodes: [
+    node("staff", "Finance Staff", "actor", 60, 200, ["people"], { subtitle: "Reconcile and approve" }),
+    node("ledger", "Ledger", "system", 400, 200, ["internal"], { subtitle: "Double-entry ledger", links: [{ diagram: "ledger-containers" }] }),
+    node("bank", "Bank", "external", 740, 200, ["external"], { subtitle: "Settlement files" }),
+  ],
+  edges: [edge("staff", "ledger", "reconciles in"), edge("ledger", "bank", "settles with")],
+});
+
+const ledgerContainers = c4("ledger-containers", "ledger-containers", "c4-container", {
+  nodes: [
+    node("staff", "Finance Staff", "actor", 40, 220, ["people"], { ref: "ledger-context#staff" }),
+    node("console", "Ledger Console", "web-app", 340, 140, ["internal"], { subtitle: "Svelte" }),
+    node("postings", "Postings Service", "service", 340, 320, ["internal"], { subtitle: "Kotlin", links: [{ diagram: "postings-components" }] }),
+    node("journal", "Journal DB", "database", 660, 320, ["internal"], { subtitle: "PostgreSQL" }),
+    node("bank", "Bank", "external", 1000, 320, ["external"], { ref: "ledger-context#bank" }),
+  ],
+  edges: [edge("staff", "console", "uses"), edge("console", "postings", "HTTPS"), edge("postings", "journal", "SQL"), edge("postings", "bank", "settles with")],
+  boundaries: [{ id: "scope", label: "Ledger", layout: { x: 300, y: 80, w: 610, h: 380 }, ref: "ledger-context#ledger" }],
+});
+
+const postingsComponents = c4("postings-components", "postings-components", "c4-component", {
+  nodes: [
+    node("console", "Ledger Console", "web-app", 40, 220, ["internal"], { ref: "ledger-containers#console" }),
+    node("api", "Postings API", "component", 340, 140, ["internal"], { subtitle: "HTTP handlers" }),
+    node("balance", "Balance Checker", "component", 340, 320, ["internal"], { subtitle: "Rejects unbalanced batches" }),
+    node("writer", "Journal Writer", "component", 640, 230, ["internal"], { subtitle: "Append-only" }),
+    node("journal", "Journal DB", "database", 980, 230, ["internal"], { ref: "ledger-containers#journal" }),
+  ],
+  edges: [edge("console", "api", "HTTPS"), edge("api", "balance", "checks"), edge("balance", "writer", "posts"), edge("writer", "journal", "SQL")],
+  boundaries: [{ id: "scope", label: "Postings Service", layout: { x: 300, y: 80, w: 610, h: 380 }, ref: "ledger-containers#postings" }],
+});
+
+/** What the stage owner also imports: the Ledger C4 workspace, a linked Context → Containers → Components set. */
+export function c4Backup() {
+  return {
+    format: "skope-backup",
+    version: 1,
+    workspaces: [
+      {
+        name: "Ledger C4",
+        diagrams: [
+          { id: "ledger-context", doc: ledgerContext, updated: day("11-03") },
+          { id: "ledger-containers", doc: ledgerContainers, updated: day("11-04") },
+          { id: "postings-components", doc: postingsComponents, updated: day("11-05") },
+        ],
+      },
+    ],
+  };
+}

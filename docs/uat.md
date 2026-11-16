@@ -1,4 +1,4 @@
-# Skope app: user acceptance tests
+# Daidal app: user acceptance tests
 
 A hand-run checklist of everything the app at `/app` does, on a desktop and on a phone. Run it:
 
@@ -274,7 +274,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 
 | ID | Do | Expect | On | Result |
 |----|----|--------|----|--------|
-| TOUR-1 | As someone who's never seen it (a fresh account, or prod; stage's owner has it turned down), open the home screen | A **New to Skope?** offer; **No thanks** hides it for good (reload to check) | D P | |
+| TOUR-1 | As someone who's never seen it (a fresh account, or prod; stage's owner has it turned down), open the home screen | A **New to Daidal?** offer; **No thanks** hides it for good (reload to check) | D P | |
 | TOUR-2 | Your initial → **Tutorial** | A practice diagram “Getting started” opens with the tour's card; each step rings the control it's about and moves on once you've done it (add, name, connect, container, tag, view, present) | D P | |
 | TOUR-3 | Mid-tour, reload; then **End tour** | The tour carries on from the same step; after End tour it doesn't come back | D P | |
 
@@ -283,9 +283,22 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | ID | Do | Expect | On | Result |
 |----|----|--------|----|--------|
 | MCP-1 | Locally: `npx wrangler dev`, make a Read-and-write token under AI access, run the Claude Code command it gives, then `claude mcp list` | `skope … ✓ Connected` | D | |
-| MCP-2 | In Claude Code: “List my Skope diagrams, then add an MCP Server called Tools to <one> and connect <a node> to it” | It names your diagrams, makes the change, and the editor shows it after a reload (or offers to load the latest if open) | D | |
+| MCP-2 | In Claude Code: “List my Daidal diagrams, then add an MCP Server called Tools to <one> and connect <a node> to it” | It names your diagrams, makes the change, and the editor shows it after a reload (or offers to load the latest if open) | D | |
 | MCP-3 | With a **Read** token, ask it to change something | It says the token can only read; nothing changes | D | |
 | MCP-4 | Online (once Managed OAuth is on, see `docs/mcp.md`): add `https://<site>/mcp` as a claude.ai custom connector and sign in | It lists your workspaces as you | D | |
+
+## 21. Kinds and C4 drill-down
+
+| ID | Do | Expect | On | Result |
+|----|----|--------|----|--------|
+| C4-1 | Open a diagram, press its name, change **Kind**; then **+ Add** | The hint says what the kind is; **Common in <kind>** lists that kind's types first; Undo puts the kind back | D P | |
+| C4-2 | On stage, open **Ledger C4 › ledger-context** and double-click **Ledger**, then **Postings Service** | Each opens the level below; the header reads *Ledger C4 / ledger-context / ledger-containers / postings-components* | D | |
+| C4-3 | Press **⌘↑**, or a diagram in the header | Back up one level (or to the one pressed), with the node that zoomed in selected | D | |
+| C4-4 | On a phone, open a node's details: the button under **Zoom in** | It opens the linked diagram; the header's links come back up | P | |
+| C4-5 | Select a node with no link in a C4 Container diagram: **Zoom in → New C4 Component diagram** | A new diagram named after it opens, with it as a container and its neighbours around it; back up, the node now zooms into it | D P | |
+| C4-7 | In **postings-components**, select **Postings API**: **Zoom out → New C4 Container diagram above** | A new diagram named after it opens with it selected and its neighbours around it; a double-click on it comes back down | D P | |
+| C4-6 | Export a workspace with linked diagrams, import the file | The imported diagrams link to each other, not to the originals | D | |
+| C4-8 | Open **ledger-context**, double-click down to **postings-components**, and look at the header | Before each diagram's name sit four small bars with its C4 level lit (hover names it); the diagram you're in also says its kind, e.g. **C4 Component**. A freeform diagram shows none. On a phone only the bars show | D P | |
 
 ## Regressions
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE } from '../fixtures/docs';
 import { catalogue } from './icons';
-import { bounds, C4, C4_PERSON_H, c4Desc, c4Height, c4Top, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
+import { bounds, C4, C4_PERSON_H, c4Desc, c4Height, c4Top, docLinks, zoomsOf, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
 
 describe('typeName', () => {
 	it("turns a slug back into the prototype's own type name", () => {
@@ -129,7 +129,7 @@ describe('isColor', () => {
 		for (const bad of ['red', 'red;position:fixed', 'url(https://evil/x)', '"/><script>', '#12', 'rgb(1,2,3);x:y', 12, undefined]) expect(isColor(bad), String(bad)).toBe(false);
 	});
 
-	it('gives a tag with a colour Skope can’t use the plain grey on the canvas', () => {
+	it('gives a tag with a colour Daidal can’t use the plain grey on the canvas', () => {
 		const scene = toScene({ version: 1, tags: { a: { label: 'A', color: 'red;inset:0' } }, nodes: [] });
 		expect(scene.tags[0].color).toBe('#9397ab');
 	});
@@ -158,6 +158,27 @@ describe('sticky notes', () => {
 		expect(toScene(doc(long.desc, 150)).nodes[0].h).toBeGreaterThan(long.h);
 		expect(iconScene(toScene(doc('x'))).nodes[0]).toEqual(toScene(doc('x')).nodes[0]);
 		expect(noteLines(long.desc, long.w).length).toBeGreaterThan(4);
+	});
+});
+
+describe('links to other diagrams', () => {
+	const n = {
+		id: 'api',
+		name: 'API',
+		type: 'service',
+		links: [{ label: 'Runbook', url: 'example.com/run' }, { diagram: 'd2', view: 'Ops' }, { diagram: 'd2' }, { diagram: '' }, { label: 'Parts', diagram: 'd3' }]
+	};
+
+	it('splits web links from the diagrams a node zooms into, one per diagram', () => {
+		const scene = toScene({ version: 1, nodes: [n] });
+		expect(scene.nodes[0].links).toEqual([{ label: 'Runbook', url: 'example.com/run' }]);
+		expect(scene.nodes[0].zooms).toEqual([{ diagram: 'd2', view: 'Ops' }, { label: 'Parts', diagram: 'd3' }]);
+		expect(zoomsOf({ id: 'x', name: 'x', type: 'service' })).toEqual([]);
+	});
+
+	it('puts them back together in the document shape', () => {
+		const scene = toScene({ version: 1, nodes: [n] }).nodes[0];
+		expect(docLinks(scene.links, scene.zooms)).toEqual([{ label: 'Runbook', url: 'example.com/run' }, { diagram: 'd2', view: 'Ops' }, { label: 'Parts', diagram: 'd3' }]);
 	});
 });
 

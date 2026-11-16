@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { c4Backup } from "../stage/diagrams";
 import { importStageData } from "./support";
 
 interface SavedNode {
@@ -10,7 +11,7 @@ interface SavedNode {
   notes?: string;
   flags?: string[];
   tags?: string[];
-  links?: { label?: string; url: string }[];
+  links?: { label?: string; url?: string; diagram?: string; view?: string }[];
   layout: { x: number; y: number; w?: number; h?: number };
 }
 
@@ -176,7 +177,7 @@ test.describe("the app at /app", () => {
     await page.goto(`/app/d/${diagrams["edge-ingress (platform copy)"]}`);
     await expect(page.getByTestId("follow")).toContainText("synced to “Add the web firewall” · 2 changes to review");
     await page.getByTestId("follow").getByRole("link", { name: "edge-ingress" }).click();
-    await expect(page).toHaveTitle("edge-ingress · Skope");
+    await expect(page).toHaveTitle("edge-ingress · Daidal");
     await expect(page.getByRole("region", { name: "History" }).getByRole("button", { name: /Second region/ })).toBeVisible();
   });
 
@@ -269,7 +270,7 @@ test.describe("the app at /app", () => {
     await expect(page.getByTestId("save-status")).toContainText("This diagram changed somewhere else");
     await page.getByRole("button", { name: "Load the latest" }).click();
     await expect(page.getByTestId("save-status")).toContainText("Saved · double-click the canvas to add a node");
-    await expect(page).toHaveTitle("renamed elsewhere · Skope");
+    await expect(page).toHaveTitle("renamed elsewhere · Daidal");
   });
 
   test("takes the getting-started tour from the menu: each step moves on once it's done, and finishing is remembered", async ({ page }) => {
@@ -278,7 +279,7 @@ test.describe("the app at /app", () => {
     await page.getByRole("menuitem", { name: "Tutorial" }).click();
     await expect(page).toHaveURL(/\/app\/d\//);
     const tour = (title: string) => page.getByRole("dialog", { name: title });
-    await tour("Welcome to Skope").getByRole("button", { name: "Next" }).click();
+    await tour("Welcome to Daidal").getByRole("button", { name: "Next" }).click();
 
     await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).click();
     await page.getByRole("dialog", { name: "Add a node" }).getByRole("button", { name: "Service" }).first().click();
@@ -322,7 +323,7 @@ test.describe("the app at /app", () => {
     await page.goto("/app/docs/getting-started");
     await page.getByRole("article").getByRole("link", { name: "Take the tour" }).click();
     await expect(page).toHaveURL(/\/app\/d\//);
-    await expect(page.getByRole("dialog", { name: "Welcome to Skope" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Welcome to Daidal" })).toBeVisible();
   });
 
   test("offers the tour on the home screen once, and remembers No thanks", async ({ page }) => {
@@ -396,10 +397,10 @@ test.describe("the app at /app", () => {
     await page.getByRole("button", { name: /^Account:/ }).click();
     await page.getByRole("menuitem", { name: "Docs" }).click();
     await expect(page).toHaveURL(/\/app\/docs$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Skope docs" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Daidal docs" })).toBeVisible();
     await page.getByRole("main").getByRole("link", { name: /Getting started/ }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Getting started" })).toBeVisible();
-    await expect(page).toHaveTitle("Getting started · Skope docs");
+    await expect(page).toHaveTitle("Getting started · Daidal docs");
     await page.getByRole("article").getByRole("link", { name: "The config format", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: "The config format" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Docs" }).getByRole("link", { name: "The config format" })).toHaveAttribute("aria-current", "page");
@@ -777,7 +778,7 @@ test.describe("the app at /app", () => {
     const dialog = page.getByRole("dialog", { name: "New diagram" });
     await dialog.getByLabel("Name").fill("release-plan");
     await dialog.getByRole("button", { name: "Create diagram" }).click();
-    await expect(page).toHaveTitle("release-plan · Skope");
+    await expect(page).toHaveTitle("release-plan · Daidal");
     await expect(page.locator("[data-node]")).toHaveCount(0);
     const id = page.url().split("/d/")[1];
     const made = await (await request.get(`/api/diagrams/${id}`)).json();
@@ -793,7 +794,7 @@ test.describe("the app at /app", () => {
     await dialog.getByRole("radio", { name: /Deployment topology/ }).click();
     await dialog.getByRole("checkbox", { name: "Include the example nodes" }).check();
     await dialog.getByRole("button", { name: "Create diagram" }).click();
-    await expect(page).toHaveTitle("edge-plan · Skope");
+    await expect(page).toHaveTitle("edge-plan · Daidal");
     await expect(page.locator("[data-node]")).toHaveCount(4);
     await expect(page.getByText("VPC")).toBeVisible();
     await expect(page.getByRole("button", { name: /^Full system/ })).toHaveAttribute("aria-pressed", "true");
@@ -804,7 +805,7 @@ test.describe("the app at /app", () => {
     await dialog.getByLabel("Name").fill("context-only");
     await dialog.getByRole("radio", { name: /C4 Context/ }).click();
     await dialog.getByRole("button", { name: "Create diagram" }).click();
-    await expect(page).toHaveTitle("context-only · Skope");
+    await expect(page).toHaveTitle("context-only · Daidal");
     await expect(page.locator("[data-node]")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Core only" })).toBeVisible();
     const made = await (await request.get(`/api/diagrams/${page.url().split("/d/")[1]}`)).json();
@@ -842,7 +843,7 @@ test.describe("the app at /app", () => {
     await sheet.getByLabel("Name").fill("ledger-core");
     await sheet.getByLabel("Name").press("Enter");
     await page.keyboard.press("Escape");
-    await expect(page).toHaveTitle("ledger-core · Skope");
+    await expect(page).toHaveTitle("ledger-core · Daidal");
     await expect(page.getByRole("button", { name: "ledger-core" })).toBeVisible();
     let { doc } = await saved(page, request, id);
     expect((await (await request.get(`/api/diagrams/${id}`)).json()).name).toBe("ledger-core");
@@ -856,7 +857,7 @@ test.describe("the app at /app", () => {
     const snapshots = await (await request.get(`/api/diagrams/${id}/snapshots`)).json();
     expect(snapshots.at(-1)).toMatchObject({ label: "Before the cut-over", doc: { nodes: doc.nodes } });
     await page.reload();
-    await expect(page).toHaveTitle("ledger-core · Skope");
+    await expect(page).toHaveTitle("ledger-core · Daidal");
     await expect(page.getByRole("region", { name: "History" }).getByRole("button", { name: /Before the cut-over/ })).toBeVisible();
   });
 
@@ -869,7 +870,7 @@ test.describe("the app at /app", () => {
     await sheet.getByLabel("Into").selectOption({ label: "Personal" });
     await sheet.getByLabel("Called").fill("ledger sandbox");
     await sheet.getByRole("button", { name: "Make a duplicate" }).click();
-    await expect(page).toHaveTitle("ledger sandbox · Skope");
+    await expect(page).toHaveTitle("ledger sandbox · Daidal");
     await expect(page.locator("[data-node]")).toHaveCount(9);
     await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toContainText("Personal");
     await expect(page.getByTestId("follow")).toHaveCount(0);
@@ -880,7 +881,7 @@ test.describe("the app at /app", () => {
     await sheet.getByRole("radio", { name: /Follow/ }).check();
     await sheet.getByLabel("Called").fill("ledger follower");
     await sheet.getByRole("button", { name: "Make a follower" }).click();
-    await expect(page).toHaveTitle("ledger follower · Skope");
+    await expect(page).toHaveTitle("ledger follower · Daidal");
     await expect(page.getByTestId("follow")).toContainText("Follows ledger-platform");
   });
 
@@ -995,7 +996,7 @@ test.describe("the app at /app", () => {
     const path = info.outputPath("notes.json");
     await import("node:fs/promises").then(fs => fs.writeFile(path, "not json"));
     await page.getByLabel("Backup file to import").setInputFiles(path);
-    await expect(page.getByRole("alert")).toContainText("“notes.json” isn't a Skope backup");
+    await expect(page.getByRole("alert")).toContainText("“notes.json” isn't a Daidal backup");
   });
   test("adds a type in one click from the toolbar, undoes and redoes it, and connects with the Connect tool to empty canvas", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
@@ -1383,6 +1384,115 @@ test.describe("the app at /app", () => {
     await page.getByRole("button", { name: "Undo Make it C4 Component" }).click();
     expect((await saved(page, request, id)).doc.diagram.kind).toBe("c4-container");
   });
+  test("links a node to another diagram, zooms in by double-click, and comes back up with ⌘↑ and the breadcrumb", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    const top = diagrams["ledger-platform"];
+    const child = diagrams["ledger-platform (DR drill)"];
+    await page.goto(`/app/d/${top}`);
+    const node = page.getByRole("button", { name: "Service: Edge Router" });
+    await node.click();
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    await inspector.getByLabel("Link a diagram to zoom into").selectOption("ledger-platform (DR drill)");
+    await expect(inspector.getByRole("button", { name: /^ledger-platform \(DR drill\)/ })).toBeVisible();
+    await expect(node.getByRole("img", { name: "Zooms in" })).toBeVisible();
+    expect((await saved(page, request, top)).doc.nodes.find(n => n.id === "edge")!.links).toEqual([{ diagram: child }]);
+
+    // A double-click opens it, and the header shows the way back.
+    await node.dblclick();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${child}\\?from=${top}`));
+    const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
+    await expect(crumbs.getByRole("link", { name: "ledger-platform" })).toBeVisible();
+    await expect(crumbs.getByRole("button", { name: "ledger-platform (DR drill)" })).toBeVisible();
+
+    // ⌘↑ goes back up, with the node that zoomed in selected.
+    await page.keyboard.press("ControlOrMeta+ArrowUp");
+    await expect(page).toHaveURL(new RegExp(`/app/d/${top}\\?focus=${child}`));
+    await expect(inspector.getByLabel("Name")).toHaveValue("Edge Router");
+
+    // ⌘↓ zooms in again from the selected node; the breadcrumb comes back up.
+    await page.keyboard.press("ControlOrMeta+ArrowDown");
+    await expect(page).toHaveURL(new RegExp(`/app/d/${child}`));
+    await crumbs.getByRole("link", { name: "ledger-platform" }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${top}`));
+
+    // The diagram's name in the header shows it has a diagram below, and its menu lists them all in one place.
+    await expect(crumbs.getByTestId("links-badge")).toHaveText("↓1");
+    await crumbs.getByRole("button", { name: "ledger-platform" }).click();
+    const linked = page.getByRole("region", { name: "Linked diagrams" });
+    await expect(linked.getByText("from Edge Router")).toBeVisible();
+    await linked.getByRole("link", { name: /ledger-platform \(DR drill\)/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${child}\\?from=${top}`));
+
+    // From below, the one above is listed too, and opens with the node that zooms in selected.
+    await expect(crumbs.getByTestId("links-badge")).toHaveText("↑1");
+    await crumbs.getByRole("button", { name: "ledger-platform (DR drill)" }).click();
+    await linked.getByRole("link", { name: /^ledger-platform$/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${top}\\?focus=${child}`));
+    await expect(inspector.getByLabel("Name")).toHaveValue("Edge Router");
+  });
+
+  test("walks a linked C4 set down and up, and makes the level below a node as a new diagram", async ({ page, request }) => {
+    const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+    expect(res.status()).toBe(201);
+    const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+    const id = (name: string) => list.find(d => d.name === name)!.id;
+    const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
+
+    // Context → Containers → Components by double-clicks, and the breadcrumb shows the whole way.
+    await page.goto(`/app/d/${id("ledger-context")}`);
+    await page.getByRole("button", { name: "System: Ledger" }).dblclick();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${id("ledger-containers")}`));
+    await page.getByRole("button", { name: "Service: Postings Service" }).dblclick();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${id("postings-components")}`));
+    await expect(crumbs.getByRole("link")).toHaveText(["Ledger C4", "ledger-context", "ledger-containers"]);
+    // The header says which C4 level each diagram is: the way back up by its pips, this one by name.
+    await expect(crumbs.getByTestId("kind-badge")).toHaveText(["C4 Context", "C4 Container", "C4 Component"]);
+    await expect(crumbs.getByTestId("kind-badge").last()).toHaveAttribute("data-level", "3");
+
+    // Back up one, then make the level below the console.
+    await crumbs.getByRole("link", { name: "ledger-containers" }).click();
+    await expect(page.getByRole("region", { name: "Selected node" }).getByLabel("Name")).toHaveValue("Postings Service");
+    await page.getByRole("button", { name: "Web App: Ledger Console" }).click();
+    await page.getByRole("region", { name: "Selected node" }).getByRole("button", { name: "New C4 Component diagram" }).click();
+    await expect(page).toHaveURL(new RegExp(`\\?from=${id("ledger-containers")}`));
+    await expect(crumbs.getByRole("button", { name: "Ledger Console" })).toBeVisible();
+    // Its neighbours came along around the scope, and it is a C4 Component diagram.
+    await expect(page.getByRole("button", { name: "Actor: Finance Staff" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Service: Postings Service" })).toBeVisible();
+    await expect(page.locator("[data-box]").filter({ hasText: "Ledger Console" })).toBeVisible();
+    const made = page.url().match(/\/app\/d\/([^?]+)/)![1];
+    expect((await saved(page, request, made)).doc.diagram.kind).toBe("c4-component");
+
+    // The node above now zooms into it.
+    await page.keyboard.press("ControlOrMeta+ArrowUp");
+    await expect(page).toHaveURL(new RegExp(`/app/d/${id("ledger-containers")}`));
+    const console_ = (await saved(page, request, id("ledger-containers"))).doc.nodes.find(n => n.id === "console")!;
+    expect(console_.links).toEqual([{ diagram: made }]);
+  });
+
+  test("makes the C4 level above a node as a new diagram, which zooms back down", async ({ page, request }) => {
+    const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+    const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+    const parts = list.find(d => d.name === "postings-components")!.id;
+    await page.goto(`/app/d/${parts}`);
+    await page.getByRole("button", { name: "Component: Postings API" }).click();
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    await inspector.getByRole("button", { name: "New C4 Container diagram above" }).click();
+    await expect(page).toHaveURL(new RegExp(`\\?focus=${parts}`));
+    // It opens with the node selected, its neighbours around it, as a C4 Container diagram that zooms back down.
+    await expect(inspector.getByLabel("Name")).toHaveValue("Postings API");
+    await expect(page.getByRole("button", { name: "Web App: Ledger Console" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Component: Balance Checker" })).toBeVisible();
+    const made = page.url().match(/\/app\/d\/([^?]+)/)![1];
+    const { doc } = await saved(page, request, made);
+    expect(doc.diagram.kind).toBe("c4-container");
+    expect(doc.nodes.find(n => n.id === "api")!.links).toEqual([{ diagram: parts }]);
+    await page.getByRole("button", { name: "Component: Postings API" }).dblclick();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${parts}\\?from=${made}`));
+  });
+
   test("shows a note as a sticky note that grows with its text, and exports it the same way", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];
@@ -1421,7 +1531,7 @@ test.describe("the app at /app", () => {
     await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Config" }).click();
     const config = page.getByRole("region", { name: "Config" });
     const text = config.getByLabel("Config text");
-    await expect(text).toHaveValue(/# ledger-platform: a Skope diagram config/);
+    await expect(text).toHaveValue(/# ledger-platform: a Daidal diagram config/);
     await text.fill((await text.inputValue()).replace("name: Journal DB", "name: Ledger Journal"));
     await config.getByRole("button", { name: "Apply" }).click();
     await expect(page.getByRole("button", { name: "Database: Ledger Journal" })).toBeVisible();

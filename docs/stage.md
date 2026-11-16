@@ -1,15 +1,34 @@
 # Stage
 
-Pull requests from this repository take turns on **https://skope-stage.khorum-oss.org**: a deploy puts that
+Code owners' pull requests take turns on **https://skope-stage.khorum-oss.org**: a deploy puts that
 branch there and resets its database to the invented stage diagrams in [`stage/diagrams.ts`](../stage/diagrams.ts).
 The `stage` job in [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) does it, after `test` passes.
 
 - **One shared stage, in turn.** A Worker `skope-stage`, a D1 `skope-stage`, one hostname. The **oldest open PR**
-  (lowest number, not a draft) has it, and its pushes redeploy it. A newer PR doesn't deploy; its stage comment
+  (lowest number, opened by a code owner, not a draft) has it, and its pushes redeploy it. A newer PR doesn't deploy; its stage comment
   says it's waiting and which PR has stage. When the PR on stage is merged or closed, the next one in line
   deploys by itself, as its branch stands then (merge `main` into it to bring it up to date, which redeploys it).
   A draft never takes stage: mark it ready for review to put it in line. Nor does a bot's PR (Dependabot's): its
   runs get none of stage's secrets, so it would hold stage without deploying.
+- **Only code owners' PRs auto-deploy.** The line holds only PRs opened by someone named in
+  [`.github/CODEOWNERS`](../.github/CODEOWNERS), as that file stands **on `main`** (a PR can't add its own
+  author). Anyone else's PR says on its stage comment that a code owner can put it there by hand. Name people in
+  CODEOWNERS (`@user`); the stage job doesn't read teams. With no CODEOWNERS on `main`, nothing auto-deploys.
+- **Or by hand, with a hold.** **Actions → deploy → Run workflow** (leave *Use workflow from* on `main`), name a
+  **branch**, and run. Tests run on that branch; then that exact commit goes on stage whatever the line says.
+  Only code owners get past the check. The options:
+  - *Hold* (on by default): stage stays on that branch. No PR push, merge or close moves it, and each PR's stage
+    comment says stage is held. Stacked PRs can't overwrite what you're testing.
+  - *Reset data* (on by default): untick it to deploy the code and keep what's in stage's database (migrations
+    still run).
+  - *Release*: run it again with *release* ticked (branch ignored) to end the hold. The PR first in line deploys
+    straight away. Deploying another branch by hand also replaces the hold, or clears it if *hold* is unticked.
+
+  The hold lives as a GitHub deployment on a `stage-hold` environment (GitHub creates it the first time; it
+  needs no settings). Its latest status reads *success* while held and *inactive* once released.
+- **Not a security boundary.** A same-repository PR runs its own copy of the workflow, so anyone with write access
+  could edit these checks away on their branch. The code-owner gate keeps the line tidy. The real guard on stage's
+  token stays the `stage` environment's settings, plus who you give write access to.
 - **Only the owner signs in.** Stage has its own Access application, narrower than prod's.
 - **Stage data is throwaway.** It holds only the invented data, never a real backup, and every deploy resets it.
 - **Fork PRs get no stage.** The job runs only for branches of this repository. Never change it to

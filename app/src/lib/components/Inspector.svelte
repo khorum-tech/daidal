@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { SceneNode, SceneTag } from '../diagram/model';
+	import { docLinks, type SceneNode, type SceneTag, type ZoomLink } from '../diagram/model';
 	import type { NodeChange } from '../diagram/edit';
 	import { hostOf, linkUrl } from '../diagram/edit';
 	import { FLAGS, ICON_LIBRARY, TYPE_CATS, type TypeCats } from '../diagram/icons';
@@ -27,7 +27,11 @@
 		onnewtag,
 		onisolate,
 		cats = TYPE_CATS,
-		kind = kindOf('')
+		kind = kindOf(''),
+		diagrams = null,
+		onzoom,
+		onzoomnew,
+		onzoomup
 	}: {
 		node: SceneNode;
 		tags: Record<string, SceneTag>;
@@ -47,6 +51,17 @@
 		cats?: TypeCats;
 		/** The diagram's kind: its common types come first when changing a node's type. */
 		kind?: Kind;
+		/**
+		 * The workspace's other diagrams this person can see, by id: what a node can zoom into. A link to one not here
+		 * is hidden, as the API hides a diagram you can't see. Null while they load.
+		 */
+		diagrams?: { id: string; name: string }[] | null;
+		/** Opens the diagram a link zooms into. */
+		onzoom?: (link: ZoomLink) => void;
+		/** In a C4 diagram, makes the level below this node as a new diagram, links the node to it and opens it. */
+		onzoomnew?: () => Promise<void>;
+		/** In a C4 diagram below Context, makes the level above as a new diagram from this node and opens it. */
+		onzoomup?: () => Promise<void>;
 	} = $props();
 	let naming = $state(false);
 	let tagName = $state('');
@@ -75,6 +90,33 @@
 	});
 
 	const addable = $derived(Object.values(tags).filter(t => !node.tags.includes(t.key)));
+	const nameOf = $derived(new Map((diagrams ?? []).map(d => [d.id, d.name])));
+	/** The links this person can follow: to diagrams they can see. */
+	const zooms = $derived(node.zooms.filter(z => nameOf.has(z.diagram)));
+	const linkable = $derived((diagrams ?? []).filter(d => !node.zooms.some(z => z.diagram === d.id)));
+	/** What a new diagram below this node would be: the next C4 level, offered while the node zooms into nothing. */
+	const below = $derived(editable && onzoomnew && kind.level && kind.child && !zooms.length ? kindOf(kind.child) : null);
+	/** What a new diagram above this node would be: the C4 level up. */
+	const above = $derived(editable && onzoomup && kind.parent ? kindOf(kind.parent) : null);
+	let making = $state(false);
+	let madeError = $state('');
+	async function zoomNew(make = onzoomnew) {
+		making = true;
+		madeError = '';
+		try {
+			await make?.();
+		} catch (e) {
+			madeError = e instanceof Error ? e.message : 'Could not make the diagram';
+		} finally {
+			making = false;
+		}
+	}
+	function linkDiagram(id: string) {
+		if (id) onchange?.({ links: docLinks(node.links, [...node.zooms, { diagram: id }]) }, `Zoom into ${nameOf.get(id) ?? 'a diagram'}`);
+	}
+	function unlinkDiagram(id: string) {
+		onchange?.({ links: docLinks(node.links, node.zooms.filter(z => z.diagram !== id)) }, `Stop zooming into ${nameOf.get(id) ?? 'a diagram'}`);
+	}
 	const href = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
 	function typed(field: 'name' | 'subtitle' | 'notes', label: string) {
@@ -92,7 +134,7 @@
 	function addLink(e?: SubmitEvent) {
 		e?.preventDefault();
 		if (!linkAddress.trim()) return;
-		onchange?.({ links: [...node.links, { ...(linkLabel.trim() ? { label: linkLabel.trim() } : {}), url: linkUrl(linkAddress) }] }, 'Add link');
+		onchange?.({ links: docLinks([...node.links, { ...(linkLabel.trim() ? { label: linkLabel.trim() } : {}), url: linkUrl(linkAddress) }], node.zooms) }, 'Add link');
 		linkLabel = '';
 		linkAddress = '';
 	}
@@ -115,6 +157,47 @@
 	{/if}
 {/snippet}
 
+{#snippet zoomIn()}
+	{#if zooms.length || below || (editable && linkable.length)}
+		<h3>Zoom in</h3>
+		{#if zooms.length}
+			<ul class="zooms">
+				{#each zooms as z (z.diagram)}
+					<li>
+						<button type="button" class="btn btn-secondary zoom" onclick={() => onzoom?.(z)}>
+							<Icon name="magnifyingGlassPlus" size={14} /><span class="z-name">{z.label || nameOf.get(z.diagram)}</span>{#if z.view}<span class="z-view">{z.view}</span>{/if}
+						</button>
+						{#if editable}
+							<button type="button" class="x" aria-label="Stop zooming into {nameOf.get(z.diagram)}" onclick={() => unlinkDiagram(z.diagram)}>×</button>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+		{#if below}
+			<button type="button" class="btn btn-secondary zoom" disabled={making} onclick={() => zoomNew()}>
+				<Icon name="magnifyingGlassPlus" size={14} /><span class="z-name">New {below.label} diagram</span>
+			</button>
+			{#if madeError}<p class="error" role="alert">{madeError}</p>{/if}
+		{/if}
+		{#if editable && linkable.length}
+			<select class="input" aria-label="Link a diagram to zoom into" value="" onchange={e => linkDiagram(e.currentTarget.value)}>
+				<option value="">Link a diagram to zoom into…</option>
+				{#each linkable as d (d.id)}<option value={d.id}>{d.name}</option>{/each}
+			</select>
+		{/if}
+	{/if}
+{/snippet}
+
+{#snippet zoomOut()}
+	{#if above}
+		<h3>Zoom out</h3>
+		<button type="button" class="btn btn-secondary zoom" disabled={making} onclick={() => zoomNew(onzoomup)}>
+			<Icon name="treeStructure" size={14} /><span class="z-name">New {above.label} diagram above</span>
+		</button>
+	{/if}
+{/snippet}
+
 {#snippet links()}
 	{#if node.links.length}
 		<h3>Links</h3>
@@ -123,7 +206,7 @@
 				<li>
 					<a href={href(l.url)} target="_blank" rel="noopener noreferrer">{l.label || hostOf(l.url)}</a>
 					{#if editable}
-						<button type="button" class="x" aria-label="Remove link {l.label || hostOf(l.url)}" onclick={() => onchange?.({ links: node.links.filter((_, j) => j !== i) }, 'Remove link')}>×</button>
+						<button type="button" class="x" aria-label="Remove link {l.label || hostOf(l.url)}" onclick={() => onchange?.({ links: docLinks(node.links.filter((_, j) => j !== i), node.zooms) }, 'Remove link')}>×</button>
 					{/if}
 				</li>
 			{/each}
@@ -229,6 +312,9 @@
 			</form>
 		{/if}
 
+		{@render zoomIn()}
+		{@render zoomOut()}
+		{#if madeError && !below}<p class="error" role="alert">{madeError}</p>{/if}
 		{@render links()}
 		<!-- A link typed but not added is added anyway once focus leaves the form: on a phone the first tap on Add link
 		     often only puts the keyboard away, and closing the sheet then would lose what was typed. -->
@@ -266,6 +352,7 @@
 			</ul>
 		{/if}
 		{#if node.desc}<p class="desc">{node.desc}</p>{/if}
+		{@render zoomIn()}
 		{@render links()}
 		{@render edges()}
 		{#if onisolate && node.tags.length}
@@ -275,6 +362,56 @@
 </section>
 
 <style>
+	.error {
+		margin: 4px 0 0;
+		font-size: 12px;
+		color: var(--color-danger, #e5484d);
+	}
+	.zooms {
+		list-style: none;
+		margin: 8px 0 6px;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+	.zooms li {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+	.zooms .zoom {
+		margin-top: 0;
+	}
+	/* The size of the "Link a diagram to zoom into" dropdown beside it: full width, one line, the same height. */
+	.zoom {
+		flex: 1;
+		box-sizing: border-box;
+		width: 100%;
+		min-width: 0;
+		height: 29px;
+		justify-content: flex-start;
+		gap: 6px;
+		margin-top: 8px;
+		padding-block: 0;
+		font-size: 12.5px;
+		text-align: left;
+	}
+	.zoom + .input,
+	.zooms + .input {
+		margin-top: 6px;
+	}
+	.z-name {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.z-view {
+		margin-left: auto;
+		font-size: 11px;
+		color: var(--color-neutral-500);
+	}
 	.inspector {
 		padding: 14px 16px;
 		border-bottom: 1px solid var(--color-divider);

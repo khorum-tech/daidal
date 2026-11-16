@@ -1,0 +1,4 @@
+# Code owners review every change, and only PRs they open deploy to stage by themselves (the stage job in
+# .github/workflows/deploy.yml reads this file from main). They alone can put a branch on stage by hand.
+# Name people (@user); the stage job doesn't read teams.
+* @violabs-josh

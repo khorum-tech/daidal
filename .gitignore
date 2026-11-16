@@ -14,3 +14,10 @@ seed.sql
 # Playwright
 /test-results
 /playwright-report
+# SvelteKit output when a tool runs from the repo root
+/.svelte-kit
+
+# Argo (the product demo): intermediates and renders. The demo script and captions in demos/ are the source.
+.argo/
+test-results/
+videos/

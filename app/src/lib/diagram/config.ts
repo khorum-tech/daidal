@@ -23,7 +23,7 @@ export class ConfigError extends Error {
 export function configText(doc: SkopeDoc, lang: ConfigLang): string {
 	if (lang === 'json') return `${JSON.stringify(doc, null, 2)}\n`;
 	const name = doc.diagram?.name;
-	const head = name ? `# ${name}: a Skope diagram config\n` : '';
+	const head = name ? `# ${name}: a Daidal diagram config\n` : '';
 	return `${head}${yamlLines(doc as unknown as Record<string, unknown>).join('\n')}\n`;
 }
 
@@ -137,7 +137,7 @@ export interface ReadConfig {
  */
 export function readConfig(text: string, current: SkopeDoc, mode: 'replace' | 'merge'): ReadConfig {
 	const o = sections(parse(text));
-	if (o.version !== undefined && o.version !== 1) throw new ConfigError(`This is version ${asText(o.version)} of the format; Skope reads version 1`);
+	if (o.version !== undefined && o.version !== 1) throw new ConfigError(`This is version ${asText(o.version)} of the format; Daidal reads version 1`);
 	const nodes = list<unknown>(o.nodes).map((n, i) => node(n, i));
 	if (!nodes.length) throw new ConfigError('No nodes found: add a “nodes:” list');
 	const ids = new Set<string>();
