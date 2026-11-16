@@ -22,7 +22,10 @@ test('c4', async ({ page, narration }) => {
   };
   const context = await diagram('Ledger C4', 'ledger-context');
   await page.goto(`/app/d/${context}`);
-  await page.getByRole('button', { name: 'System: Ledger' }).waitFor();
+  // The two nodes the walk zooms into: the system on the Context level, then one of its containers.
+  const ledger = page.getByRole('button', { name: 'System: Ledger' });
+  const postings = page.getByRole('button', { name: 'Service: Postings Service' });
+  await ledger.waitFor();
 
   await narration.startRecording(page);
   const cursor = await createHumanCursor(page, { seed: 'daidal-c4', size: 28, start: { x: 0.5, y: 0.6 } });
@@ -34,18 +37,18 @@ test('c4', async ({ page, narration }) => {
     // ---- 4. C4: the Context level…
     narration.mark('context');
     showOverlay(page, 'context', 4200);
-    await cursor.moveTo(page.getByRole('button', { name: 'System: Ledger' }), { durationMs: 900 });
+    await cursor.moveTo(ledger, { durationMs: 900 });
     await hold(1900);
 
     // ---- 5. …zooms into Containers, then Components.
     narration.mark('zoom');
     showOverlay(page, 'zoom', 6200);
-    await page.getByRole('button', { name: 'System: Ledger' }).dblclick();
-    await page.getByRole('button', { name: 'Service: Postings Service' }).waitFor();
+    await ledger.dblclick();
+    await postings.waitFor();
     await hold(1400);
-    await cursor.moveTo(page.getByRole('button', { name: 'Service: Postings Service' }), { durationMs: 900 });
+    await cursor.moveTo(postings, { durationMs: 900 });
     await hold(500);
-    await page.getByRole('button', { name: 'Service: Postings Service' }).dblclick();
+    await postings.dblclick();
     await page.getByTestId('kind-badge').last().waitFor();
     await cursor.moveTo(page.getByRole('button', { name: 'Component: Postings API' }), { durationMs: 900 });
     await hold(1200);
