@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { nextVersion, rollChangelog, section } from "./release-lib.mjs";
 
+const DAY = "2026-03-04";
 const LOG = `# Changelog
 
 Intro.
@@ -35,7 +36,7 @@ test("reads one version's notes", () => {
 });
 
 test("files Unreleased as the new version and leaves an empty Unreleased above it", () => {
-  const rolled = rollChangelog(LOG, "0.2.0", "2026-03-04");
+  const rolled = rollChangelog(LOG, "0.2.0", DAY);
   assert.equal(section(rolled, "Unreleased"), "");
   assert.equal(section(rolled, "0.2.0"), "### Added\n- A thing.");
   assert.equal(section(rolled, "0.1.0"), "### Fixed\n- An old thing.");
@@ -43,7 +44,7 @@ test("files Unreleased as the new version and leaves an empty Unreleased above i
 });
 
 test("refuses a release with no notes, or a version already filed", () => {
-  assert.throws(() => rollChangelog(rollChangelog(LOG, "0.2.0", "2026-03-04"), "0.3.0", "2026-03-05"), /nothing under/);
-  assert.throws(() => rollChangelog(LOG, "0.1.0", "2026-03-04"), /already has a section/);
-  assert.throws(() => rollChangelog("# Changelog\n", "0.1.0", "2026-03-04"), /no ## \[Unreleased\]/);
+  assert.throws(() => rollChangelog(rollChangelog(LOG, "0.2.0", DAY), "0.3.0", "2026-03-05"), /nothing under/);
+  assert.throws(() => rollChangelog(LOG, "0.1.0", DAY), /already has a section/);
+  assert.throws(() => rollChangelog("# Changelog\n", "0.1.0", DAY), /no ## \[Unreleased\]/);
 });

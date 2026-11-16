@@ -9,12 +9,13 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { nextVersion, rollChangelog, section } from "./release-lib.mjs";
 
+const CHANGELOG = "CHANGELOG.md";
 const read = path => readFileSync(path, "utf8");
 const [arg, value] = process.argv.slice(2);
 
 try {
   if (arg === "--notes") {
-    const notes = section(read("CHANGELOG.md"), value ?? "");
+    const notes = section(read(CHANGELOG), value ?? "");
     if (!notes) throw new Error(`CHANGELOG.md has no notes for ${value ?? "(no version given)"}`);
     console.log(notes);
   } else {
@@ -22,7 +23,7 @@ try {
     const version = nextVersion(current, arg);
     const today = new Date().toISOString().slice(0, 10);
     // The changelog first: if there is nothing to release, no file has been touched yet.
-    const changelog = rollChangelog(read("CHANGELOG.md"), version, today);
+    const changelog = rollChangelog(read(CHANGELOG), version, today);
 
     // Only the version line changes, so each file keeps its own indentation and key order. In a lockfile the first
     // "version" at each depth is the package's own: the top-level one, and the one in packages[""].
@@ -30,8 +31,20 @@ try {
     for (const path of ["package.json", "app/package.json", "package-lock.json", "app/package-lock.json"]) {
       const text = read(path);
       const lock = path.endsWith("package-lock.json");
+      // Line by line, without a pattern: the first lines that are a "version" entry (one, or two in a lockfile).
       let left = lock ? 2 : 1;
-      const next = text.replace(/^(\s*"version":\s*")[^"]*(")/gm, (line, before, after) => (left-- > 0 ? `${before}${version}${after}` : line));
+      const next = text
+        .split("\n")
+        .map(line => {
+          const key = line.indexOf('"version":');
+          if (left <= 0 || key < 0 || line.slice(0, key).trim() !== "") return line;
+          const open = line.indexOf('"', key + '"version":'.length);
+          const close = line.indexOf('"', open + 1);
+          if (open < 0 || close < 0) return line;
+          left -= 1;
+          return line.slice(0, open + 1) + version + line.slice(close);
+        })
+        .join("\n");
       // Checked as JSON before anything is written: the lines changed must be the package's own version.
       const now = JSON.parse(next);
       const own = lock ? [now.version, now.packages?.[""]?.version] : [now.version];
@@ -39,7 +52,7 @@ try {
       writes.push([path, next]);
     }
     for (const [path, text] of writes) writeFileSync(path, text);
-    writeFileSync("CHANGELOG.md", changelog);
+    writeFileSync(CHANGELOG, changelog);
     console.log(`${current} → ${version}
 
 Next:
