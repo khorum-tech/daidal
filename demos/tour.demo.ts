@@ -70,10 +70,14 @@ test('tour', async ({ page, narration }) => {
     // ---- 5. Saved views: a click each.
     narration.mark('views');
     showOverlay(page, 'views', 5400);
-    for (const name of [/^Write path/, /^Events/, /^On call/]) {
+    // One after the other, on purpose: each view holds the screen before the next click.
+    const show = async (name: RegExp) => {
       await cursor.click(view(name), quick);
       await hold(1250);
-    }
+    };
+    await show(/^Write path/);
+    await show(/^Events/);
+    await show(/^On call/);
 
     // ---- 6. A new view from the tags on now.
     narration.mark('save');
