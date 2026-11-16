@@ -11,7 +11,7 @@ Every diagram is a document, and **Config** (in the toolbar, or the diagram's sh
 - **Replace** makes the diagram exactly what the config says.
 - **Merge** adds and updates: nodes and containers by `id`, tags by key, views by name, and connections that aren't there yet. Fields the config leaves out stay as they are.
 
-Applying is one undo step. A config that can't be read says why, with the line, and changes nothing. This is also the format an [AI connected to Skope](/app/docs/connecting-ai) uses for bigger changes.
+Applying is one undo step. A config that can't be read says why, with the line, and changes nothing. This is also the format an [AI connected to Daidal](/app/docs/connecting-ai) uses for bigger changes.
 
 ![The config panel: the diagram as YAML, with Apply, Replace or Merge, and download](/app/docs-images/config.png)
 

@@ -57,7 +57,7 @@ describe('a page', () => {
 });
 
 describe('the config page’s example', () => {
-	it('is a config Skope reads', async () => {
+	it('is a config Daidal reads', async () => {
 		const { readConfig } = await import('../diagram/config');
 		const yaml = /```yaml\n([\s\S]*?)```/.exec(pageOf('config')!.body)![1];
 		const { doc } = readConfig(yaml, { version: 1 }, 'replace');

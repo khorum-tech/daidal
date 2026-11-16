@@ -1,4 +1,4 @@
-# Skope app: user acceptance tests
+# Daidal app: user acceptance tests
 
 A hand-run checklist of everything the app at `/app` does, on a desktop and on a phone. Run it:
 
@@ -273,7 +273,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 
 | ID | Do | Expect | On | Result |
 |----|----|--------|----|--------|
-| TOUR-1 | As someone who's never seen it (a fresh account, or prod; stage's owner has it turned down), open the home screen | A **New to Skope?** offer; **No thanks** hides it for good (reload to check) | D P | |
+| TOUR-1 | As someone who's never seen it (a fresh account, or prod; stage's owner has it turned down), open the home screen | A **New to Daidal?** offer; **No thanks** hides it for good (reload to check) | D P | |
 | TOUR-2 | Your initial → **Tutorial** | A practice diagram “Getting started” opens with the tour's card; each step rings the control it's about and moves on once you've done it (add, name, connect, container, tag, view, present) | D P | |
 | TOUR-3 | Mid-tour, reload; then **End tour** | The tour carries on from the same step; after End tour it doesn't come back | D P | |
 
@@ -282,7 +282,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | ID | Do | Expect | On | Result |
 |----|----|--------|----|--------|
 | MCP-1 | Locally: `npx wrangler dev`, make a Read-and-write token under AI access, run the Claude Code command it gives, then `claude mcp list` | `skope … ✓ Connected` | D | |
-| MCP-2 | In Claude Code: “List my Skope diagrams, then add an MCP Server called Tools to <one> and connect <a node> to it” | It names your diagrams, makes the change, and the editor shows it after a reload (or offers to load the latest if open) | D | |
+| MCP-2 | In Claude Code: “List my Daidal diagrams, then add an MCP Server called Tools to <one> and connect <a node> to it” | It names your diagrams, makes the change, and the editor shows it after a reload (or offers to load the latest if open) | D | |
 | MCP-3 | With a **Read** token, ask it to change something | It says the token can only read; nothing changes | D | |
 | MCP-4 | Online (once Managed OAuth is on, see `docs/mcp.md`): add `https://<site>/mcp` as a claude.ai custom connector and sign in | It lists your workspaces as you | D | |
 

@@ -6,17 +6,17 @@ order: 12
 
 # Connecting AI
 
-Skope has an MCP server, so an AI assistant (Claude Code, Claude Desktop, claude.ai, or any MCP client) can list your diagrams, read them and change them, as you. It goes through the same rules as the app: it sees what you can see, and changes only diagrams you own.
+Daidal has an MCP server, so an AI assistant (Claude Code, Claude Desktop, claude.ai, or any MCP client) can list your diagrams, read them and change them, as you. It goes through the same rules as the app: it sees what you can see, and changes only diagrams you own.
 
 ## The address
 
 | Where | MCP address |
 |-------|-------------|
-| Skope | `https://skope.khorum-oss.org/mcp` |
+| Daidal | `https://skope.khorum-oss.org/mcp` |
 | Stage | `https://skope-stage.khorum-oss.org/mcp` |
 | On your computer (`wrangler dev`) | `http://localhost:8787/mcp` |
 
-Your initial → **AI access** shows the address for the Skope you're on.
+Your initial → **AI access** shows the address for the Daidal you're on.
 
 ## Online: sign in as you
 
@@ -25,7 +25,7 @@ Online, an assistant signs in through the same Cloudflare Access sign-in you use
 - **Claude Code:** run `claude mcp add --transport http skope https://skope.khorum-oss.org/mcp`, then open `/mcp` in Claude Code and choose **Authenticate**. A browser window opens on the sign-in.
 - **claude.ai, Claude Desktop and Claude mobile:** in Settings → Connectors, add a custom connector with the address, and sign in when it asks. A connector added on claude.ai is there on Desktop and mobile too.
 
-This needs Managed OAuth turned on for Skope's Access application, a one-time setup in Cloudflare (see `docs/mcp.md` in the repository). Until then, use a token.
+This needs Managed OAuth turned on for Daidal's Access application, a one-time setup in Cloudflare (see `docs/mcp.md` in the repository). Until then, use a token.
 
 ## With a token: on your computer, or a script
 
@@ -65,7 +65,7 @@ If you have the diagram open while an assistant changes it, the strip above the 
 
 ## Things to ask
 
-- “List my Skope diagrams in Platform team.”
+- “List my Daidal diagrams in Platform team.”
 - “Read checkout-platform and tell me what talks to the Orders DB.”
 - “Take a snapshot of checkout-platform, then add a Redis cache between the Checkout API and the Orders DB.”
 - “Draw our payments flow as a new diagram in Personal: storefront, checkout API, a payment provider and a ledger database.”

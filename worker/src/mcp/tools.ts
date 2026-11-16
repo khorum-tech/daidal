@@ -395,7 +395,7 @@ export const TOOLS: Tool[] = [
     name: "get_diagram",
     title: "Read a diagram",
     description:
-      "A diagram. outline (the default) is compact: nodes with id, name, type, tags and position; connections by index; containers; tags; views. yaml or json is the whole document as a Skope config, the format apply_config takes.",
+      "A diagram. outline (the default) is compact: nodes with id, name, type, tags and position; connections by index; containers; tags; views. yaml or json is the whole document as a Daidal config, the format apply_config takes.",
     readOnly: true,
     inputSchema: schema({ diagram: DIAGRAM, format: { type: "string", enum: ["outline", "yaml", "json"] } }, ["diagram"]),
     run: async (args, api) => {
@@ -420,13 +420,13 @@ export const TOOLS: Tool[] = [
   {
     name: "create_diagram",
     title: "Create a diagram",
-    description: `A new diagram in a workspace: blank, from a Skope config (YAML or JSON), or from a template (${TEMPLATES.map(t => t.name).join(", ")}). You become its owner. Its kind (${KINDS.map(k => k.id).join(", ")}) decides which types the app offers first; a template sets one, and kind overrides it.`,
+    description: `A new diagram in a workspace: blank, from a Daidal config (YAML or JSON), or from a template (${TEMPLATES.map(t => t.name).join(", ")}). You become its owner. Its kind (${KINDS.map(k => k.id).join(", ")}) decides which types the app offers first; a template sets one, and kind overrides it.`,
     readOnly: false,
     inputSchema: schema(
       {
         workspace: { type: "string", description: "A workspace id or name" },
         name: { type: "string" },
-        config: { type: "string", description: "A Skope config, YAML or JSON" },
+        config: { type: "string", description: "A Daidal config, YAML or JSON" },
         template: { type: "string", enum: TEMPLATES.map(t => t.name) },
         examples: { type: "boolean", description: "With a template: keep its example nodes" },
         kind: { type: "string", enum: KINDS.map(k => k.id), description: "The kind of diagram; freeform if left out and no template sets one" },
@@ -451,7 +451,7 @@ export const TOOLS: Tool[] = [
     name: "apply_config",
     title: "Apply a config",
     description:
-      "Changes a diagram from a Skope config (YAML or JSON), the format get_diagram's yaml shows: connections go under edges (or connections), containers under boundaries, and a node's place under layout: { x, y } (or x and y). merge (the default) adds and updates: nodes and containers by id, tags by key, views by name, new connections added. replace makes the diagram exactly the config.",
+      "Changes a diagram from a Daidal config (YAML or JSON), the format get_diagram's yaml shows: connections go under edges (or connections), containers under boundaries, and a node's place under layout: { x, y } (or x and y). merge (the default) adds and updates: nodes and containers by id, tags by key, views by name, new connections added. replace makes the diagram exactly the config.",
     readOnly: false,
     destructive: true,
     inputSchema: schema({ diagram: DIAGRAM, config: { type: "string" }, mode: { type: "string", enum: ["merge", "replace"] } }, ["diagram", "config"]),

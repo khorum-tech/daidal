@@ -30,7 +30,7 @@ describe('config', () => {
 			expect(langOf(text)).toBe(lang);
 			expect(readConfig(text, current(), 'replace').doc).toEqual({ ...current(), boundaries: [] });
 		}
-		expect(configText(current(), 'yaml').startsWith('# checkout: a Skope diagram config\n')).toBe(true);
+		expect(configText(current(), 'yaml').startsWith('# checkout: a Daidal diagram config\n')).toBe(true);
 	});
 
 	it('replaces the diagram, keeping its name, slugging types and making up missing tags', () => {

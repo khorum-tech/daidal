@@ -119,13 +119,13 @@
 				<button class="btn btn-primary" type="button" onclick={() => copy('token')}>{copied === 'token' ? 'Copied' : 'Copy'}</button>
 			</div>
 			{#if local}
-				<p class="note">To connect Claude Code to this computer's Skope with it, run:</p>
+				<p class="note">To connect Claude Code to this computer's Daidal with it, run:</p>
 				<div class="row">
 					<textarea class="input mono command" readonly rows="3" aria-label="Claude Code command" value={command} onfocus={e => e.currentTarget.select()}></textarea>
 					<button class="btn btn-secondary" type="button" onclick={() => copy('command')}>{copied === 'command' ? 'Copied' : 'Copy'}</button>
 				</div>
 			{:else}
-				<p class="note">Send it as <code>Authorization: Bearer …</code> from a script or a local copy of Skope. Online, MCP clients sign in instead (above).</p>
+				<p class="note">Send it as <code>Authorization: Bearer …</code> from a script or a local copy of Daidal. Online, MCP clients sign in instead (above).</p>
 			{/if}
 			<button class="btn btn-ghost done" type="button" onclick={() => (made = null)}>Done</button>
 		</div>

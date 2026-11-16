@@ -1,4 +1,4 @@
-// The icons Skope draws and the node types it knows. Both are data: icon-library.json is built by
+// The icons Daidal draws and the node types it knows. Both are data: icon-library.json is built by
 // scripts/icons.mjs from Phosphor (MIT licence, paths on a 256 × 256 grid), and types.json lists the type picker's
 // categories, each type with an icon from the library. To add an icon, see scripts/icons.mjs; to add a type, add
 // a line to types.json.

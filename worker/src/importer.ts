@@ -125,8 +125,8 @@ async function checkImportRoom(db: D1Database, email: string, diagrams: PlannedD
 
 export async function importWorkspaces(db: D1Database, email: string, request: Request, now: number): Promise<Response> {
   const file = await readJson(request, MAX_IMPORT_BYTES);
-  if (!isPlainObject(file) || file.format !== BACKUP_FORMAT) throw new HttpError(400, "this isn't a Skope backup file");
-  if (file.version !== 1) throw new HttpError(400, "this Skope backup is from a newer version");
+  if (!isPlainObject(file) || file.format !== BACKUP_FORMAT) throw new HttpError(400, "this isn't a Daidal backup file");
+  if (file.version !== 1) throw new HttpError(400, "this Daidal backup is from a newer version");
   const workspaces = list(file.workspaces, "workspaces");
   if (workspaces.length === 0) throw new HttpError(400, "the file has no workspaces to import");
 
