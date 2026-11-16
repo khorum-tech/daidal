@@ -27,6 +27,8 @@ npx wrangler dev --var DEV_USER_EMAIL:you@example.com   # http://localhost:8787,
 
 ## Pull requests
 
+- Add a line to `CHANGELOG.md` under **Unreleased** for anything a user would notice. Releases are cut from it
+  ([`docs/releasing.md`](docs/releasing.md)).
 - One change per PR, with tests. CI must be green; the `stage` job deploys your branch to the shared stage site
   when it is the oldest open PR from this repository (see `docs/stage.md`).
 - Describe what changed and why in the description, in plain language. Link the spec section if there is one.
