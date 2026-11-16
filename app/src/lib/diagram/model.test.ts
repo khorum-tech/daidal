@@ -129,7 +129,7 @@ describe('isColor', () => {
 		for (const bad of ['red', 'red;position:fixed', 'url(https://evil/x)', '"/><script>', '#12', 'rgb(1,2,3);x:y', 12, undefined]) expect(isColor(bad), String(bad)).toBe(false);
 	});
 
-	it('gives a tag with a colour Skope can’t use the plain grey on the canvas', () => {
+	it('gives a tag with a colour Daidal can’t use the plain grey on the canvas', () => {
 		const scene = toScene({ version: 1, tags: { a: { label: 'A', color: 'red;inset:0' } }, nodes: [] });
 		expect(scene.tags[0].color).toBe('#9397ab');
 	});

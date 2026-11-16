@@ -1,7 +1,7 @@
 import { CONDITIONS, type Condition } from './diagram/colour';
 
 /**
- * How this browser shows Skope: the theme, a colour-vision condition (which strikes colliding colours from the tag
+ * How this browser shows Daidal: the theme, a colour-vision condition (which strikes colliding colours from the tag
  * pickers, and can be simulated over the whole app), and icon-only cards when presenting. These are viewer
  * settings, as in the prototype: kept in the browser, never in a document.
  */

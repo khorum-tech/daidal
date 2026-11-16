@@ -1,4 +1,4 @@
-// Skope's in-app docs (/app/docs): one markdown file per page in this folder, each opening with a small header:
+// Daidal's in-app docs (/app/docs): one markdown file per page in this folder, each opening with a small header:
 //
 //   ---
 //   title: Getting started
@@ -63,5 +63,5 @@ export function docImages(body: string): string[] {
 
 const marked = new Marked({ gfm: true });
 
-/** A page's markdown as HTML. The pages are Skope's own, so nothing in them needs sanitising. */
+/** A page's markdown as HTML. The pages are Daidal's own, so nothing in them needs sanitising. */
 export const render = (body: string): string => marked.parse(body, { async: false });

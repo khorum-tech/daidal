@@ -1156,7 +1156,7 @@
 	});
 </script>
 
-<svelte:head><title>{working.name} · Skope</title></svelte:head>
+<svelte:head><title>{working.name} · Daidal</title></svelte:head>
 <svelte:window
 	onkeydown={shortcut}
 	onpointerdown={e => {

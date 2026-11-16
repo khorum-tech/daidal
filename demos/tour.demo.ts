@@ -109,8 +109,8 @@ test('tour', async ({ page, narration }) => {
     narration.mark('outro');
     await cursor.click(view(/^Everything/), quick);
     showOverlay(page, 'outro', 4200);
-    await cursor.moveTo(page.getByRole('link', { name: 'Skope' }), { durationMs: 1500 });
-    await cursor.moveTo(page.getByRole('link', { name: 'Skope' }), { durationMs: 600 });
+    await cursor.moveTo(page.getByRole('link', { name: 'Daidal' }), { durationMs: 1500 });
+    await cursor.moveTo(page.getByRole('link', { name: 'Daidal' }), { durationMs: 600 });
   } finally {
     await cursor.dispose();
     await resetCursor(page);

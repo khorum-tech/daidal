@@ -69,11 +69,11 @@ test('c4', async ({ page, narration }) => {
     showOverlay(page, 'outro', 4600);
     // The capture takes a frame when the page paints, so the pointer keeps moving under the closing card: a still
     // screen would end the film where the card appears.
-    await cursor.moveTo(page.getByRole('link', { name: 'Skope' }), { durationMs: 1800 });
+    await cursor.moveTo(page.getByRole('link', { name: 'Daidal' }), { durationMs: 1800 });
     await hold(600);
     await cursor.moveTo(page.getByRole('navigation', { name: 'Breadcrumb' }), { durationMs: 1400 });
     await hold(900);
-    await cursor.moveTo(page.getByRole('link', { name: 'Skope' }), { durationMs: 700 });
+    await cursor.moveTo(page.getByRole('link', { name: 'Daidal' }), { durationMs: 700 });
   } finally {
     await cursor.dispose();
     await resetCursor(page);

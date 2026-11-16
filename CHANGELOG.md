@@ -13,5 +13,6 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   on GitHub (`docs/releasing.md`).
 
 ### Changed
-- The product is now called **Daidal** (formerly Skope). Code identifiers, hostnames and package names follow in a
-  later release.
+- The product is now called **Daidal** (formerly Skope), everywhere a person reads it: the app, its docs, error
+  messages and what the MCP server tells an AI. Code identifiers, hostnames, package names and the file formats
+  (`.skope.json`, `skope-backup`) keep the old name until a later release.

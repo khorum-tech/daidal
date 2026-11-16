@@ -340,7 +340,7 @@ test.describe("the app on a phone", () => {
     await sheet.getByLabel("Name").fill("ledger-core");
     await sheet.getByLabel("Name").blur();
     await page.keyboard.press("Escape");
-    await expect(page).toHaveTitle("ledger-core · Skope");
+    await expect(page).toHaveTitle("ledger-core · Daidal");
 
     await page.getByRole("navigation", { name: "Diagram panels" }).getByRole("button", { name: /^History/ }).tap();
     const history = page.getByRole("dialog", { name: "History" });
@@ -535,7 +535,7 @@ test.describe("the app on a phone", () => {
     await dialog.getByRole("radio", { name: /C4 Container/ }).tap();
     await dialog.getByRole("checkbox", { name: "Include the example nodes" }).check();
     await dialog.getByRole("button", { name: "Create diagram" }).tap();
-    await expect(page).toHaveTitle("phone-plan · Skope");
+    await expect(page).toHaveTitle("phone-plan · Daidal");
     await expect(page.locator("[data-node]")).toHaveCount(4);
 
     await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).tap();
@@ -638,7 +638,7 @@ test.describe("the app on a phone", () => {
     await page.goto("/app/?tour=start");
     await expect(page).toHaveURL(/\/app\/d\//);
     const tour = (title: string) => page.getByRole("dialog", { name: title });
-    await tour("Welcome to Skope").getByRole("button", { name: "Next" }).tap();
+    await tour("Welcome to Daidal").getByRole("button", { name: "Next" }).tap();
     await expect(tour("Add a node")).toContainText("It starts in Move");
     await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).tap();
     await page.getByRole("dialog", { name: "Add a node" }).getByRole("button", { name: "Service" }).first().tap();
@@ -653,7 +653,7 @@ test.describe("the app on a phone", () => {
     await page.goto("/app/");
     await page.getByRole("button", { name: /^Account:/ }).tap();
     await page.getByRole("dialog", { name: "Account" }).getByRole("menuitem", { name: "Docs" }).tap();
-    await expect(page.getByRole("heading", { level: 1, name: "Skope docs" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Daidal docs" })).toBeVisible();
     await page.getByLabel("Go to a page").selectOption({ label: "Connections" });
     await expect(page.getByRole("heading", { level: 1, name: "Connections" })).toBeVisible();
     await expect(page).toHaveURL(/\/app\/docs\/connections$/);

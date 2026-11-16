@@ -110,7 +110,7 @@
 					<input class="input" type="email" inputmode="email" autocomplete="off" aria-label="Email to add" placeholder="someone@company.com" bind:value={email} />
 					<button type="submit" class="btn btn-secondary" disabled={busy || !email.trim()}>Add</button>
 				</form>
-				<p class="note">They see this workspace's diagrams the next time they open Skope, and can copy them. Only you can change who's in it, and only you see the whole list.</p>
+				<p class="note">They see this workspace's diagrams the next time they open Daidal, and can copy them. Only you can change who's in it, and only you see the whole list.</p>
 			{:else}
 				<p class="note">Only {workspace.ownerEmail} can change who's in it, and only they see everyone in it.</p>
 			{/if}

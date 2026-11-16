@@ -97,7 +97,7 @@
 <header class="bar">
 	<a class="brand" href={homeHref}>
 		<span class="mark"><Logo size={22} /></span>
-		<span>Skope</span>
+		<span>Daidal</span>
 	</a>
 	{#if crumbs.length}
 		<span class="sep" aria-hidden="true"></span>
@@ -137,7 +137,7 @@
 			{/each}
 		</nav>
 	{/if}
-	<span class="readonly tag tag-outline" title="Skope is new: tell us what's missing">Preview</span>
+	<span class="readonly tag tag-outline" title="Daidal is new: tell us what's missing">Preview</span>
 	<div class="user" bind:this={userEl}>
 		<button type="button" class="who" aria-expanded={open} aria-haspopup={narrow ? 'dialog' : 'menu'} aria-label="Account: {me.name || me.email}" onclick={() => (open = !open)}>
 			<span class="avatar" aria-hidden="true">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>

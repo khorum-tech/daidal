@@ -7,7 +7,7 @@ import { LIMITS } from "./limits";
 export const FORMER_MEMBER = "former member";
 
 /**
- * `GET /api/me/export`: everything Skope keeps about you, in one file. Your profile and settings; every workspace you
+ * `GET /api/me/export`: everything Daidal keeps about you, in one file. Your profile and settings; every workspace you
  * own (your personal one included) as the same `skope-backup` content an import reads; the names of the workspaces
  * you're a member of; and your access tokens' names, scopes and dates (never the tokens, which aren't kept).
  */

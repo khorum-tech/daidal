@@ -6,7 +6,7 @@ order: 6
 
 # Types and icons
 
-Every icon in Skope comes from one library, so diagrams look alike whoever draws them.
+Every icon in Daidal comes from one library, so diagrams look alike whoever draws them.
 
 ## Built-in types
 
