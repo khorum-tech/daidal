@@ -5,7 +5,8 @@
 	/**
 	 * A node's detail while presenting: the prototype's hover card. Its type, name and subtitle, its notes, its tags,
 	 * and a few of its connections. The page places it, beside the node on a wide screen and along the bottom on a
-	 * phone. [full] is the phone's View of a selected node, in a sheet: every connection, and its links to open.
+	 * phone. [full] is the phone's View of a selected node, in a sheet: every connection, and its links to open. The
+	 * sheet is its frame and its title is the node's name, so there it draws no card of its own and no name.
 	 */
 	let {
 		node,
@@ -32,12 +33,12 @@
 </script>
 
 <div class="tip" class:full role={full ? 'region' : 'tooltip'} aria-label="About {node.name}">
-	<div class="glow" aria-hidden="true"></div>
+	{#if !full}<div class="glow" aria-hidden="true"></div>{/if}
 	<div class="head">
 		<span class="icon"><Icon name={node.icon} size={14} /></span>
 		<span class="type">{node.type}</span>
 	</div>
-	<p class="name">{node.name}</p>
+	{#if !full}<p class="name">{node.name}</p>{/if}
 	{#if node.sub.trim()}<p class="sub">{node.sub}</p>{/if}
 	{#if node.desc.trim()}<p class="desc">{node.desc}</p>{/if}
 	{#if node.tags.length}
@@ -78,9 +79,15 @@
 		overflow: hidden;
 		pointer-events: none;
 	}
+	/* In the sheet: no box inside the sheet's own. */
 	.tip.full {
 		width: 100%;
 		pointer-events: auto;
+		/* The sheet's other contents (the node's details) keep this distance from its edges. */
+		padding: 14px 16px;
+		border: none;
+		border-radius: 0;
+		background: none;
 		box-shadow: none;
 	}
 	.links a {
