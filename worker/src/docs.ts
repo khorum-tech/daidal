@@ -15,11 +15,11 @@ const encoder = new TextEncoder();
 /** [value] as stored document text. Throws a 400 naming [what] when it is not a version 1 document or too large. */
 export function docText(value: unknown, what = "doc"): string {
   if (!isPlainObject(value)) throw new HttpError(400, `${what} must be a JSON object`);
-  if (value.version !== 1) throw new HttpError(400, `${what} must be a version 1 Skope document`);
+  if (value.version !== 1) throw new HttpError(400, `${what} must be a version 1 Daidal document`);
   if (isPlainObject(value.tags)) {
     for (const [key, tag] of Object.entries(value.tags)) {
       if (isPlainObject(tag) && tag.color !== undefined && !isColor(tag.color)) {
-        throw new HttpError(400, `${what}: tag “${key}” has a colour Skope can't use; give it as #rrggbb`);
+        throw new HttpError(400, `${what}: tag “${key}” has a colour Daidal can't use; give it as #rrggbb`);
       }
     }
   }

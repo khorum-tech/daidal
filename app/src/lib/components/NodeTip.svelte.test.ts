@@ -21,4 +21,15 @@ describe('the node tip', () => {
 		expect(tip.getByText('Node 4').elements()).toHaveLength(0);
 		await expect.element(tip.getByText('and 2 more')).toBeVisible();
 	});
+
+	it('as a View, shows every connection and its links, as a region rather than a tooltip', async () => {
+		const connections = Array.from({ length: 6 }, (_, i) => ({ out: true, name: `Node ${i}`, label: '' }));
+		const linked = { ...gw, links: [{ label: 'Runbook', url: 'https://example.com/run' }, { url: 'https://docs.example.com/x' }] };
+		await render(NodeTip, { node: linked, tags, connections, full: true });
+		const view = page.getByRole('region', { name: 'About Gateway' });
+		await expect.element(view.getByText('Node 5')).toBeVisible();
+		expect(view.getByText(/more$/).elements()).toHaveLength(0);
+		await expect.element(view.getByRole('link', { name: 'Runbook' })).toHaveAttribute('href', 'https://example.com/run');
+		await expect.element(view.getByRole('link', { name: 'docs.example.com' })).toBeVisible();
+	});
 });

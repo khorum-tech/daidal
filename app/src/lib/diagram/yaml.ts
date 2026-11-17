@@ -1,6 +1,6 @@
 /**
  * The prototype's YAML (web/index.html yamlLines, yamlScalar, yamlFold and parseYaml): a small subset that covers a
- * Skope config (maps, lists, flow arrays and maps, folded blocks), so files move between the two frontends as they
+ * Daidal config (maps, lists, flow arrays and maps, folded blocks), so files move between the two frontends as they
  * are. A parse error carries the line it is about.
  */
 

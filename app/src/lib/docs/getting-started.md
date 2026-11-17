@@ -1,12 +1,12 @@
 ---
 title: Getting started
-summary: What Skope is, and your first diagram in five minutes.
+summary: What Daidal is, and your first diagram in five minutes.
 order: 1
 ---
 
 # Getting started
 
-Skope draws how your systems fit together: the services, databases, queues and people, the connections between them, and the boxes they live in. A diagram is a document you can edit by hand on the canvas, as a YAML or JSON config, or through an AI connected to Skope.
+Daidal draws how your systems fit together: the services, databases, queues and people, the connections between them, and the boxes they live in. A diagram is a document you can edit by hand on the canvas, as a YAML or JSON config, or through an AI connected to Daidal.
 
 Prefer to be shown? [Take the tour](/app/?tour=start): ten short steps on a practice diagram, on the real controls. You can start it again any time from **Tutorial** in the menu under your name.
 

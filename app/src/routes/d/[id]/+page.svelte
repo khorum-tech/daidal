@@ -73,7 +73,8 @@
 	import { History } from '#lib/history.svelte.ts';
 	import { iconScene, tagsOn, toScene, type Anchor, type ZoomLink } from '#lib/diagram/model.ts';
 	import { catalogue } from '#lib/diagram/icons.ts';
-	import { kindOf, type KindId } from '#lib/diagram/kinds.ts';
+	import { kindOf, type Kind, type KindId } from '#lib/diagram/kinds.ts';
+	import { childDoc, parentDoc } from '#lib/diagram/drill.ts';
 	import { appearance } from '#lib/appearance.svelte.ts';
 	import { distinguishable } from '#lib/diagram/colour.ts';
 	import { followState } from '#lib/follow.ts';
@@ -91,7 +92,7 @@
 	// Drill-down. A node can zoom into another diagram in the workspace (its links[].diagram); this one's address
 	// carries the diagrams it was reached from (?from=parent,grandparent…), so the header can show the way back up.
 	/** The workspace's other diagrams, by id and name: what a node can zoom into, and the names on the way back. */
-	let linkable = $state<{ id: string; name: string }[] | null>(null);
+	let linkable = $state<{ id: string; name: string; kind?: string }[] | null>(null);
 	/** Of those, the ones with a node that zooms into this diagram: the diagrams above it. */
 	let above = $state<{ id: string; name: string }[]>([]);
 	$effect(() => {
@@ -104,7 +105,7 @@
 			.then(list => {
 				if (data.diagram.workspaceId !== ws) return;
 				const others = list.filter(d => d.id !== self);
-				linkable = others.map(d => ({ id: d.id, name: d.name }));
+				linkable = others.map(d => ({ id: d.id, name: d.name, kind: d.summary?.kind }));
 				above = others.filter(d => d.summary?.zooms?.includes(self)).map(d => ({ id: d.id, name: d.name }));
 			})
 			.catch(() => (linkable = []));
@@ -122,6 +123,12 @@
 		}
 	});
 	const trailName = (id: string) => linkable?.find(d => d.id === id)?.name ?? farNames[id] ?? '…';
+	/** What the header says of a diagram's kind: nothing for freeform, which has no level to be in. */
+	const kindCrumb = (k: Kind) => (k.id === 'freeform' ? undefined : { label: k.label, level: k.level, hint: k.hint });
+	const trailKind = (id: string) => {
+		const raw = linkable?.find(d => d.id === id)?.kind;
+		return raw ? kindCrumb(kindOf(raw)) : undefined;
+	};
 	/** The links of [nodeId] this person can follow: to diagrams they can see. */
 	function zoomsFrom(nodeId: string): ZoomLink[] {
 		const n = scene.nodes.find(x => x.id === nodeId);
@@ -164,6 +171,36 @@
 	}
 	function zoomOut() {
 		if (trail.length) void goto(zoomOutHref(1));
+	}
+	/**
+	 * Zoom in → New diagram: the next C4 level below the selected node, in this workspace, named after it and seeded
+	 * with it as the scope and its neighbours around it; the node links to it (an edit, so Undo takes the link back),
+	 * and it opens. A failure to make it is reported to the caller and changes nothing here.
+	 */
+	async function zoomNew() {
+		const nodeId = selected;
+		const below = kind.child;
+		const node = nodeId ? scene.nodes.find(n => n.id === nodeId) : undefined;
+		if (!node || !below || !mine) return;
+		const made = await api.createDiagram({ workspace: data.diagram.workspaceId, name: node.name, doc: childDoc(current(), data.diagram.id, node.id, below) });
+		const before = current();
+		const zooms = [...node.zooms, { diagram: made.id }];
+		apply(updateNode(before, node.id, { links: [...node.links, ...zooms] }), before, `Zoom into a new ${kindOf(below).label} diagram`);
+		await working.saver.flush();
+		zoomIn({ diagram: made.id });
+	}
+	/**
+	 * A new diagram one C4 level above the selected node, in this workspace: it and its neighbours, as they sit here,
+	 * each with a ref back; the node zooms down to this diagram. It opens with that node selected. This diagram isn't
+	 * changed: the link lives in the new one.
+	 */
+	async function zoomNewAbove() {
+		const node = selected ? current().nodes?.find(n => n.id === selected) : undefined;
+		const up = kind.parent;
+		if (!node || !up || !mine) return;
+		await working.saver.flush();
+		const made = await api.createDiagram({ workspace: data.diagram.workspaceId, name: node.name, doc: parentDoc(current(), data.diagram.id, node.id, up) });
+		void goto(`${resolve('/d/[id]', { id: made.id })}?${new URLSearchParams({ focus: data.diagram.id })}`);
 	}
 	/** A double-click (or ⌘↓) on a node: one diagram to zoom into goes there; several open the node's details to choose. */
 	function drill(nodeId: string): boolean {
@@ -494,13 +531,11 @@
 			hoverTimer = setTimeout(() => (hover = { id, at }), 700);
 		}
 	}
-	const tipEdges = $derived(
-		tipNode
-			? scene.edges
-					.filter(e => e.from === tipNode.id || e.to === tipNode.id)
-					.map(e => ({ out: e.from === tipNode.id, name: nameOf(e.from === tipNode.id ? e.to : e.from), label: e.label }))
-			: []
-	);
+	/** A node's connections, each with the node at the other end: what its hover card and its View list. */
+	function edgesOf(id: string) {
+		return scene.edges.filter(e => e.from === id || e.to === id).map(e => ({ out: e.from === id, name: nameOf(e.from === id ? e.to : e.from), label: e.label }));
+	}
+	const tipEdges = $derived(tipNode ? edgesOf(tipNode.id) : []);
 	let stageEl = $state<HTMLElement>();
 	/** Beside the node, on whichever side has room, and kept inside the canvas. */
 	const tipAt = $derived.by(() => {
@@ -910,7 +945,7 @@
 		mq.addEventListener('change', update);
 		return () => mq.removeEventListener('change', update);
 	});
-	let sheet = $state<'views' | 'history' | 'details' | 'add' | 'edge' | 'box' | 'tags' | 'diagram' | 'multi' | 'config' | null>(null);
+	let sheet = $state<'views' | 'history' | 'details' | 'view' | 'add' | 'edge' | 'box' | 'tags' | 'diagram' | 'multi' | 'config' | null>(null);
 	// Going to another diagram (from the diagram menu's linked diagrams, say) closes whatever sheet was open here.
 	$effect.pre(() => {
 		void data.diagram.id;
@@ -1119,7 +1154,7 @@
 	});
 </script>
 
-<svelte:head><title>{working.name} · Skope</title></svelte:head>
+<svelte:head><title>{working.name} · Daidal</title></svelte:head>
 <svelte:window
 	onkeydown={shortcut}
 	onpointerdown={e => {
@@ -1156,9 +1191,10 @@
 	crumbs={[
 		...(workspace ? [{ label: workspace.name, href: `${resolve('/')}?ws=${encodeURIComponent(workspace.id)}` }] : []),
 		// The way back up, outermost first.
-		...trail.map((id, i) => ({ label: trailName(id), href: zoomOutHref(i + 1) })).reverse(),
+		...trail.map((id, i) => ({ label: trailName(id), href: zoomOutHref(i + 1), kind: trailKind(id) })).reverse(),
 		{
 			label: working.name,
+			kind: kindCrumb(kind),
 			onclick: () => (sheet = 'diagram'),
 			title: mine ? 'Rename, copy or delete this diagram' : 'Copy this diagram',
 			links: { above: linked.above.length, below: linked.below.length }
@@ -1222,6 +1258,8 @@
 			{kind}
 			diagrams={linkable}
 			onzoom={zoomIn}
+			onzoomnew={zoomNew}
+			onzoomup={zoomNewAbove}
 			node={selectedNode}
 			tags={tagByKey}
 			{editable}
@@ -1472,87 +1510,93 @@
 		<!-- Picking many: what they are, moving them together, deleting them, and Done. -->
 		<nav class="toolbar node-menu" aria-label="Picked" data-testid="multi-menu">
 			<button type="button" disabled={!multi?.nodes.length && !multi?.edges.length} onclick={() => (sheet = 'multi')}>
-				<span class="t-label">{editable ? 'Edit' : 'Picked'}</span><span class="t-value">{multi?.nodes.length || multi?.edges.length ? pickLabel(multi) : 'Tap to pick'}</span>
+				<Icon name="pencilSimple" size={20} /><span class="t-label">{editable ? 'Edit' : 'Picked'}</span><span class="t-value">{multi?.nodes.length || multi?.edges.length ? pickLabel(multi) : 'Tap to pick'}</span>
 			</button>
 			{#if editable}
 				<button type="button" class:active={moving} aria-pressed={moving} disabled={!multi?.nodes.length} onclick={() => (moving = !moving)}>
-					<span class="t-label">{moving ? 'Moving' : 'Move'}</span><span class="t-value">{moving ? 'Drag anywhere' : 'All together'}</span>
+					<Icon name="arrowsOutCardinal" size={20} /><span class="t-label">{moving ? 'Moving' : 'Move'}</span><span class="t-value">{moving ? 'Drag anywhere' : 'All together'}</span>
 				</button>
 				<button type="button" class="narrow-btn" disabled={!multi?.nodes.length && !multi?.edges.length} onclick={removePicked}>
-					<span class="t-label">Delete</span><span class="t-value">Picked</span>
+					<Icon name="trash" size={20} /><span class="t-label">Delete</span><span class="t-value">Picked</span>
 				</button>
 			{/if}
 			<button type="button" class="done" aria-label="Done picking" onclick={stopPicking}>
-				<span class="t-label">Done</span><span class="t-value">×</span>
+				<Icon name="x" size={20} /><span class="t-label">Done</span>
 			</button>
 		</nav>
 	{:else if selectedNode}
 		<!-- The node menu takes the toolbar's place while a node is selected. -->
 		<nav class="toolbar node-menu" aria-label="Selected node" data-testid="node-menu">
-			<!-- Edit leads, as View leads the bar it replaces; the ways to change the canvas follow. -->
-			<button type="button" data-tour="node-edit" onclick={() => (sheet = 'details')}>
-				<span class="t-label">{editable ? 'Edit' : 'Details'}</span><span class="t-value">{selectedNode.name}</span>
-			</button>
-			<button type="button" class:active={moving} aria-pressed={moving} disabled={!editable} title={editable ? '' : replayed ? 'Go back to the working copy to move nodes' : 'Only the owner can move nodes'} onclick={() => (moving = !moving)}>
-				<span class="t-label">{moving ? 'Moving' : 'Move'}</span><span class="t-value">{moving ? 'Drag anywhere · tap to stop' : 'Drag to place'}</span>
-			</button>
+			<!-- Edit, Move and Connect change the canvas (its owner's); View shows the node as it reads, for anyone. -->
 			{#if editable}
+				<button type="button" data-tour="node-edit" onclick={() => (sheet = 'details')}>
+					<Icon name="pencilSimple" size={20} /><span class="t-label">Edit</span><span class="t-value">{selectedNode.name}</span>
+				</button>
+				<button type="button" class:active={moving} aria-pressed={moving} onclick={() => (moving = !moving)}>
+					<Icon name="arrowsOutCardinal" size={20} /><span class="t-label">{moving ? 'Moving' : 'Move'}</span><span class="t-value">{moving ? 'Drag anywhere · tap to stop' : 'Drag to place'}</span>
+				</button>
 				<button type="button" data-tour="connect" class:active={connectFrom === selectedNode.id} aria-pressed={connectFrom === selectedNode.id} onclick={() => (connectFrom ? (connectFrom = null) : startConnect(selectedNode.id))}>
-					<span class="t-label">{connectFrom ? 'Connecting' : 'Connect'}</span><span class="t-value">{connectFrom ? 'Tap a node or space · tap to stop' : 'to a node'}</span>
+					<Icon name="flowArrow" size={20} /><span class="t-label">{connectFrom ? 'Connecting' : 'Connect'}</span><span class="t-value">{connectFrom ? 'Tap a node or space · tap to stop' : 'to a node'}</span>
 				</button>
 			{/if}
+			<button type="button" data-tour={editable ? undefined : 'node-edit'} onclick={() => (sheet = 'view')}>
+				<Icon name="info" size={20} /><span class="t-label">View</span><span class="t-value">{selectedNode.name}</span>
+			</button>
 			<button type="button" class="done" aria-label="Done with {selectedNode.name}" onclick={() => select(null)}>
-				<span class="t-label">Done</span><span class="t-value">×</span>
+				<Icon name="x" size={20} /><span class="t-label">Done</span>
 			</button>
 		</nav>
 	{:else if selectedBoxScene}
 		<!-- A selected container: a finger moves or resizes it from anywhere once one is chosen. -->
 		<nav class="toolbar node-menu" aria-label="Selected container" data-testid="box-menu">
 			<button type="button" onclick={() => (sheet = 'box')}>
-				<span class="t-label">{editable ? 'Edit' : 'Details'}</span><span class="t-value">{selectedBoxScene.label || 'Container'}</span>
+				<Icon name={editable ? 'pencilSimple' : 'info'} size={20} /><span class="t-label">{editable ? 'Edit' : 'Details'}</span><span class="t-value">{selectedBoxScene.label || 'Container'}</span>
 			</button>
 			{#if editable}
 				{#each [['move', 'Move', 'Moving'], ['resize', 'Resize', 'Resizing']] as const as [mode, label, active] (mode)}
 					<button type="button" class:active={boxMode === mode} aria-pressed={boxMode === mode} onclick={() => (boxMode = boxMode === mode ? null : mode)}>
-						<span class="t-label">{boxMode === mode ? active : label}</span><span class="t-value">{boxMode === mode ? 'Drag anywhere' : mode === 'move' ? 'Drag to place' : 'Drag to size'}</span>
+						<Icon name={mode === 'move' ? 'arrowsOutCardinal' : 'frameCorners'} size={20} /><span class="t-label">{boxMode === mode ? active : label}</span><span class="t-value">{boxMode === mode ? 'Drag anywhere' : mode === 'move' ? 'Drag to place' : 'Drag to size'}</span>
 					</button>
 				{/each}
 			{/if}
 			<button type="button" class="done" aria-label="Done with the container" onclick={() => selectBox(null)}>
-				<span class="t-label">Done</span><span class="t-value">×</span>
+				<Icon name="x" size={20} /><span class="t-label">Done</span>
 			</button>
 		</nav>
 	{:else if selectedEdgeScene}
 		<!-- A selected connection gets its own menu. -->
 		<nav class="toolbar node-menu" aria-label="Selected connection" data-testid="edge-menu">
 			<button type="button" onclick={() => (sheet = 'edge')}>
-				<span class="t-label">{editable ? 'Edit connection' : 'Connection'}</span><span class="t-value">{nameOf(selectedEdgeScene.from)} → {nameOf(selectedEdgeScene.to)}</span>
+				<Icon name={editable ? 'pencilSimple' : 'info'} size={20} /><span class="t-label">{editable ? 'Edit connection' : 'Connection'}</span><span class="t-value">{nameOf(selectedEdgeScene.from)} → {nameOf(selectedEdgeScene.to)}</span>
 			</button>
 			{#if editable}
 				<button type="button" class="narrow-btn" onclick={disconnect}>
-					<span class="t-label">Delete</span><span class="t-value">Connection</span>
+					<Icon name="trash" size={20} /><span class="t-label">Delete</span><span class="t-value">Connection</span>
 				</button>
 			{/if}
 			<button type="button" class="done" aria-label="Done with the connection" onclick={() => (selectedEdge = null)}>
-				<span class="t-label">Done</span><span class="t-value">×</span>
+				<Icon name="x" size={20} /><span class="t-label">Done</span>
 			</button>
 		</nav>
 	{:else}
 		<nav class="toolbar" aria-label="Diagram panels">
 			<button type="button" data-tour="views" onclick={() => (sheet = 'views')}>
-				<span class="t-label">View</span><span class="t-value">{view ?? (scene.views.length ? 'Everything' : 'Tags')}</span>
+				<Icon name="eye" size={20} /><span class="t-label">View</span><span class="t-value">{view ?? (scene.views.length ? 'Everything' : 'Tags')}</span>
 			</button>
 			<button type="button" onclick={() => (sheet = 'history')}>
-				<span class="t-label">History</span><span class="t-value"
+				<Icon name="clock" size={20} /><span class="t-label">History</span><span class="t-value"
 					>{replayed ? replayed.label : openUpdates && !working.follow.paused ? `${openUpdates} to review` : plural(working.snapshots.length, 'snapshot')}</span
 				>
 			</button>
 			<button type="button" onclick={toggleManyMode}>
-				<span class="t-label">Select</span><span class="t-value">Many</span>
+				<Icon name="marquee" size={20} /><span class="t-label">Select</span><span class="t-value">Many</span>
 			</button>
 		</nav>
 	{/if}
 	<Sheet open={sheet === 'views'} title="Views and tags" onclose={() => (sheet = null)}>{@render tags()}</Sheet>
+	<Sheet open={sheet === 'view' && !!selectedNode} title={selectedNode?.name ?? 'Node'} onclose={() => (sheet = null)}>
+		{#if selectedNode}<NodeTip node={selectedNode} tags={tagByKey} connections={edgesOf(selectedNode.id)} full />{/if}
+	</Sheet>
 	<!-- A follower's updates lead its history on a phone. -->
 	<Sheet open={sheet === 'history'} title="History" onclose={() => (sheet = null)}>{@render followPanel()}{@render history()}</Sheet>
 	<Sheet open={sheet === 'add'} title="Add a node" onclose={() => (sheet = null)}>
@@ -1912,7 +1956,7 @@
 		width: 440px;
 	}
 	.right {
-		width: 260px;
+		width: 288px;
 		flex: none;
 		overflow-y: auto;
 		border-left: 1px solid var(--color-divider);
@@ -1929,17 +1973,25 @@
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
-		align-items: flex-start;
-		gap: 2px;
-		padding: 9px 12px;
-		min-height: 52px;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+		position: relative;
+		padding: 8px 6px;
+		min-height: 56px;
 		border: none;
 		border-right: 1px solid var(--color-divider);
 		background: transparent;
 		color: var(--color-text);
 		font: inherit;
-		text-align: left;
+		text-align: center;
 		cursor: pointer;
+	}
+	.toolbar button :global(svg) {
+		color: var(--color-neutral-300);
+	}
+	.toolbar button.active :global(svg) {
+		color: var(--color-accent-200);
 	}
 	.toolbar button:last-child {
 		border-right: none;
@@ -1958,23 +2010,22 @@
 	.node-menu button.active .t-label {
 		color: var(--color-accent-300);
 	}
-	.node-menu .narrow-btn {
-		flex: 0 0 100px;
-	}
 	.node-menu .done {
-		flex: 0 0 72px;
+		flex: 0 0 56px;
 	}
 	.t-label {
-		font-size: 10px;
-		letter-spacing: 0.12em;
+		font-size: 10.5px;
+		letter-spacing: 0.06em;
 		text-transform: uppercase;
-		color: var(--color-neutral-500);
+		color: var(--color-neutral-400);
 	}
+	/* What a button acts on (the node's name, how many snapshots): read out with its label, not shown. */
 	.t-value {
-		max-width: 100%;
-		font-size: 13px;
+		position: absolute;
+		width: 1px;
+		height: 1px;
 		overflow: hidden;
-		text-overflow: ellipsis;
+		clip-path: inset(50%);
 		white-space: nowrap;
 	}
 	@media (max-width: 600px) {

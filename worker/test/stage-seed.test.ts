@@ -76,7 +76,7 @@ describe("stage seed", () => {
     const first = await counts();
     await seed();
     expect(await counts()).toEqual(first);
-    expect(first).toEqual({ rate_windows: 0, access_tokens: 0, workspace_types: 0, snapshots: 6, diagrams: 7, workspace_members: 3 + 3 + 2, workspaces: 5, users: 3 });
+    expect(first).toEqual({ rate_windows: 0, access_tokens: 0, workspace_types: 0, snapshots: 6, diagrams: 10, workspace_members: 3 + 3 + 2 + 1, workspaces: 6, users: 3 });
   });
 
   it("signs the owner and teammates in to their seeded profiles", async () => {
@@ -95,6 +95,7 @@ describe("stage seed", () => {
       ["Personal", OWNER, true],
       ["Platform team", OWNER, false],
       ["Payments", PRIYA.email, false],
+      ["Ledger C4", OWNER, false],
     ]);
     expect(ws[1].members).toEqual([OWNER, PRIYA.email, DEV.email]);
     expect(ws[2].members).toEqual([PRIYA.email, OWNER]);
@@ -142,6 +143,17 @@ describe("stage seed", () => {
     expect(clone.status).toBe(201);
   });
 
+  it("links the Ledger C4 set down level by level, with refs back up, by the seeded diagrams' own ids", async () => {
+    await seed();
+    const rows = (await env.DB.prepare("SELECT d.id, d.name, d.doc FROM diagrams d JOIN workspaces w ON w.id = d.workspace_id WHERE w.name = 'Ledger C4'").all<{ id: string; name: string; doc: string }>()).results;
+    const by = Object.fromEntries(rows.map(r => [r.name, { id: r.id, doc: JSON.parse(r.doc) }]));
+    const node = (name: string, id: string) => by[name].doc.nodes.find((n: { id: string }) => n.id === id);
+    expect(node("ledger-context", "ledger").links).toEqual([{ diagram: by["ledger-containers"].id }]);
+    expect(node("ledger-containers", "postings").links).toEqual([{ diagram: by["postings-components"].id }]);
+    expect(by["ledger-containers"].doc.boundaries[0].ref).toBe(`${by["ledger-context"].id}#ledger`);
+    expect(by["postings-components"].doc.boundaries[0].ref).toBe(`${by["ledger-containers"].id}#postings`);
+  });
+
   it("covers every node, edge and boundary option the export writes", async () => {
     await seed();
     const docs = (await env.DB.prepare("SELECT doc FROM diagrams").all<{ doc: string }>()).results.map(r => JSON.parse(r.doc));
@@ -154,7 +166,7 @@ describe("stage seed", () => {
     expect(nodes.some(n => n.layout.h)).toBe(true);
     for (const key of ["label", "line", "direction", "route", "anchors", "width", "showLabel"]) expect(edges.some(e => key in e), `edge ${key}`).toBe(true);
     for (const key of ["border", "moveContents", "labelPosition"]) expect(boundaries.some(b => key in b), `boundary ${key}`).toBe(true);
-    expect(new Set(docs.map(d => d.diagram.kind))).toEqual(new Set(["c4-container", "deployment", "freeform"]));
+    expect(new Set(docs.map(d => d.diagram.kind))).toEqual(new Set(["c4-context", "c4-container", "c4-component", "deployment", "freeform"]));
     // An edge may end on a boundary, as the prototype allows.
     const boundaryIds = new Set(boundaries.map(b => b.id));
     expect(edges.some(e => boundaryIds.has(e.to))).toBe(true);

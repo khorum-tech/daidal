@@ -5,29 +5,40 @@
 	/**
 	 * A node's detail while presenting: the prototype's hover card. Its type, name and subtitle, its notes, its tags,
 	 * and a few of its connections. The page places it, beside the node on a wide screen and along the bottom on a
-	 * phone.
+	 * phone. [full] is the phone's View of a selected node, in a sheet: every connection, and its links to open. The
+	 * sheet is its frame and its title is the node's name, so there it draws no card of its own and no name.
 	 */
 	let {
 		node,
 		tags,
-		connections
+		connections,
+		full = false
 	}: {
 		node: SceneNode;
 		tags: Record<string, SceneTag>;
 		/** Its connections, each with the node at the other end. */
 		connections: { out: boolean; name: string; label: string }[];
+		full?: boolean;
 	} = $props();
 
 	const SHOWN = 4;
+	const shown = $derived(full ? connections : connections.slice(0, SHOWN));
+	const hostOf = (url: string) => {
+		try {
+			return new URL(url).host;
+		} catch {
+			return url;
+		}
+	};
 </script>
 
-<div class="tip" role="tooltip" aria-label="About {node.name}">
-	<div class="glow" aria-hidden="true"></div>
+<div class="tip" class:full role={full ? 'region' : 'tooltip'} aria-label="About {node.name}">
+	{#if !full}<div class="glow" aria-hidden="true"></div>{/if}
 	<div class="head">
 		<span class="icon"><Icon name={node.icon} size={14} /></span>
 		<span class="type">{node.type}</span>
 	</div>
-	<p class="name">{node.name}</p>
+	{#if !full}<p class="name">{node.name}</p>{/if}
 	{#if node.sub.trim()}<p class="sub">{node.sub}</p>{/if}
 	{#if node.desc.trim()}<p class="desc">{node.desc}</p>{/if}
 	{#if node.tags.length}
@@ -39,10 +50,17 @@
 	{/if}
 	{#if connections.length}
 		<ul class="edges">
-			{#each connections.slice(0, SHOWN) as c, i (i)}
+			{#each shown as c, i (i)}
 				<li><span class="dir">{c.out ? '→' : '←'}</span><span class="other">{c.name}</span>{#if c.label}<span class="label">{c.label}</span>{/if}</li>
 			{/each}
-			{#if connections.length > SHOWN}<li class="more">and {connections.length - SHOWN} more</li>{/if}
+			{#if connections.length > shown.length}<li class="more">and {connections.length - shown.length} more</li>{/if}
+		</ul>
+	{/if}
+	{#if full && node.links.length}
+		<ul class="edges links" aria-label="Links">
+			{#each node.links as l, i (i)}
+				<li><Icon name="link" size={12} /><a href={l.url} target="_blank" rel="noopener noreferrer">{l.label || hostOf(l.url)}</a></li>
+			{/each}
 		</ul>
 	{/if}
 </div>
@@ -60,6 +78,23 @@
 		box-shadow: var(--shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.4));
 		overflow: hidden;
 		pointer-events: none;
+	}
+	/* In the sheet: no box inside the sheet's own. */
+	.tip.full {
+		width: 100%;
+		pointer-events: auto;
+		/* The sheet's other contents (the node's details) keep this distance from its edges. */
+		padding: 14px 16px;
+		border: none;
+		border-radius: 0;
+		background: none;
+		box-shadow: none;
+	}
+	.links a {
+		color: var(--color-accent);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.glow {
 		position: absolute;

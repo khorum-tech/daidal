@@ -15,9 +15,9 @@ const MAX_BODY = 1024 * 1024 + 64 * 1024;
 const MAX_BATCH = 20;
 
 export const INSTRUCTIONS = [
-  "Skope holds architecture diagrams: nodes (services, databases, queues, people, AI agents…), connections between them, containers that group them, tags that colour-code them and views that show a slice of them. Diagrams live in workspaces.",
+  "Daidal holds architecture diagrams: nodes (services, databases, queues, people, AI agents…), connections between them, containers that group them, tags that colour-code them and views that show a slice of them. Diagrams live in workspaces.",
   "Start with list_workspaces, then list_diagrams, then get_diagram (outline by default) for the one you need. list_types shows the node types a workspace offers.",
-  "Name nodes and containers by id or exact name. For a bigger change, write a Skope config and use apply_config with mode merge: nodes and containers by id, tags by key, views by name, new connections added.",
+  "Name nodes and containers by id or exact name. For a bigger change, write a Daidal config and use apply_config with mode merge: nodes and containers by id, tags by key, views by name, new connections added.",
   "Only a diagram's owner can change it. Changes save straight away; anyone with the diagram open is told it changed and can load the latest.",
   "Before changing a lot, take_snapshot so the person can look back, and say what you plan to change. There is no delete for whole diagrams.",
 ].join(" ");
@@ -61,7 +61,7 @@ async function handle(message: Message, api: Api): Promise<object | null> {
       return reply(id, {
         protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : LATEST,
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "skope", title: "Skope", version: "1.0.0" },
+        serverInfo: { name: "skope", title: "Daidal", version: "1.0.0" },
         instructions: INSTRUCTIONS,
       });
     }
