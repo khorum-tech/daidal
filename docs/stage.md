@@ -6,8 +6,9 @@ The `stage` job in [`.github/workflows/deploy.yml`](../.github/workflows/deploy.
 
 - **One shared stage, in turn.** A Worker `skope-stage`, a D1 `skope-stage`, one hostname. The **oldest open PR**
   (lowest number, opened by a code owner, not a draft) has it, and its pushes redeploy it. A newer PR doesn't deploy; its stage comment
-  says it's waiting and which PR has stage. When the PR on stage is merged or closed, the next one in line
-  deploys by itself, as its branch stands then (merge `main` into it to bring it up to date, which redeploys it).
+  says it's waiting and which PR has stage. **A merge or close deploys nothing**: stage keeps
+  showing what it had. The next PR in line takes stage on its own next push (merge `main` into it, say), or a code
+  owner puts it there by hand.
   A draft never takes stage: mark it ready for review to put it in line. Nor does a bot's PR (Dependabot's): its
   runs get none of stage's secrets, so it would hold stage without deploying.
 - **Only code owners' PRs auto-deploy.** The line holds only PRs opened by someone named in
@@ -17,7 +18,7 @@ The `stage` job in [`.github/workflows/deploy.yml`](../.github/workflows/deploy.
 - **Or by hand, with a hold.** **Actions → deploy → Run workflow** (leave *Use workflow from* on `main`), name a
   **branch**, and run. Tests run on that branch; then that exact commit goes on stage whatever the line says.
   Only code owners get past the check. The options:
-  - *Hold* (on by default): stage stays on that branch. No PR push, merge or close moves it, and each PR's stage
+  - *Hold* (on by default): stage stays on that branch. No PR push moves it, and each PR's stage
     comment says stage is held. Stacked PRs can't overwrite what you're testing.
   - *Reset data* (on by default): untick it to deploy the code and keep what's in stage's database (migrations
     still run).
