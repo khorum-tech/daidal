@@ -54,7 +54,7 @@ jobs:
       - run: npm ci --ignore-scripts --prefix app
       - run: npm run build
       - run: npm run typecheck
-      # One Chromium serves the app's component tests and the end-to-end tests (both on Playwright 1.63). Through
+      # One Chromium serves the app's component tests and the end-to-end tests (both pin the same Playwright). Through
       # npm, so it is the locked Playwright that installs it, never one npx fetches.
       - run: npm run playwright:install
       - run: npm test
