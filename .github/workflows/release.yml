@@ -1,0 +1,68 @@
+name: release
+
+# Tags a release and publishes it on GitHub when a new version reaches main.
+#
+# A release is prepared by hand (`npm run release -- minor`, docs/releasing.md) and merged like any change. This
+# workflow then finds that package.json names a version with no `v<version>` tag yet, tags that commit, and
+# publishes a GitHub release: the version's notes from CHANGELOG.md, then the pull requests merged since the last
+# tag. Nothing here pushes commits, so branch protection on main is left alone. Prod deploys from main as before
+# (deploy.yml); a release is a name for a commit, not a deploy.
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  # Run it by hand (from main) if a run failed after the version merged.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # One at a time, so two merges can't both try to make the same tag.
+    concurrency: release
+    permissions:
+      # To create the tag and the release.
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      # Nothing is installed: the release script uses only Node itself.
+      - id: version
+        name: Is there a version to release?
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          version="$(node -p "require('./package.json').version || ''")"
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::package.json's version is \"$version\", not x.y.z"
+            exit 1
+          fi
+          if [ "$version" = "0.0.0" ]; then
+            echo "::notice::No release yet: the version is still 0.0.0."
+          elif gh api "repos/$REPO/git/ref/tags/v$version" > /dev/null 2>&1; then
+            echo "::notice::v$version is already tagged: nothing to release."
+          else
+            echo "release=v$version" >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.version.outputs.release != ''
+        name: Tag it and publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.version.outputs.release }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Fails, before anything is tagged, if CHANGELOG.md has no notes for this version.
+          node scripts/release.mjs --notes "$VERSION" > notes.md
+          # Creates the tag at this commit, with GitHub's list of merged pull requests under the notes.
+          gh release create "$TAG" --repo "$REPO" --target "$GITHUB_SHA" --title "$TAG" --notes-file notes.md --generate-notes
+          echo "::notice title=Released::$TAG is tagged and published."

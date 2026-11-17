@@ -19,7 +19,7 @@
 	});
 </script>
 
-<svelte:head><title>{title} · Skope docs</title></svelte:head>
+<svelte:head><title>{title} · Daidal docs</title></svelte:head>
 
 <AppHeader me={data.me} homeHref={resolve('/')} crumbs={data.slug ? [{ label: 'Docs', href: href('') }, { label: title }] : [{ label: 'Docs' }]} />
 
@@ -27,7 +27,7 @@
 	<aside class="side"><DocsNav pages={PAGES} current={data.page ? data.slug : null} {href} /></aside>
 	<main class="main">
 		{#if data.page}
-			<!-- The pages are Skope's own markdown (src/lib/docs), so their HTML is trusted. -->
+			<!-- The pages are Daidal's own markdown (src/lib/docs), so their HTML is trusted. -->
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 			<article class="prose">{@html html}</article>
 			<nav class="pager" aria-label="More docs">
@@ -41,8 +41,8 @@
 			</article>
 		{:else}
 			<article class="prose">
-				<h1>Skope docs</h1>
-				<p>How Skope works, from your first diagram to letting an AI edit them.</p>
+				<h1>Daidal docs</h1>
+				<p>How Daidal works, from your first diagram to letting an AI edit them.</p>
 			</article>
 			<ul class="contents">
 				{#each PAGES as p (p.slug)}

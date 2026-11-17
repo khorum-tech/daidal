@@ -74,7 +74,7 @@ test.describe("the app on a phone", () => {
     const menu = page.getByTestId("node-menu");
     await expect(menu).toContainText("Journal DB");
     // Edit leads, as View leads the bar it replaces.
-    await expect(menu.getByRole("button").first()).toContainText(/^\s*Edit/);
+    await expect(menu.getByRole("button").first()).toHaveAccessibleName(/^Edit/);
     // The owner's details are the editable inspector.
     await menu.getByRole("button", { name: /^Edit/ }).tap();
     await expect(page.getByRole("dialog", { name: "Node details" }).getByLabel("Notes")).toHaveValue(/Append-only journal/);
@@ -88,6 +88,39 @@ test.describe("the app on a phone", () => {
     await page.getByRole("dialog", { name: "History" }).getByRole("button", { name: /Container view/ }).tap();
     await expect(page.getByRole("status")).toContainText("Replaying “Container view”");
     await expect(page.getByRole("button", { name: "Database: Balance Cache" })).toHaveCount(0);
+  });
+
+  test("shows a picked node's bar as icons, and its View: every connection and link, read-only", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    const postings = page.getByRole("button", { name: "Service: Postings Service" });
+    await postings.tap();
+    const menu = page.getByTestId("node-menu");
+    // Edit, Move, Connect, View, then Done: each an icon over a word, big enough for a thumb.
+    const buttons = menu.getByRole("button");
+    await expect(buttons).toHaveCount(5);
+    for (const [i, label] of ["Edit", "Move", "Connect", "View", "Done"].entries()) {
+      await expect(buttons.nth(i)).toHaveAccessibleName(new RegExp(`^${label}`));
+      await expect(buttons.nth(i).locator("svg")).toBeVisible();
+      expect((await buttons.nth(i).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+
+    await menu.getByRole("button", { name: /^View/ }).tap();
+    const view = page.getByRole("dialog", { name: "Postings Service" }).getByRole("region", { name: "About Postings Service" });
+    await expect(view).toContainText("Double-entry postings");
+    for (const other of ["Edge Router", "Journal DB", "Balances Service"]) await expect(view.getByText(other, { exact: true })).toBeVisible();
+    await expect(view.getByRole("textbox")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // Replaying history is read-only: the bar is View and Done.
+    await menu.getByRole("button", { name: /^Done/ }).tap();
+    await page.getByRole("navigation", { name: "Diagram panels" }).getByRole("button", { name: /^History/ }).tap();
+    await page.getByRole("dialog", { name: "History" }).getByRole("button", { name: /Container view/ }).tap();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Service: Postings Service" }).tap();
+    await expect(menu.getByRole("button")).toHaveCount(2);
+    await expect(menu.getByRole("button").first()).toHaveAccessibleName(/^View Postings Service/);
   });
 
   test("draws a C4 diagram in C4 notation, and a tap still picks a card", async ({ page, request }) => {
@@ -340,7 +373,7 @@ test.describe("the app on a phone", () => {
     await sheet.getByLabel("Name").fill("ledger-core");
     await sheet.getByLabel("Name").blur();
     await page.keyboard.press("Escape");
-    await expect(page).toHaveTitle("ledger-core · Skope");
+    await expect(page).toHaveTitle("ledger-core · Daidal");
 
     await page.getByRole("navigation", { name: "Diagram panels" }).getByRole("button", { name: /^History/ }).tap();
     const history = page.getByRole("dialog", { name: "History" });
@@ -535,7 +568,7 @@ test.describe("the app on a phone", () => {
     await dialog.getByRole("radio", { name: /C4 Container/ }).tap();
     await dialog.getByRole("checkbox", { name: "Include the example nodes" }).check();
     await dialog.getByRole("button", { name: "Create diagram" }).tap();
-    await expect(page).toHaveTitle("phone-plan · Skope");
+    await expect(page).toHaveTitle("phone-plan · Daidal");
     await expect(page.locator("[data-node]")).toHaveCount(4);
 
     await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).tap();
@@ -638,7 +671,7 @@ test.describe("the app on a phone", () => {
     await page.goto("/app/?tour=start");
     await expect(page).toHaveURL(/\/app\/d\//);
     const tour = (title: string) => page.getByRole("dialog", { name: title });
-    await tour("Welcome to Skope").getByRole("button", { name: "Next" }).tap();
+    await tour("Welcome to Daidal").getByRole("button", { name: "Next" }).tap();
     await expect(tour("Add a node")).toContainText("It starts in Move");
     await page.getByRole("toolbar", { name: "Edit" }).getByRole("button", { name: "Add", exact: true }).tap();
     await page.getByRole("dialog", { name: "Add a node" }).getByRole("button", { name: "Service" }).first().tap();
@@ -653,7 +686,7 @@ test.describe("the app on a phone", () => {
     await page.goto("/app/");
     await page.getByRole("button", { name: /^Account:/ }).tap();
     await page.getByRole("dialog", { name: "Account" }).getByRole("menuitem", { name: "Docs" }).tap();
-    await expect(page.getByRole("heading", { level: 1, name: "Skope docs" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Daidal docs" })).toBeVisible();
     await page.getByLabel("Go to a page").selectOption({ label: "Connections" });
     await expect(page.getByRole("heading", { level: 1, name: "Connections" })).toBeVisible();
     await expect(page).toHaveURL(/\/app\/docs\/connections$/);

@@ -46,7 +46,7 @@ export function tourCounts(doc: SkopeDoc, presenting = false): TourCounts {
 export const TOUR: TourStep[] = [
 	{
 		id: 'welcome',
-		title: 'Welcome to Skope',
+		title: 'Welcome to Daidal',
 		body: 'This practice diagram is yours to play with. A few steps show the basics, on the real controls. You can end the tour any time and pick it up again from the menu under your name.',
 		targets: []
 	},

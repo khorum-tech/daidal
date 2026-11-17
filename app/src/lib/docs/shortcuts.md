@@ -31,9 +31,9 @@ Drag empty canvas to pan; scroll to pan; ctrl+scroll or pinch to zoom. Double-cl
 ## Touch
 
 - Drag to pan, pinch to zoom. A tap selects; a tap on empty space clears.
-- A selected node's menu has **Edit** (**Details** on a diagram you can only read), **Move**, **Connect** and **Done**. In Move, a drag from anywhere moves the node; two fingers still pan.
+- A selected node's bar has **Edit**, **Move**, **Connect**, **View** and **×** (done). **View** shows the node as it reads: its notes, tags, every connection and its links. On a diagram you can only read, the bar is **View** and **×**. In Move, a drag from anywhere moves the node; two fingers still pan.
 - **Select** in the bottom bar picks with taps or a box.
 
-![A selected node on a phone, with Edit, Move, Connect and Done along the bottom](/app/docs-images/phone-node-menu.png)
+![A selected node on a phone, with Edit, Move, Connect, View and Done along the bottom](/app/docs-images/phone-node-menu.png)
 
 - The panels open as sheets from the bottom bar: View, History and more.

@@ -142,7 +142,7 @@
 		try {
 			backup = JSON.parse(await file.text());
 		} catch {
-			notice = { text: `“${file.name}” isn't a Skope backup: it isn't JSON.`, failed: true };
+			notice = { text: `“${file.name}” isn't a Daidal backup: it isn't JSON.`, failed: true };
 			return;
 		}
 		try {
@@ -217,7 +217,7 @@
 		{#if notice}<p class="notice" class:failed={notice.failed} role={notice.failed ? 'alert' : 'status'}>{notice.text}</p>{/if}
 		{#if offering}
 			<section class="tour-offer" aria-label="Take the tour">
-				<p><strong>New to Skope?</strong> A three-minute tour on a practice diagram shows the basics.</p>
+				<p><strong>New to Daidal?</strong> A three-minute tour on a practice diagram shows the basics.</p>
 				<button type="button" class="btn btn-primary" disabled={touring} onclick={beginTour}>{touring ? 'Starting…' : 'Start the tour'}</button>
 				<button type="button" class="btn btn-ghost" onclick={noTour}>No thanks</button>
 			</section>
@@ -264,7 +264,7 @@
 					<span class="empty-icon"><Icon name="folder" size={30} /></span>
 					<h2>No diagrams here yet</h2>
 					<p>Start one with <strong>+ New diagram</strong>, or copy one from another workspace from its name in the header.</p>
-					<p class="learn">New to Skope? <a href={resolve('/docs/[[page]]', { page: 'getting-started' })}>Learn Skope</a> in five minutes.</p>
+					<p class="learn">New to Daidal? <a href={resolve('/docs/[[page]]', { page: 'getting-started' })}>Learn Daidal</a> in five minutes.</p>
 				</div>
 			{/if}
 		{/if}

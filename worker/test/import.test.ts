@@ -133,13 +133,13 @@ describe("POST /api/workspaces/import", () => {
     const file = twoWorkspaces();
     (file.workspaces[1] as { diagrams: { doc: unknown }[] }).diagrams[0].doc = { version: 2 };
     const res = await call.post("i-atomic@example.com", "/api/workspaces/import", file);
-    expect(res).toEqual({ status: 400, body: { error: "diagram mine's doc must be a version 1 Skope document" } });
+    expect(res).toEqual({ status: 400, body: { error: "diagram mine's doc must be a version 1 Daidal document" } });
     expect(await env.DB.prepare("SELECT 1 FROM workspaces WHERE owner_email = ? AND name = 'Platform'").bind("i-atomic@example.com").first()).toBeNull();
   });
 
   it.each([
-    ["not a backup", { format: "storybild-backup" }, "this isn't a Skope backup file"],
-    ["a newer version", { format: "skope-backup", version: 2, workspaces: [] }, "this Skope backup is from a newer version"],
+    ["not a backup", { format: "storybild-backup" }, "this isn't a Daidal backup file"],
+    ["a newer version", { format: "skope-backup", version: 2, workspaces: [] }, "this Daidal backup is from a newer version"],
     ["no workspaces", backup([]), "the file has no workspaces to import"],
     ["a duplicate id", backup([{ name: "W", diagrams: [{ id: "x", doc: doc() }, { id: "x", doc: doc() }] }]), "two diagrams in the file share the id x"],
     ["a bad id", backup([{ name: "W", diagrams: [{ id: "a b", doc: doc() }] }]), 'a diagram has an id the import cannot use: "a b"'],
