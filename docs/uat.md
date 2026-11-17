@@ -104,6 +104,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | VIEW-7 | Solo a tag (the button at the end of its row, "Solo …"), then press it again | Only that tag shows, then the switches come back as they were | D | |
 | VIEW-8 | Rest the mouse on **Journal DB** a moment | Its card appears: type, name, notes, tags, connections. Moving away or pressing hides it | D | |
 | VIEW-9 | Tap a node on the phone | It's selected, and the node menu replaces the bottom bar | P | |
+| VIEW-10 | On the phone, tap a node, then **View** | A sheet shows it read-only: notes, tags, every connection and its links. On a replayed snapshot the bar is just View and × | P | |
 | VIEW-10 | Use the minimap in the bottom-left: zoom in, then click its far corner, then drag on it | The canvas looks where you clicked, and follows the drag; the outline shows what's on screen | D | |
 | VIEW-11 | Fold both side panels with the tabs at the canvas's edges, reload | Both stay folded; the tabs bring them back | D | |
 | VIEW-12 | Check the phone has no minimap, edge tabs or end handles | None show; the bottom bar has the panels | P | |
