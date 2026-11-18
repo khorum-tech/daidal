@@ -15,7 +15,7 @@ covers every Contribution you submit to this project, now and later.
   you intentionally submit to us for inclusion in Daidal: through a pull request, an issue, a patch, or any other
   form of communication sent to the project or its maintainers. It does not include anything you have marked in
   writing as "Not a Contribution".
-- **"Daidal"** means the software, documentation and other material in the khorum-oss/skope repository (or any
+- **"Daidal"** means the software, documentation and other material in the khorum-oss/daidal repository (or any
   repository it moves to), owned or managed by us.
 
 ## 2. Copyright license
