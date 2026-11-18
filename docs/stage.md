@@ -47,7 +47,8 @@ Until the two repository variables and the secret below are set, the `stage` job
 3. **Set the GitHub Actions settings.** In *Settings → Environments → New environment*, make one named `stage`.
    Leave *Deployment branches* open to all branches (every PR branch deploys) and add no required reviewers. Put
    these in it (repository-level settings work too; the `Prod` environment's are never visible to stage):
-   - `STAGE_D1_ID` (step 1) and `STAGE_ACCESS_AUD` (step 2): secrets or variables, either works.
+   - `STAGE_D1_ID` (step 1) and `STAGE_ACCESS_AUD` (step 2). Make them **secrets**: this repository's Actions logs
+     are public, and GitHub masks a secret's value in them but prints a variable's. (A variable still works.)
    - Secret `STAGE_OWNER_EMAIL`, the email you sign in to Access with. The stage data is owned by this address.
      It is a secret so GitHub masks it in this public repository's logs, and only the seed step gets it.
    - Secret `STAGE_CLOUDFLARE_API_TOKEN`, stage's own Cloudflare token (see *Tokens* below), and
@@ -64,13 +65,25 @@ tests, which need neither), so nothing account-specific is in the repository. Th
 
 | Name | What | Where to find it |
 |------|------|------------------|
-| `PROD_D1_ID` (secret or variable) | prod's database id | Cloudflare → Storage & databases → D1 → **`skope`** → Database ID |
-| `PROD_ACCESS_AUD` (secret or variable) | prod's Access AUD tag | Zero Trust → Access → Applications → **skope.khorum-oss.org** → AUD tag |
+| `PROD_D1_ID` (a secret, so logs mask it) | prod's database id | Cloudflare → Storage & databases → D1 → **`skope`** → Database ID |
+| `PROD_ACCESS_AUD` (a secret, so logs mask it) | prod's Access AUD tag | Zero Trust → Access → Applications → **skope.khorum-oss.org** → AUD tag |
 | `CLOUDFLARE_API_TOKEN` (secret) | prod's Cloudflare token | see *Tokens* |
 | `CLOUDFLARE_ACCOUNT_ID` (secret or variable) | the account | the dashboard URL, or a zone's Overview → API |
 
 Until `PROD_D1_ID` and `PROD_ACCESS_AUD` are set, the prod deploy stops at "Generate wrangler.prod.jsonc" with a
 message naming what's missing, before touching Cloudflare.
+
+## What the deploy logs show
+
+Anyone can read this repository's Actions logs, so the deploys are set up to print nothing account-specific:
+
+- The Access AUD is uploaded as a **Worker secret** (`wrangler deploy --secrets-file …`, from the file the config
+  script writes), not as a plain variable. `wrangler deploy` prints every variable's value, shortened, and GitHub's
+  masking only matches a secret's whole value, so a variable's first characters would show.
+- Database ids, the account id and the owner's email are GitHub secrets, which the logs show as `***`.
+- What still shows, and is public anyway: the hostnames, the Worker and database names, the Access team domain.
+
+If you add a setting the Worker needs, give it to the Worker as a secret unless you are happy to see it in a log.
 
 ## Tokens
 

@@ -1,6 +1,6 @@
 # Trademarks
 
-**Daidal** (the name, pronounced *DAY-dal*), the Daidal logo and the Violabs name are trademarks of
+**Daidal** (the name, pronounced *DYE-dal*), the Daidal logo and the Violabs name are trademarks of
 Violabs Software LLC. The license in `LICENSE.md` covers the software; it does not grant rights to these marks.
 
 ## What you may do
