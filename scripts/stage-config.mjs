@@ -95,8 +95,7 @@ export function stageConfig(prod, env) {
 
 /** [vars] without ACCESS_AUD, which the generated configs upload as a secret instead. */
 export function withoutAud(vars) {
-  const { ACCESS_AUD: _aud, ...rest } = vars ?? {};
-  return rest;
+  return Object.fromEntries(Object.entries(vars ?? {}).filter(([name]) => name !== "ACCESS_AUD"));
 }
 
 /** What `wrangler deploy --secrets-file` uploads for stage: the Worker reads it as env.ACCESS_AUD all the same. */
