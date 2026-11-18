@@ -13,7 +13,7 @@ tell you when they disagree.
 
 <sub>[The same tour as a video](docs/demo/tour.mp4) · [C4 drill-down, in 35 seconds](docs/demo/c4.gif) · [how they are recorded](docs/demo.md)</sub>
 
-Say it *DAY-dal* — after Daidalos, the architect who could still find his way out of the labyrinth.
+Say it *DYE-dal* — after Daidalos, the architect who could still find his way out of the labyrinth.
 
 > **Status:** source-available, early. The hosted instance is invite-only while sign-in moves off Cloudflare
 > Access. Self-hosting works today on a Cloudflare account. The name changed from *Skope* on 2026-11-08; code
