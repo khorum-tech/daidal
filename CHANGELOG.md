@@ -12,6 +12,9 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 - A product tour and a C4 walk-through on the README, recorded from scripts (`docs/demo.md`).
 - Versioned releases: `npm run release` moves the version on and files these notes; merging that tags the release
   on GitHub (`docs/releasing.md`).
+- A shared core package (`packages/core`, `@khorum-oss/daidal-core`): the document types, the scene model, the SVG
+  renderer, config reading and document edits, with no DOM and no dependencies. The editor and the Worker both use
+  it, so later integrations draw the same picture.
 
 ### Changed
 - The product is now called **Daidal** (formerly Skope), everywhere a person reads it: the app, its docs, error

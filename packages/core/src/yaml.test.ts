@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseYaml, yamlLines, yamlScalar, YamlError } from './yaml';
-import { SAMPLE } from '../fixtures/docs';
+import { SAMPLE } from './fixtures';
 
 describe('yaml', () => {
 	it('writes plain words bare and quotes the rest', () => {

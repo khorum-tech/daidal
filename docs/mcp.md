@@ -28,7 +28,7 @@ stream, no session), in `worker/src/mcp/`. A client signs in one of two ways:
 A tool acts as you, through the same API as the app:
 
 - It never does more than you may: only a diagram's owner changes it; a workspace you're not in doesn't exist to it.
-- Edits use the app's own edit functions (`app/src/lib/diagram/edit.ts`), so a node an AI adds is placed and named
+- Edits use the app's own edit functions (`packages/core/src/edit.ts`), so a node an AI adds is placed and named
   as the editor would place it. Each change loads the diagram, applies the edit and saves with the revision it
   loaded; if someone saved in between, it applies the same edit once more to what they saved.
 - No tool deletes a diagram, moves one, changes members, imports or exports, or touches tokens or your profile.

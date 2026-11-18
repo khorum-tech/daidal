@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { CustomType } from '../types';
-	import { ICON_LIBRARY, TYPE_CATS, typeKey } from '../diagram/icons';
-	import { slug } from '../diagram/model';
+	import { ICON_LIBRARY, TYPE_CATS, typeKey } from '@khorum-oss/daidal-core/icons';
+	import { slug } from '@khorum-oss/daidal-core/model';
 	import Icon from './Icon.svelte';
 	import IconPicker from './IconPicker.svelte';
 

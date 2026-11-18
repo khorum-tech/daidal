@@ -8,8 +8,8 @@
 	import Icon from '#lib/components/Icon.svelte';
 	import Sheet from '#lib/components/Sheet.svelte';
 	import WorkspaceSheet from '#lib/components/WorkspaceSheet.svelte';
-	import { slug } from '#lib/diagram/model.ts';
-	import { fromTemplate, TEMPLATES } from '#lib/diagram/templates.ts';
+	import { slug } from '@khorum-oss/daidal-core/model';
+	import { fromTemplate, TEMPLATES } from '@khorum-oss/daidal-core/templates';
 	import TemplatePicker from '#lib/components/TemplatePicker.svelte';
 	import type { ListedDiagram, Workspace } from '#lib/types.ts';
 	import { offerTour, saveTour, startTour } from '#lib/tour.ts';

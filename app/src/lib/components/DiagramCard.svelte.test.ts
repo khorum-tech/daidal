@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import DiagramCard from './DiagramCard.svelte';
-import { SAMPLE } from '../fixtures/docs';
-import { cardSummary } from '../diagram/summary';
+import { SAMPLE } from '@khorum-oss/daidal-core/fixtures';
+import { cardSummary } from '@khorum-oss/daidal-core/summary';
 import type { ListedDiagram } from '../types';
 
 const NOW = Date.parse('2026-10-24T12:00:00Z');

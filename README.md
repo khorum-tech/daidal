@@ -84,6 +84,7 @@ account. The security model, limits and what is stored about people are in [`doc
 |---|---|
 | `worker/` | The Cloudflare Worker: API, auth, limits, MCP server, tests |
 | `app/` | The SvelteKit editor, served under `/app` |
+| `packages/core/` | The shared core: the document types, scene model, SVG renderer, config and edits (no DOM, no dependencies), used by the app and the Worker |
 | `migrations/` | D1 schema |
 | `docs/` | MCP, security, stage, and design specs under `docs/superpowers/` |
 | `e2e/`, `docs-shots/` | Playwright end-to-end tests and documentation screenshots |

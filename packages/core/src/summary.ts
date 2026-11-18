@@ -1,4 +1,4 @@
-import type { CardSummary, DaidalDoc } from '../types';
+import type { CardSummary, DaidalDoc } from './types';
 import { toScene } from './model';
 
 const MAX_NAMES = 300;

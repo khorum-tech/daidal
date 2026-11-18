@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import DiagramCanvas from './DiagramCanvas.svelte';
-import { tagsOn, toScene } from '../diagram/model';
-import type { Picked } from '../diagram/edit';
-import { SAMPLE } from '../fixtures/docs';
+import { tagsOn, toScene } from '@khorum-oss/daidal-core/model';
+import type { Picked } from '@khorum-oss/daidal-core/edit';
+import { SAMPLE } from '@khorum-oss/daidal-core/fixtures';
 import '../styles/nocturne.css';
 
 const scene = toScene(SAMPLE);

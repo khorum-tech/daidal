@@ -1,0 +1,19 @@
+{
+  "name": "@khorum-oss/daidal-core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Daidal document, its scene model and the SVG renderer: no DOM, no framework, no dependencies.",
+  "license": "SEE LICENSE IN ../../LICENSE.md",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./icon-library.json": "./src/icon-library.json",
+    "./types.json": "./src/types.json",
+    "./templates.json": "./src/templates.json",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  }
+}

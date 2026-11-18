@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { docLinks, type SceneNode, type SceneTag, type ZoomLink } from '../diagram/model';
-	import type { NodeChange } from '../diagram/edit';
-	import { hostOf, linkUrl } from '../diagram/edit';
-	import { FLAGS, ICON_LIBRARY, TYPE_CATS, type TypeCats } from '../diagram/icons';
-	import { kindOf, type Kind } from '../diagram/kinds';
+	import { docLinks, type SceneNode, type SceneTag, type ZoomLink } from '@khorum-oss/daidal-core/model';
+	import type { NodeChange } from '@khorum-oss/daidal-core/edit';
+	import { hostOf, linkUrl } from '@khorum-oss/daidal-core/edit';
+	import { FLAGS, ICON_LIBRARY, TYPE_CATS, type TypeCats } from '@khorum-oss/daidal-core/icons';
+	import { kindOf, type Kind } from '@khorum-oss/daidal-core/kinds';
 	import Icon from './Icon.svelte';
 	import IconPicker from './IconPicker.svelte';
 	import TypePicker from './TypePicker.svelte';

@@ -1,4 +1,4 @@
-import type { DocBoundary, DocEdge, DocNode, DaidalDoc } from '../types';
+import type { DocBoundary, DocEdge, DocNode, DaidalDoc } from './types';
 import { isNodeIcon, TYPE_CATS, typeIcon, typeKey, type TypeCats } from './icons';
 import { c4Line, c4Role, kindOf, type C4Role, type Kind } from './kinds';
 

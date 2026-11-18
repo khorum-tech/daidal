@@ -1,4 +1,4 @@
-import type { DocBoundary, DocEdge, DocNode, DocTag, DaidalDoc } from '../types';
+import type { DocBoundary, DocEdge, DocNode, DocTag, DaidalDoc } from './types';
 import { NODE_H, NODE_W, slug, toScene, type Anchor, type Scene, type Side } from './model';
 
 /**

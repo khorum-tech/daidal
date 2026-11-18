@@ -11,7 +11,7 @@
 
 <script lang="ts">
 	import type { Workspace } from '../types';
-	import { KINDS, type KindId } from '../diagram/kinds';
+	import { KINDS, type KindId } from '@khorum-oss/daidal-core/kinds';
 	import Icon from './Icon.svelte';
 
 	/**

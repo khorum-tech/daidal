@@ -44,9 +44,9 @@ and connections on hover (on a tap, on a phone) and the views to switch; Escape 
 **link** to it, which can open on the view on now (`?view=Name`), and its owner can **lock editing on this device**
 (kept in the browser: picking and views still work). A **view** can be locked too, in the document: it can still be
 shown, not renamed, re-saved or deleted. The diagram's sheet also **exports an image**: a PNG (at twice the size) or an SVG of
-the diagram as it shows now, drawn from the document in the canvas's colours (`src/lib/diagram/render.ts`), with
+the diagram as it shows now, drawn from the document in the canvas's colours (`packages/core/src/render.ts`), with
 what the view switches off kept faintly or left out. The **config** (Config in the toolbar, or the diagram's sheet) is the
-document as YAML or JSON, written and read as the prototype does (`src/lib/diagram/yaml.ts`): its owner edits it, or
+document as YAML or JSON, written and read as the prototype does (`packages/core/src/yaml.ts`): its owner edits it, or
 drops or opens a `.daidal.yaml` / `.daidal.json` file, and applies it, replacing the diagram or merging it in (nodes by
 id), as one undo step. A config that can't be read says why, with the line, and changes nothing. Anyone can copy or
 download it.
@@ -56,7 +56,7 @@ system theme; a colour-vision condition, which strikes the colours that collide 
 and can be simulated over the whole app (an SVG colour matrix, `src/lib/diagram/colour.ts`); and **icon-only cards**
 when presenting (also a switch in the presenting bar), each node drawn as its icon and name.
 
-**+ New diagram** starts from a blank canvas or one of the prototype's templates (`src/lib/diagram/templates.ts`): its
+**+ New diagram** starts from a blank canvas or one of the prototype's templates (`packages/core/src/templates.ts`): its
 tags, views and kind always, its example nodes if asked. Under History, **Edits this visit** lists every change since
 the diagram was opened, newest first; picking one rolls back to just after it (or forward, to one undone), a step at a
 time through undo and redo, so ⌘Z carries on from there.
@@ -79,7 +79,7 @@ What's left to port, and the order it's planned in: [`docs/superpowers/specs/202
 
 | Route | What it shows |
 |-------|---------------|
-| `/app/` | Your workspaces (yours and shared with you) and the diagrams in one (`?ws=<id>`, else your personal one), as the prototype's project cards, searched by `?q=` (diagram and node names). Cards come sixty at a time from one list request, drawn from the summary the server keeps for each diagram (`src/lib/diagram/summary.ts`), so no document loads here |
+| `/app/` | Your workspaces (yours and shared with you) and the diagrams in one (`?ws=<id>`, else your personal one), as the prototype's project cards, searched by `?q=` (diagram and node names). Cards come sixty at a time from one list request, drawn from the summary the server keeps for each diagram (`packages/core/src/summary.ts`), so no document loads here |
 | `/app/d/:id` | One diagram on the canvas: views and tags (switching them only changes what you see), the selected node's details, the history (pick a snapshot to replay it), and where a follower stands against its lead |
 
 The canvas handles every gesture itself, the same for a finger or a mouse: drag to pan, pinch or ctrl+scroll to zoom,
@@ -98,7 +98,7 @@ On screens 900 px wide or less the canvas gets the full width and the panels mov
 History), opening as sheets. While a node is selected the toolbar becomes the node menu: Move, Details (a sheet)
 and Done. The e2e `phone` project (`e2e/mobile.spec.ts`) keeps this working.
 
-Components live in `src/lib/components/`. What they draw is worked out in `src/lib/diagram/`: `model.ts` turns a
+Components live in `src/lib/components/`. What they draw is worked out in the shared core package (`packages/core/src/`), which the Worker uses too: `model.ts` turns a
 `.daidal.json` document into a scene the way the prototype's config import does, and `geometry.ts` routes
 connections the way the prototype's canvas does.
 
@@ -113,8 +113,8 @@ The getting-started tour is `src/lib/tour.ts` (the steps, each pointing at a `da
 when its check sees it done) and `TourCallout.svelte`. It runs on a practice diagram, starts from the account menu's
 **Tutorial**, the offer on home, or `/app/?tour=start`, and keeps its place in `/api/me` settings (`tutorial`).
 
-Icons and node types are data. `src/lib/diagram/icon-library.json` holds every icon Daidal draws, all from
-[Phosphor](https://phosphoricons.com) (MIT, regular weight) so they look alike. `src/lib/diagram/types.json` lists the
+Icons and node types are data. `packages/core/src/icon-library.json` holds every icon Daidal draws, all from
+[Phosphor](https://phosphoricons.com) (MIT, regular weight) so they look alike. `packages/core/src/types.json` lists the
 type picker's categories, each type with an icon from that library. To add an icon, put its Phosphor name in the list
 in `scripts/icons.mjs` and run `node scripts/icons.mjs` from the project root. It's stored under the camelCase of the
 name, for example `plugsConnected`. To add a type, add a line to `types.json`; `icons.test.ts` checks that its icon

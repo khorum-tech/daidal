@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tagGroups, type Scene } from '../diagram/model';
+	import { tagGroups, type Scene } from '@khorum-oss/daidal-core/model';
 	import Icon from './Icon.svelte';
 
 	/**

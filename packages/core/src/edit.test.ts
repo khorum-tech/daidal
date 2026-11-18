@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DaidalDoc } from '../types';
+import type { DaidalDoc } from './types';
 import { lockView, setEnd, PALETTES, paletteOf, recolourTags, addBoundary, clipCentre, copyNodes, moveNodes, pasteNodes, removeMany, toggleTagOn, updateEdges, updateNodes, addEdge, addNode, addTag, addView, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, removeTag, removeView, resizeBoundary, resizeNode, reverseEdge, setDefaultView, TAG_COLORS, updateBoundary, updateEdge, updateNode, updateTag, updateView, viewNameFree } from './edit';
 import { toScene } from './model';
 

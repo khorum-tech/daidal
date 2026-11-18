@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { TYPE_CATS, typeIcon, type TypeCats } from '../diagram/icons';
-	import { commonTypes, kindOf, type Kind } from '../diagram/kinds';
+	import { TYPE_CATS, typeIcon, type TypeCats } from '@khorum-oss/daidal-core/icons';
+	import { commonTypes, kindOf, type Kind } from '@khorum-oss/daidal-core/kinds';
 	import Icon from './Icon.svelte';
 
 	/**

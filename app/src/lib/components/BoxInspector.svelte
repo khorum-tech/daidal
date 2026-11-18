@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { SceneBoundary } from '../diagram/model';
-	import type { BoundaryChange } from '../diagram/edit';
+	import type { SceneBoundary } from '@khorum-oss/daidal-core/model';
+	import type { BoundaryChange } from '@khorum-oss/daidal-core/edit';
 	import Icon from './Icon.svelte';
 
 	/**

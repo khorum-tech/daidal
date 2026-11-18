@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { DaidalDoc } from '../types';
-	import { ConfigError, configText, langOf, readConfig, type ConfigLang } from '../diagram/config';
+	import { ConfigError, configText, langOf, readConfig, type ConfigLang } from '@khorum-oss/daidal-core/config';
 
 	/**
 	 * The diagram as a config file: the prototype's config dock. It shows the saved document as YAML or JSON; its

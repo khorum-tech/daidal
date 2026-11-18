@@ -2,7 +2,7 @@
 // scripts/icons.mjs from Phosphor (MIT licence, paths on a 256 × 256 grid), and types.json lists the type picker's
 // categories, each type with an icon from the library. To add an icon, see scripts/icons.mjs; to add a type, add
 // a line to types.json.
-import type { CustomType } from '../types';
+import type { CustomType } from './types';
 import library from './icon-library.json';
 import types from './types.json';
 
