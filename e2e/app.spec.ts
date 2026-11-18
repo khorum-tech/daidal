@@ -1450,6 +1450,13 @@ test.describe("the app at /app", () => {
     await expect(crumbs.getByTestId("kind-badge")).toHaveText(["C4 Context", "C4 Container", "C4 Component"]);
     await expect(crumbs.getByTestId("kind-badge").last()).toHaveAttribute("data-level", "3");
 
+    // Opened part-way down (no way here in the address), the levels above still show: one diagram zooms into each.
+    await page.goto(`/app/d/${id("postings-components")}`);
+    await expect(crumbs.getByRole("link")).toHaveText(["Ledger C4", "ledger-context", "ledger-containers"]);
+    await page.goto(`/app/d/${id("ledger-containers")}`);
+    await page.getByRole("button", { name: "Service: Postings Service" }).dblclick();
+    await expect(crumbs.getByRole("link")).toHaveText(["Ledger C4", "ledger-context", "ledger-containers"]);
+
     // Back up one, then make the level below the console.
     await crumbs.getByRole("link", { name: "ledger-containers" }).click();
     await expect(page.getByRole("region", { name: "Selected node" }).getByLabel("Name")).toHaveValue("Postings Service");

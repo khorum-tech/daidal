@@ -92,7 +92,7 @@
 	// Drill-down. A node can zoom into another diagram in the workspace (its links[].diagram); this one's address
 	// carries the diagrams it was reached from (?from=parent,grandparent…), so the header can show the way back up.
 	/** The workspace's other diagrams, by id and name: what a node can zoom into, and the names on the way back. */
-	let linkable = $state<{ id: string; name: string; kind?: string }[] | null>(null);
+	let linkable = $state<{ id: string; name: string; kind?: string; zooms?: string[] }[] | null>(null);
 	/** Of those, the ones with a node that zooms into this diagram: the diagrams above it. */
 	let above = $state<{ id: string; name: string }[]>([]);
 	$effect(() => {
@@ -105,12 +105,26 @@
 			.then(list => {
 				if (data.diagram.workspaceId !== ws) return;
 				const others = list.filter(d => d.id !== self);
-				linkable = others.map(d => ({ id: d.id, name: d.name, kind: d.summary?.kind }));
+				linkable = others.map(d => ({ id: d.id, name: d.name, kind: d.summary?.kind, zooms: d.summary?.zooms }));
 				above = others.filter(d => d.summary?.zooms?.includes(self)).map(d => ({ id: d.id, name: d.name }));
 			})
 			.catch(() => (linkable = []));
 	});
-	const trail = $derived((page.url.searchParams.get('from') ?? '').split(',').filter(id => id && id !== data.diagram.id));
+	/**
+	 * The way back up, nearest first. The address says how this diagram was reached; above that, the levels follow
+	 * from the workspace's zoom links wherever just one diagram zooms into the top one, so a diagram opened part-way
+	 * down a C4 set (from home, or a link) still shows every level above it. Two parents: the diagram menu lists them.
+	 */
+	const trail = $derived.by(() => {
+		const self = data.diagram.id;
+		const chain = (page.url.searchParams.get('from') ?? '').split(',').filter(id => id && id !== self);
+		for (let top = chain.at(-1) ?? self; linkable; ) {
+			const parents = linkable.filter(d => d.zooms?.includes(top));
+			if (parents.length !== 1 || parents[0].id === self || chain.includes(parents[0].id)) break;
+			chain.push((top = parents[0].id));
+		}
+		return chain;
+	});
 	/** Names of the diagrams on the way back up that aren't in this workspace's list (another workspace's, or not yet loaded). */
 	let farNames = $state<Record<string, string>>({});
 	$effect(() => {
