@@ -1,17 +1,19 @@
 # Weekly updates for the Worker's and the app's npm packages and for the workflow's actions (pinned by commit, so
-# Dependabot is what moves them on). Minor and patch updates come grouped, one PR per folder.
+# Dependabot is what moves them on). Minor and patch updates come grouped, in one PR for both folders: the root and
+# the app each pin Playwright to an exact version and share one Chromium in CI, so a PR that moved only one of them
+# could not pass.
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: /
+    directories: ["/", "/app"]
     schedule: { interval: weekly }
     groups:
       minor-and-patch: { update-types: [minor, patch] }
-  - package-ecosystem: npm
-    directory: /app
-    schedule: { interval: weekly }
-    groups:
-      minor-and-patch: { update-types: [minor, patch] }
+    ignore:
+      # The app can't take a new TypeScript major until SvelteKit and svelte-check accept it (they stop at 6, so 7
+      # fails `npm ci`). Majors of TypeScript are moved by hand, once those two allow it; drop this rule then.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
