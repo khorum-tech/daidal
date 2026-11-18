@@ -16,8 +16,9 @@ tell you when they disagree.
 Say it *DYE-dal* — after Daidalos, the architect who could still find his way out of the labyrinth.
 
 > **Status:** source-available, early. The hosted instance is invite-only while sign-in moves off Cloudflare
-> Access. Self-hosting works today on a Cloudflare account. The name changed from *Skope* on 2026-11-08; code
-> identifiers, hostnames and package names still say `skope` until the rename lands.
+> Access. Self-hosting works today on a Cloudflare account. The name changed from *Skope* on 2026-11-08. The hosted
+> site's address and the Cloudflare Worker and D1 database names still say `skope`; files saved before the rename
+> still open and import.
 
 <!-- TODO: hero GIF — a diagram being edited, then Claude adding a node through MCP. docs/media/hero.gif -->
 
@@ -33,7 +34,7 @@ Say it *DYE-dal* — after Daidalos, the architect who could still find his way 
   client) lists, reads, creates and edits diagrams as you. [`docs/mcp.md`](docs/mcp.md).
 - **Coming next:** diagram *kinds* that change behaviour — C4 drill-down between levels, one identity per element
   across levels, consistency checks, and a skill so your own AI can draw the diagrams from a repository.
-  [`docs/superpowers/specs/2026-11-05-skope-kinds-c4-and-repo-aware-ai.md`](docs/superpowers/specs/2026-11-05-skope-kinds-c4-and-repo-aware-ai.md).
+  [`docs/superpowers/specs/2026-11-05-daidal-kinds-c4-and-repo-aware-ai.md`](docs/superpowers/specs/2026-11-05-daidal-kinds-c4-and-repo-aware-ai.md).
 
 ## Connect an AI
 

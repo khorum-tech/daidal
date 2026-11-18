@@ -11,7 +11,7 @@ beforeAll(async () => {
   call = api(signer);
 });
 
-const backup = (workspaces: unknown[]) => ({ format: "skope-backup", version: 1, workspaces });
+const backup = (workspaces: unknown[]) => ({ format: "daidal-backup", version: 1, workspaces });
 
 /** A lead with two snapshots in a team, and a follower in the personal workspace synced to the first. */
 const twoWorkspaces = () =>
@@ -79,6 +79,12 @@ describe("POST /api/workspaces/import", () => {
     expect(mine).toHaveLength(2);
   });
 
+  it("still reads a backup written before the rename, as skope-backup", async () => {
+    const res = await call.post("i-legacy@example.com", "/api/workspaces/import", { ...twoWorkspaces(), format: "skope-backup" });
+    expect(res.status).toBe(201);
+    expect(res.body.workspaces).toHaveLength(2);
+  });
+
   it("points links and refs between diagrams in the file at their new ids, and leaves others alone", async () => {
     const email = "i-links@example.com";
     const zoom = { id: "gw", name: "Gateway", type: "service", links: [{ diagram: "parts", view: "All" }, { diagram: "elsewhere" }, { url: "example.com" }] };
@@ -139,7 +145,7 @@ describe("POST /api/workspaces/import", () => {
 
   it.each([
     ["not a backup", { format: "storybild-backup" }, "this isn't a Daidal backup file"],
-    ["a newer version", { format: "skope-backup", version: 2, workspaces: [] }, "this Daidal backup is from a newer version"],
+    ["a newer version", { format: "daidal-backup", version: 2, workspaces: [] }, "this Daidal backup is from a newer version"],
     ["no workspaces", backup([]), "the file has no workspaces to import"],
     ["a duplicate id", backup([{ name: "W", diagrams: [{ id: "x", doc: doc() }, { id: "x", doc: doc() }] }]), "two diagrams in the file share the id x"],
     ["a bad id", backup([{ name: "W", diagrams: [{ id: "a b", doc: doc() }] }]), 'a diagram has an id the import cannot use: "a b"'],

@@ -4,9 +4,9 @@ import { render } from 'vitest-browser-svelte';
 import MultiInspector from './MultiInspector.svelte';
 import type { EdgeChange } from '../diagram/edit';
 import { toScene } from '../diagram/model';
-import type { SkopeDoc } from '../types';
+import type { DaidalDoc } from '../types';
 
-const doc: SkopeDoc = {
+const doc: DaidalDoc = {
 	version: 1,
 	tags: { web: { label: 'Web', color: '#fff' }, data: { label: 'Data', color: '#000' } },
 	nodes: [

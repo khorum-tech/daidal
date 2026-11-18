@@ -14,5 +14,8 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 
 ### Changed
 - The product is now called **Daidal** (formerly Skope), everywhere a person reads it: the app, its docs, error
-  messages and what the MCP server tells an AI. Code identifiers, hostnames, package names and the file formats
-  (`.skope.json`, `skope-backup`) keep the old name until a later release.
+  messages and what the MCP server tells an AI.
+- The rest of the rename: diagrams download as `.daidal.yaml` / `.daidal.json`, workspace backups as `daidal-backup`
+  and your data as `daidal-account`, and the MCP server introduces itself as `daidal`. Backups saved as
+  `skope-backup` still import. The hosted site's address and the Cloudflare Worker and D1 database names keep
+  `skope` for now.

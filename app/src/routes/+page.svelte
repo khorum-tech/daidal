@@ -122,7 +122,7 @@
 		const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = `${slug(data.workspace.name)}.skope-backup.json`;
+		a.download = `${slug(data.workspace.name)}.daidal-backup.json`;
 		a.click();
 		URL.revokeObjectURL(url);
 	}

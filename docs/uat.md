@@ -71,7 +71,7 @@ Journal DB and Balance Cache, which doesn't move its contents).
 | WS-1 | **+ New workspace**, name it `UAT` | It opens, empty, with **+ New diagram** | D P | |
 | WS-2 | In UAT, **Manage**: rename it `UAT run` | The name changes in the list and the heading | D P | |
 | WS-3 | Add `someone@example.com` as a member, then remove them | They appear with the others, then go | D P | |
-| WS-4 | **Export a backup** | A `uat-run.skope-backup.json` file downloads | D | |
+| WS-4 | **Export a backup** | A `uat-run.daidal-backup.json` file downloads | D | |
 | WS-5 | **Import a backup…** and pick that file | A new workspace "UAT run" appears, with a notice saying what came in | D | |
 | WS-6 | Open **Personal**, then **Manage** | No members to change, and no delete: a personal workspace is only yours | D P | |
 | WS-7 | Open **Payments**, then **Members** | You can see who's in it, but not change it; there's no delete | D P | |
@@ -215,8 +215,8 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | CFG-1 | **</>** in the toolbar (on the phone, **Edit as YAML or JSON** in the diagram sheet) | The document as YAML; switch to JSON and back | D P | |
 | CFG-2 | Change a node's name in the YAML, keep **Replace the diagram**, **Apply** | The canvas changes; one undo takes it back | D P | |
 | CFG-3 | Break the YAML (an unclosed quote), **Apply** | It says what's wrong and on which line, and changes nothing | D | |
-| CFG-4 | Drop (or open) a `.skope.json` file, pick **Merge it in**, **Apply** | Its nodes join by id; a summary says what changed | D | |
-| CFG-5 | **Copy** and **Download .skope.yaml / .skope.json** | The text is copied; the file downloads | D P | |
+| CFG-4 | Drop (or open) a `.daidal.json` file, pick **Merge it in**, **Apply** | Its nodes join by id; a summary says what changed | D | |
+| CFG-5 | **Copy** and **Download .daidal.yaml / .daidal.json** | The text is copied; the file downloads | D P | |
 
 ## 14. Profile and appearance *(Safari too)*
 
@@ -231,7 +231,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | APP-7 | Put everything back: **Full colour**, **Dark**, icon cards off | Back to normal | D P | |
 | APP-8 | Your initial → **AI access**: name a token, **Read**, **Only some workspaces** → Payments, **Create token** | The secret shows once with **Copy**; the list shows it as Read, reaching Payments, never used | D P | |
 | APP-9 | **Revoke…** on that token, then confirm | It leaves the list; a script using it gets "not valid or was revoked" | D P | |
-| APP-10 | **Profile** → **Your data** → **Download my data** | A `skope-account-<date>.json` downloads: your profile, every workspace you own (as a backup), the workspaces you're in, your tokens' names | D P | |
+| APP-10 | **Profile** → **Your data** → **Download my data** | A `daidal-account-<date>.json` downloads: your profile, every workspace you own (as a backup), the workspaces you're in, your tokens' names | D P | |
 | APP-11 ⚠ | On a throwaway account only: **Delete my account…**, type your email, **Delete everything** | **Delete everything** stays off until the email matches; afterwards you're signed out, your workspaces are gone, and your snapshots elsewhere say "former member" | D | |
 
 ## 15. Diagrams as a whole
@@ -282,7 +282,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 
 | ID | Do | Expect | On | Result |
 |----|----|--------|----|--------|
-| MCP-1 | Locally: `npx wrangler dev`, make a Read-and-write token under AI access, run the Claude Code command it gives, then `claude mcp list` | `skope … ✓ Connected` | D | |
+| MCP-1 | Locally: `npx wrangler dev`, make a Read-and-write token under AI access, run the Claude Code command it gives, then `claude mcp list` | `daidal … ✓ Connected` | D | |
 | MCP-2 | In Claude Code: “List my Daidal diagrams, then add an MCP Server called Tools to <one> and connect <a node> to it” | It names your diagrams, makes the change, and the editor shows it after a reload (or offers to load the latest if open) | D | |
 | MCP-3 | With a **Read** token, ask it to change something | It says the token can only read; nothing changes | D | |
 | MCP-4 | Online (once Managed OAuth is on, see `docs/mcp.md`): add `https://<site>/mcp` as a claude.ai custom connector and sign in | It lists your workspaces as you | D | |

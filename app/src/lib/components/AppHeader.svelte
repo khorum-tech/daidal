@@ -85,7 +85,7 @@
 	}
 	async function downloadData() {
 		const data = await api.exportAccount();
-		download(`skope-account-${new Date().toISOString().slice(0, 10)}.json`, new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+		download(`daidal-account-${new Date().toISOString().slice(0, 10)}.json`, new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
 	}
 	async function deleteAccount(confirm: string) {
 		await api.deleteAccount(confirm);

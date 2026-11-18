@@ -8,7 +8,7 @@ export const FORMER_MEMBER = "former member";
 
 /**
  * `GET /api/me/export`: everything Daidal keeps about you, in one file. Your profile and settings; every workspace you
- * own (your personal one included) as the same `skope-backup` content an import reads; the names of the workspaces
+ * own (your personal one included) as the same `daidal-backup` content an import reads; the names of the workspaces
  * you're a member of; and your access tokens' names, scopes and dates (never the tokens, which aren't kept).
  */
 export async function exportAccount(db: D1Database, email: string, now: number): Promise<Response> {
@@ -38,7 +38,7 @@ export async function exportAccount(db: D1Database, email: string, now: number):
   const workspaces = [];
   for (const w of owned.results) workspaces.push(await workspaceBackup(db, String(w.id), email));
   return json({
-    format: "skope-account",
+    format: "daidal-account",
     version: 1,
     exportedAt: iso(now),
     profile: { email: user.email, name: user.name, title: user.title, settings: user.settings, createdAt: iso(created.results[0]?.created_at) },

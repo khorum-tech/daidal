@@ -49,7 +49,7 @@
 	/** On this computer there's no Cloudflare Access, so an MCP client signs in with a token instead. */
 	const local = $derived(/^https?:\/\/(localhost|127\.0\.0\.1)(:|$)/.test(origin));
 	const mcpUrl = $derived(`${origin}/mcp`);
-	const command = $derived(made ? `claude mcp add --transport http skope ${mcpUrl} --header "Authorization: Bearer ${made.token}"` : '');
+	const command = $derived(made ? `claude mcp add --transport http daidal ${mcpUrl} --header "Authorization: Bearer ${made.token}"` : '');
 	/** The in-app docs page on connecting AI. */
 	const guide = '/app/docs/connecting-ai';
 
@@ -104,7 +104,7 @@
 			<p class="note">On this computer there's no Cloudflare Access, so make a token below and use the Claude Code command it gives you.</p>
 		{:else}
 			<p class="note">
-				Claude Code: run <code>claude mcp add --transport http skope {mcpUrl}</code>, then sign in when it asks. In claude.ai or Claude Desktop, add a custom connector with
+				Claude Code: run <code>claude mcp add --transport http daidal {mcpUrl}</code>, then sign in when it asks. In claude.ai or Claude Desktop, add a custom connector with
 				this address. No token needed: they act as you.
 			</p>
 		{/if}

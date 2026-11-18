@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from './api';
 import { Saver } from './saver.svelte';
-import type { SkopeDoc } from './types';
+import type { DaidalDoc } from './types';
 
-const doc = (n: number): SkopeDoc => ({ version: 1, diagram: { name: `v${n}` } });
+const doc = (n: number): DaidalDoc => ({ version: 1, diagram: { name: `v${n}` } });
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 /** A save that resolves when the test says so. */
 function controlled() {
-	const calls: { rev: number; doc: SkopeDoc; resolve: (rev: number) => void; reject: (e: unknown) => void }[] = [];
-	const save = (rev: number, d: SkopeDoc) => new Promise<{ rev: number }>((res, rej) => calls.push({ rev, doc: d, resolve: r => res({ rev: r }), reject: rej }));
+	const calls: { rev: number; doc: DaidalDoc; resolve: (rev: number) => void; reject: (e: unknown) => void }[] = [];
+	const save = (rev: number, d: DaidalDoc) => new Promise<{ rev: number }>((res, rej) => calls.push({ rev, doc: d, resolve: r => res({ rev: r }), reject: rej }));
 	return { calls, save };
 }
 

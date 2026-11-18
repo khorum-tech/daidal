@@ -1,5 +1,5 @@
 import { cardSummary } from "../../app/src/lib/diagram/summary";
-import type { SkopeDoc } from "../../app/src/lib/types";
+import type { DaidalDoc } from "../../app/src/lib/types";
 
 const EMPTY = { kind: "", nodes: 0, edges: 0, tags: [], names: [], boxes: [], frames: [], zooms: [] };
 
@@ -9,7 +9,7 @@ const EMPTY = { kind: "", nodes: 0, edges: 0, tags: [], names: [], boxes: [], fr
  */
 export function summaryText(docJson: string): string {
   try {
-    return JSON.stringify(cardSummary(JSON.parse(docJson) as SkopeDoc));
+    return JSON.stringify(cardSummary(JSON.parse(docJson) as DaidalDoc));
   } catch {
     return JSON.stringify(EMPTY);
   }

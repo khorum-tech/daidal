@@ -1,4 +1,4 @@
-# Skope app: what's left of the port
+# Daidal app: what's left of the port
 
 Date: 2026-10-26
 Status: draft
@@ -47,7 +47,7 @@ Each slice keeps the habits of the ones before it:
 | Follow review (part of D) | Accept or skip each change of a lead's newer snapshots, or a whole snapshot; take a verdict back; mark everything reviewed; pause; unlink (server: `leadId: null` on save) |
 | Presenting, locks and links (part of C) | Presentation mode with a hover (or tap) card and a view switcher; lock editing on a device; lock a view in the document; copy a link, optionally to a view (`?view=`) |
 | Image export (part of C) | PNG and SVG of the diagram as it shows now, drawn client side from the document; ghosted nodes kept or left out |
-| Config editor (part of C) | The document as YAML or JSON; edit, open or drop a file, apply by replacing or merging; copy and download `.skope.yaml` / `.skope.json` |
+| Config editor (part of C) | The document as YAML or JSON; edit, open or drop a file, apply by replacing or merging; copy and download `.daidal.yaml` / `.daidal.json` |
 
 ## What's left
 
@@ -81,7 +81,7 @@ works well, on a phone especially) and bring back the rest around it.
 |------|-----------|-------|
 | **Presentation mode**: full screen, read-only, detail on hover | `enterPresent`, `exitPresent` | Phone: full screen with a tap for detail |
 | **Lock**: a diagram or a view that can't be edited by mistake | `toggleLock`, `veToggleLock` | A lock in the document, so it applies to everyone |
-| **Config editor**: the document as JSON or YAML, edit and apply; upload, drop or download a `.skope.json` / `.skope.yaml` | `toggleCfg`, `cfgApply`, `cfgUpload`, `cfgDrop`, `copyCfg` | Validate before applying; one undo step. Lines up with the format work in `2026-10-24-skope-ecosystem-roadmap.md` |
+| **Config editor**: the document as JSON or YAML, edit and apply; upload, drop or download a `.daidal.json` / `.daidal.yaml` | `toggleCfg`, `cfgApply`, `cfgUpload`, `cfgDrop`, `copyCfg` | Validate before applying; one undo step. Lines up with the format work in `2026-10-24-daidal-ecosystem-roadmap.md` |
 | **Image export** (PNG and SVG) | `doExport` | Client side first; the ecosystem roadmap's render endpoints can take over later |
 | **Share link**: copy a link to the diagram (or a view of it) | `openShare`, `copyLink`, `setAccess` | Copying a link for people already in the workspace needs nothing new. Public or embedded access needs server work (see the ecosystem roadmap's embedding step) |
 
@@ -93,9 +93,9 @@ works well, on a phone especially) and bring back the rest around it.
 
 ### E. Smaller gaps and server work
 
-- **Networks** (the prototype's `Skope-Network-Module`: shared workspaces across organisations, people search).
+- **Networks** (the prototype's `Daidal-Network-Module`: shared workspaces across organisations, people search).
   Out of scope for the port; it needs its own design.
-- **Hub docs.** `hestia-systems` `ops/mission-control/cloudflare-apps.md` still says the Skope UI keeps diagrams in
+- **Hub docs.** `hestia-systems` `ops/mission-control/cloudflare-apps.md` still says the Daidal UI keeps diagrams in
   the browser.
 
 ## Suggested order

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { SkopeDoc } from '../types';
+import type { DaidalDoc } from '../types';
 import { childDoc, parentDoc, refTo, SCOPE } from './drill';
 
-const parent: SkopeDoc = {
+const parent: DaidalDoc = {
 	version: 1,
 	diagram: { name: 'ledger', kind: 'c4-container' },
 	tags: { web: { label: 'Web', color: '#968ae0' }, data: { label: 'Data', color: '#796cbf' }, unused: { label: 'Unused', color: '#9397ab' } },

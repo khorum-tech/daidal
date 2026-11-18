@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { SkopeDoc } from '../types';
+import type { DaidalDoc } from '../types';
 import { lockView, setEnd, PALETTES, paletteOf, recolourTags, addBoundary, clipCentre, copyNodes, moveNodes, pasteNodes, removeMany, toggleTagOn, updateEdges, updateNodes, addEdge, addNode, addTag, addView, connectToNew, contentsOf, duplicateBoundary, duplicateNode, endSide, freeSpot, hostOf, linkUrl, moveBoundary, newNodeId, removeBoundary, removeEdge, removeNode, removeTag, removeView, resizeBoundary, resizeNode, reverseEdge, setDefaultView, TAG_COLORS, updateBoundary, updateEdge, updateNode, updateTag, updateView, viewNameFree } from './edit';
 import { toScene } from './model';
 
-const base = (): SkopeDoc => ({
+const base = (): DaidalDoc => ({
 	version: 1,
 	nodes: [
 		{ id: 'api', name: 'API', type: 'service', layout: { x: 100, y: 100 }, tags: ['core'] },
@@ -82,7 +82,7 @@ describe('resizeNode', () => {
 		expect(resizeNode(wide, 'api', 190, 88).nodes![0].layout).toEqual({ x: 100, y: 100 });
 	});
 	it('keeps where a node without a layout is drawn', () => {
-		const doc: SkopeDoc = { version: 1, nodes: [{ id: 'a', name: 'A', type: 'service' }] };
+		const doc: DaidalDoc = { version: 1, nodes: [{ id: 'a', name: 'A', type: 'service' }] };
 		const at = toScene(doc).nodes[0];
 		expect(resizeNode(doc, 'a', 220, 88).nodes![0].layout).toEqual({ x: at.x, y: at.y, w: 220 });
 	});
@@ -134,7 +134,7 @@ describe('links', () => {
 
 describe('connections', () => {
 	it('pins an end where it was dragged, and puts it back on auto', () => {
-		const doc: SkopeDoc = { version: 1, edges: [{ from: 'a', to: 'b', anchors: { to: 'top:0.5' } }] };
+		const doc: DaidalDoc = { version: 1, edges: [{ from: 'a', to: 'b', anchors: { to: 'top:0.5' } }] };
 		const pinned = setEnd(doc, 0, 'from', { side: 'r', t: 0.25 });
 		expect(pinned.edges?.[0].anchors).toEqual({ from: 'right:0.25', to: 'top:0.5' });
 		expect(setEnd(setEnd(pinned, 0, 'to', null), 0, 'from', null).edges?.[0]).toEqual({ from: 'a', to: 'b' });
@@ -186,7 +186,7 @@ describe('connections', () => {
 
 describe('containers', () => {
 	// A container round API (100,100 190×88) only; Orders DB sits outside it.
-	const boxed = (moveContents?: boolean): SkopeDoc => ({
+	const boxed = (moveContents?: boolean): DaidalDoc => ({
 		...base(),
 		boundaries: [
 			{ id: 'zone', label: 'ZONE', layout: { x: 80, y: 80, w: 260, h: 160 }, ...(moveContents === undefined ? {} : { moveContents }) },
@@ -245,7 +245,7 @@ describe('containers', () => {
 });
 
 describe('tags', () => {
-	const tagged = (): SkopeDoc => ({
+	const tagged = (): DaidalDoc => ({
 		...base(),
 		tags: { core: { label: 'Core', color: '#111111', group: 'Layer' } },
 		views: [{ name: 'Main', tags: ['core'] }]
@@ -277,7 +277,7 @@ describe('tags', () => {
 });
 
 describe('views', () => {
-	const viewed = (): SkopeDoc => ({ ...base(), diagram: { name: 'd', view: 'Main' }, views: [{ name: 'Main', tags: ['core'] }, { name: 'View 3', tags: [] }] });
+	const viewed = (): DaidalDoc => ({ ...base(), diagram: { name: 'd', view: 'Main' }, views: [{ name: 'Main', tags: ['core'] }, { name: 'View 3', tags: [] }] });
 
 	it('locks a view so it is not renamed, re-saved or deleted, and unlocks it', () => {
 		const locked = lockView(viewed(), 'Main', true);
@@ -327,10 +327,10 @@ describe('views', () => {
 });
 
 describe('many at once', () => {
-	const tagged = (): SkopeDoc => ({ ...base(), tags: { core: { label: 'Core', color: '#fff' }, data: { label: 'Data', color: '#000' } } });
+	const tagged = (): DaidalDoc => ({ ...base(), tags: { core: { label: 'Core', color: '#fff' }, data: { label: 'Data', color: '#000' } } });
 
 	it('removes picked nodes with their connections, and picked connections', () => {
-		const doc: SkopeDoc = { ...base(), nodes: [...base().nodes!, { id: 'q', name: 'Q', type: 'queue', layout: { x: 0, y: 0 } }], edges: [...base().edges!, { from: 'q', to: 'api' }] };
+		const doc: DaidalDoc = { ...base(), nodes: [...base().nodes!, { id: 'q', name: 'Q', type: 'queue', layout: { x: 0, y: 0 } }], edges: [...base().edges!, { from: 'q', to: 'api' }] };
 		const next = removeMany(doc, { nodes: ['db'], edges: [2] });
 		expect(next.nodes!.map(n => n.id)).toEqual(['api', 'q']);
 		expect(next.edges).toEqual([]);
@@ -358,7 +358,7 @@ describe('many at once', () => {
 	});
 
 	it('moves nodes together, including one placed by default', () => {
-		const doc: SkopeDoc = { version: 1, nodes: [...base().nodes!, { id: 'free', name: 'Free', type: 'service' }] };
+		const doc: DaidalDoc = { version: 1, nodes: [...base().nodes!, { id: 'free', name: 'Free', type: 'service' }] };
 		const at = toScene(doc).nodes[2];
 		const next = moveNodes(doc, ['api', 'free'], 10, -20);
 		expect(next.nodes!.map(n => n.layout)).toEqual([{ x: 110, y: 80 }, { x: 400, y: 100 }, { x: at.x + 10, y: at.y - 20 }]);
@@ -391,7 +391,7 @@ describe('many at once', () => {
 
 	it('brings missing tags along on a paste into another diagram, and keeps the ones there', () => {
 		const clip = copyNodes(tagged(), ['api']);
-		const other: SkopeDoc = { version: 1, tags: { core: { label: 'Mine', color: '#123' } } };
+		const other: DaidalDoc = { version: 1, tags: { core: { label: 'Mine', color: '#123' } } };
 		expect(pasteNodes(other, clip, 0, 0).doc.tags).toEqual({ core: { label: 'Mine', color: '#123' } });
 		expect(pasteNodes({ version: 1 }, clip, 0, 0).doc.tags).toEqual({ core: { label: 'Core', color: '#fff' } });
 	});
@@ -403,7 +403,7 @@ describe('many at once', () => {
 });
 
 describe('palettes', () => {
-	const doc: SkopeDoc = {
+	const doc: DaidalDoc = {
 		version: 1,
 		tags: { a: { label: 'A', color: '#b5abfc' }, b: { label: 'B', color: '#796cbf' }, c: { label: 'C', color: '#123456' } }
 	};

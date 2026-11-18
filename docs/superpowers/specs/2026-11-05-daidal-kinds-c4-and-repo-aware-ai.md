@@ -1,4 +1,4 @@
-# Skope kinds: C4 drill-down, cross-level identity and repo-aware AI
+# Daidal kinds: C4 drill-down, cross-level identity and repo-aware AI
 
 Date: 2026-11-05
 Status: draft
@@ -10,7 +10,7 @@ nothing else reads. This spec makes kinds change behaviour, starting with C4.
 
 A **C4 set** becomes a navigable stack: Context → Containers → Components →
 Code. A node at one level opens the diagram beneath it; the same element keeps
-one identity across levels; and because it does, Skope can notice when the
+one identity across levels; and because it does, Daidal can notice when the
 levels disagree (a container with no diagram beneath it, a dependency drawn in
 Components that Containers never declared). At the lower levels a repository
 can stand behind a diagram, and an AI builds and refreshes the diagram from the
@@ -36,10 +36,10 @@ Success means:
 
 ## Builds on
 
-- `2026-10-24-skope-ecosystem-roadmap.md`, step 6: `links` on a node
+- `2026-10-24-daidal-ecosystem-roadmap.md`, step 6: `links` on a node
   (drill-down) and `ref` on a node (same entity as a node in another diagram).
   This spec uses those two fields and adds no parallel ones.
-- `diagram.kind` in `SkopeDoc` (`app/src/lib/types.ts`), already written by
+- `diagram.kind` in `DaidalDoc` (`app/src/lib/types.ts`), already written by
   templates and read by `summary.ts`.
 - The MCP server (`worker/src/mcp/`) and personal access tokens
   (`docs/mcp.md`), which already let an AI write diagrams as the person.
@@ -51,7 +51,7 @@ Success means:
 - A single workspace-wide model file. Identity stays per node (`ref`), as the
   roadmap decided; a derived model can come later if refs make one useful.
 - Live co-editing.
-- Skope calling a model itself. Phases 1–3 use the client's AI through MCP;
+- Daidal calling a model itself. Phases 1–3 use the client's AI through MCP;
   phase 5 (in-app AI) is sketched for sequencing only.
 - Hosted billing, auth and tenancy. Nothing here depends on them; the paid
   parts land when a paid tier exists.
@@ -146,14 +146,14 @@ list card and the breadcrumb (a count). MCP exposes them as `check_set`.
 ### Phase 3: the client's AI, through a skill
 
 Claude Code and similar clients already run inside the person's repository
-with read access, and Skope already has a write-capable MCP. What is missing
+with read access, and Daidal already has a write-capable MCP. What is missing
 is knowledge. A **skill** supplies it, shipped in this repository under
-`skills/skope/SKILL.md` and linked from the README and the in-app
+`skills/daidal/SKILL.md` and linked from the README and the in-app
 *Connecting AI* page:
 
 - The document format, as `get_diagram(format: yaml)` returns it, with one
   example per kind.
-- The C4 conventions Skope holds: what belongs at each level, how to name,
+- The C4 conventions Daidal holds: what belongs at each level, how to name,
   what to leave out, when a thing is a container versus a component.
 - The procedure: `list_workspaces` → choose or `create_diagram` the set →
   read the repository's build and deploy files (`package.json`,
@@ -167,7 +167,7 @@ is knowledge. A **skill** supplies it, shipped in this repository under
 - Limits it must respect: 1 MB per document, 120 writes a minute on a token.
 
 Quality depends on the client's model and the repository's hygiene; the docs
-say so. Cost to Skope: none. This phase needs no new server code beyond the
+say so. Cost to Daidal: none. This phase needs no new server code beyond the
 MCP additions below.
 
 ### Phase 4: the repository linked in the app
@@ -187,9 +187,9 @@ MCP additions below.
   operations, and it maps to the team buyer, who pays for staleness alerts,
   not for boxes.
 
-### Phase 5: Skope's own AI (sketch)
+### Phase 5: Daidal's own AI (sketch)
 
-On drift, Skope proposes the refresh itself, as a follower-style review the
+On drift, Daidal proposes the refresh itself, as a follower-style review the
 owner accepts or skips. Prepaid credits; provider behind an interface. Not
 designed here.
 
@@ -209,7 +209,7 @@ writes, 404 for what the person cannot see, token scopes as today.
 
 ## Data and API changes
 
-- `SkopeDoc.diagram.kind`: unchanged shape, enumerated values above; `""` and
+- `DaidalDoc.diagram.kind`: unchanged shape, enumerated values above; `""` and
   unknown values read as `freeform`.
 - `links` and `ref` on nodes: as the roadmap defines them. A boundary may also
   carry `ref`.
@@ -229,12 +229,12 @@ writes, 404 for what the person cannot see, token scopes as today.
 | 4 Appears in (inspector), from `resolve(docs)` | roadmap step 6 core | small |
 | 5 checks 1–5 + findings panel + dismissals | 3, 4 | medium |
 | 6 MCP: `zoom_in`, `create_child_diagram`, `check_set`, `dismiss_finding`; outline fields | 2, 5 | small |
-| 7 skill: `skills/skope/SKILL.md`, examples, docs page section | 6 | small (writing, not code) |
+| 7 skill: `skills/daidal/SKILL.md`, examples, docs page section | 6 | small (writing, not code) |
 | 8 phase 4: GitHub App, linked repo, drift, Gitea | 5, a paid tier | large |
 
 Steps 1–7 need nothing from auth, billing or tenancy and can run beside that
 work. Step 7 is the launch demo for the public release: *an AI drew our
-architecture from the repository in two minutes, then Skope pointed at a
+architecture from the repository in two minutes, then Daidal pointed at a
 database nobody had documented.* Theming (Leyline) and the node design pass
 slot after step 5, since kinds define what a theme must style.
 

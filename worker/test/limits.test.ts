@@ -69,7 +69,7 @@ describe("limits", () => {
       { id: "s1", label: "one", doc: doc() },
       { id: "s2", label: "two", doc: doc() },
     ];
-    const file = { format: "skope-backup", version: 1, workspaces: [{ name: "Imported", diagrams: [{ id: "d", name: "ledger", doc: doc(), snapshots }] }] };
+    const file = { format: "daidal-backup", version: 1, workspaces: [{ name: "Imported", diagrams: [{ id: "d", name: "ledger", doc: doc(), snapshots }] }] };
     const res = await call.post(email, "/api/workspaces/import", file);
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/^The history of "ledger" in the file is full/);
@@ -101,7 +101,7 @@ describe("limits", () => {
     expect((await call.put(email, `/api/diagrams/${d.id}`, { rev: d.rev, name: "renamed" })).status).toBe(200);
   });
 
-  it("takes overrides only for known limits and numbers (the end-to-end server's SKOPE_LIMITS)", () => {
+  it("takes overrides only for known limits and numbers (the end-to-end server's DAIDAL_LIMITS)", () => {
     applyLimitOverrides("workspacesPerPerson=7, nope=3, diagramsPerPerson=lots, writesPerMinute=-1");
     expect(LIMITS.workspacesPerPerson).toBe(7);
     expect(LIMITS.diagramsPerPerson).toBe(saved.diagramsPerPerson);

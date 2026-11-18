@@ -2,7 +2,7 @@ import { isColor } from "../../app/src/lib/diagram/model";
 import { HttpError, isPlainObject } from "./http";
 
 /**
- * A diagram document is the JSON form of the .skope.json export, version 1. The server keeps it as given: it
+ * A diagram document is the JSON form of the .daidal.json export, version 1. The server keeps it as given: it
  * checks only that it is an object with `version: 1` and that it fits, and leaves diffing to the browser.
  */
 export const MAX_DOC_BYTES = 1024 * 1024;

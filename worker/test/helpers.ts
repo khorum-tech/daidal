@@ -23,7 +23,7 @@ export function api(signer: Signer) {
   };
 }
 
-/** A small version 1 document, as the prototype's .skope.json export writes it. */
+/** A small version 1 document, as the prototype's .daidal.json export writes it. */
 export function doc(name = "checkout", extra: Record<string, unknown> = {}) {
   return {
     version: 1,

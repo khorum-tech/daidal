@@ -1,5 +1,5 @@
 /**
- * The stage data: invented teams and diagrams, written as `skope-backup` files (what the import API reads).
+ * The stage data: invented teams and diagrams, written as `daidal-backup` files (what the import API reads).
  * Stage is reset to this on every push.
  *
  * Everything here is original. The repository is public, so no real company's architecture and no real people:
@@ -34,7 +34,7 @@ const node = (id: string, name: string, type: string, x: number, y: number, tags
 
 const edge = (from: string, to: string, label?: string, more: Json = {}) => ({ from, to, ...(label ? { label } : {}), ...more });
 
-/** A version 1 document in the shape the prototype's .skope.json export writes (web/index.html `buildConfig`). */
+/** A version 1 document in the shape the prototype's .daidal.json export writes (web/index.html `buildConfig`). */
 function diagramDoc(id: string, name: string, kind: string, view: string, parts: { tags: Json; views: Json[]; nodes: Json[]; edges: Json[]; boundaries?: Json[] }) {
   return { version: 1, diagram: { id, name, kind, view }, ...parts };
 }
@@ -171,7 +171,7 @@ const day = (d: string) => `2026-${d}T09:30:00.000Z`;
 /** What the stage owner imports: their personal workspace and the Platform team they run. */
 export function ownerBackup() {
   return {
-    format: "skope-backup",
+    format: "daidal-backup",
     version: 1,
     workspaces: [
       {
@@ -228,7 +228,7 @@ export function ownerBackup() {
 /** What Priya imports: the Payments workspace, later shared with the stage owner. */
 export function priyaBackup() {
   return {
-    format: "skope-backup",
+    format: "daidal-backup",
     version: 1,
     workspaces: [
       {
@@ -291,7 +291,7 @@ const postingsComponents = c4("postings-components", "postings-components", "c4-
 /** What the stage owner also imports: the Ledger C4 workspace, a linked Context → Containers → Components set. */
 export function c4Backup() {
   return {
-    format: "skope-backup",
+    format: "daidal-backup",
     version: 1,
     workspaces: [
       {

@@ -25,7 +25,7 @@ export const LIMITS = {
 let overridden = "";
 
 /**
- * Raises (or lowers) limits from the `SKOPE_LIMITS` variable, `name=number` pairs separated by commas, such as
+ * Raises (or lowers) limits from the `DAIDAL_LIMITS` variable, `name=number` pairs separated by commas, such as
  * `workspacesPerPerson=100000`. Only the end-to-end tests set it, because their one signed-in person makes hundreds
  * of workspaces in a run; prod and stage leave it unset. Unknown names and non-numbers are ignored.
  */

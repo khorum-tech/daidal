@@ -1,4 +1,4 @@
-import type { DocBoundary, DocEdge, DocNode, DocTag, SkopeDoc } from '../types';
+import type { DocBoundary, DocEdge, DocNode, DocTag, DaidalDoc } from '../types';
 import { NEW_TAG_GROUP, TAG_COLORS } from './edit';
 import { isColor, slug } from './model';
 import { parseYaml, yamlLines, YamlError } from './yaml';
@@ -20,7 +20,7 @@ export class ConfigError extends Error {
 	}
 }
 
-export function configText(doc: SkopeDoc, lang: ConfigLang): string {
+export function configText(doc: DaidalDoc, lang: ConfigLang): string {
 	if (lang === 'json') return `${JSON.stringify(doc, null, 2)}\n`;
 	const name = doc.diagram?.name;
 	const head = name ? `# ${name}: a Daidal diagram config\n` : '';
@@ -126,7 +126,7 @@ function tagsFor(nodes: DocNode[], tags: Record<string, DocTag>): Record<string,
 }
 
 export interface ReadConfig {
-	doc: SkopeDoc;
+	doc: DaidalDoc;
 	/** What it did, for saying so. */
 	summary: string;
 }
@@ -135,7 +135,7 @@ export interface ReadConfig {
  * The diagram with [text] applied: in place of it ([mode] 'replace'), or merged into it ('merge'). Throws a
  * ConfigError, with a line for YAML, when the config can't be read or doesn't hold together.
  */
-export function readConfig(text: string, current: SkopeDoc, mode: 'replace' | 'merge'): ReadConfig {
+export function readConfig(text: string, current: DaidalDoc, mode: 'replace' | 'merge'): ReadConfig {
 	const o = sections(parse(text));
 	if (o.version !== undefined && o.version !== 1) throw new ConfigError(`This is version ${asText(o.version)} of the format; Daidal reads version 1`);
 	const nodes = list<unknown>(o.nodes).map((n, i) => node(n, i));
@@ -158,10 +158,10 @@ export function readConfig(text: string, current: SkopeDoc, mode: 'replace' | 'm
 	const tags = (o.tags && typeof o.tags === 'object' && !Array.isArray(o.tags) ? o.tags : {}) as Record<string, DocTag>;
 	checkColours(tags);
 	const views = list<{ name: string; tags: string[] }>(o.views).filter(v => v?.name).map(v => ({ ...v, name: asText(v.name), tags: strings(v.tags) }));
-	const diagram = { ...current.diagram, ...(o.diagram && typeof o.diagram === 'object' ? (o.diagram as SkopeDoc['diagram']) : {}), name: current.diagram?.name };
+	const diagram = { ...current.diagram, ...(o.diagram && typeof o.diagram === 'object' ? (o.diagram as DaidalDoc['diagram']) : {}), name: current.diagram?.name };
 	if (!diagram.name) delete diagram.name;
 	if (mode === 'replace') {
-		const doc: SkopeDoc = { version: 1, diagram, tags: tagsFor(nodes, tags), views, nodes: nodes.map(filled), edges, boundaries: boxes };
+		const doc: DaidalDoc = { version: 1, diagram, tags: tagsFor(nodes, tags), views, nodes: nodes.map(filled), edges, boundaries: boxes };
 		return { doc, summary: `Replaced with ${nodes.length} ${nodes.length === 1 ? 'node' : 'nodes'}` };
 	}
 	return merge(current, { nodes, edges, boundaries: boxes, tags, views, diagram });
@@ -180,14 +180,14 @@ function upsert<T>(base: T[], incoming: T[], key: (x: T) => string, combine: (a:
 	return { list: [...kept, ...byKey.values()], added: byKey.size, updated };
 }
 
-function merge(current: SkopeDoc, cfg: { nodes: DocNode[]; edges: DocEdge[]; boundaries: DocBoundary[]; tags: Record<string, DocTag>; views: { name: string; tags: string[] }[]; diagram: SkopeDoc['diagram'] }): ReadConfig {
+function merge(current: DaidalDoc, cfg: { nodes: DocNode[]; edges: DocEdge[]; boundaries: DocBoundary[]; tags: Record<string, DocTag>; views: { name: string; tags: string[] }[]; diagram: DaidalDoc['diagram'] }): ReadConfig {
 	const nodes = upsert(current.nodes ?? [], cfg.nodes, n => n.id, (a, b) => ({ ...a, ...b, layout: b.layout ? { ...a.layout, ...b.layout } : a.layout }));
 	const boxes = upsert(current.boundaries ?? [], cfg.boundaries, b => b.id, (a, b) => ({ ...a, ...b }));
 	const pair = (e: DocEdge) => `${e.from}>${e.to}`;
 	const have = new Set((current.edges ?? []).map(pair));
 	const newEdges = cfg.edges.filter(e => !have.has(pair(e)));
 	const views = upsert(current.views ?? [], cfg.views, v => v.name, (a, b) => ({ ...a, ...b }));
-	const doc: SkopeDoc = {
+	const doc: DaidalDoc = {
 		...current,
 		diagram: cfg.diagram,
 		tags: tagsFor(nodes.list, { ...current.tags, ...cfg.tags }),

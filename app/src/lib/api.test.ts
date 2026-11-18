@@ -95,11 +95,11 @@ describe('workspaces', () => {
 	});
 
 	it('exports a workspace and imports a backup', async () => {
-		const fetchFn = respond(200, { format: 'skope-backup' });
-		await expect(createApi(fetchFn).exportWorkspace('w')).resolves.toEqual({ format: 'skope-backup' });
+		const fetchFn = respond(200, { format: 'daidal-backup' });
+		await expect(createApi(fetchFn).exportWorkspace('w')).resolves.toEqual({ format: 'daidal-backup' });
 		expect(fetchFn).toHaveBeenLastCalledWith('/api/workspaces/w/export', expect.anything());
 		const imported = respond(201, { workspaces: [{ id: 'n', name: 'Team' }] });
-		await createApi(imported).importBackup({ format: 'skope-backup' });
-		expect(imported).toHaveBeenLastCalledWith('/api/workspaces/import', expect.objectContaining({ method: 'POST', body: JSON.stringify({ format: 'skope-backup' }) }));
+		await createApi(imported).importBackup({ format: 'daidal-backup' });
+		expect(imported).toHaveBeenLastCalledWith('/api/workspaces/import', expect.objectContaining({ method: 'POST', body: JSON.stringify({ format: 'daidal-backup' }) }));
 	});
 });

@@ -34,13 +34,13 @@ describe("your account", () => {
     const res = await call.get(email, "/api/me/export");
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
-      format: "skope-account",
+      format: "daidal-account",
       version: 1,
       profile: { email, name: "Ada", title: "Architect" },
       memberOf: ["Theirs"],
       accessTokens: [{ name: "laptop", scope: "read", workspaces: "all", lastUsedAt: null }],
     });
-    expect(res.body.backup.format).toBe("skope-backup");
+    expect(res.body.backup.format).toBe("daidal-backup");
     expect(res.body.backup.workspaces.map((w: { name: string }) => w.name)).toEqual(["Personal", "Mine"]);
     expect(res.body.backup.workspaces[1].diagrams[0]).toMatchObject({ name: "ledger", snapshots: [{ label: "v1" }] });
     expect(JSON.stringify(res.body)).not.toMatch(/skt_|hash/);

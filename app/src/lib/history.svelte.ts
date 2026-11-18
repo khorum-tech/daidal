@@ -1,8 +1,8 @@
-import type { SkopeDoc } from './types';
+import type { DaidalDoc } from './types';
 
 interface Step {
 	label: string;
-	doc: SkopeDoc;
+	doc: DaidalDoc;
 }
 
 /**
@@ -21,7 +21,7 @@ export class History {
 	}
 
 	/** Note a change about to be made to [before]. */
-	record(before: SkopeDoc, label: string, group: string | null = null): void {
+	record(before: DaidalDoc, label: string, group: string | null = null): void {
 		if (group !== null && group === this.#group) return;
 		this.#group = group;
 		this.#past = [...this.#past.slice(-(this.#limit - 1)), { label, doc: before }];
@@ -34,7 +34,7 @@ export class History {
 	}
 
 	/** The document to go back to from [current], or null when there is nothing to undo. */
-	undo(current: SkopeDoc): SkopeDoc | null {
+	undo(current: DaidalDoc): DaidalDoc | null {
 		const step = this.#past.at(-1);
 		if (!step) return null;
 		this.#group = null;
@@ -43,7 +43,7 @@ export class History {
 		return step.doc;
 	}
 
-	redo(current: SkopeDoc): SkopeDoc | null {
+	redo(current: DaidalDoc): DaidalDoc | null {
 		const step = this.#future.at(-1);
 		if (!step) return null;
 		this.#group = null;
@@ -61,8 +61,8 @@ export class History {
 	 * The document with the first [count] steps done and the rest undone, from [current]; one undo or redo per step
 	 * between, so each can still be undone or redone. Null when nothing would change.
 	 */
-	goTo(current: SkopeDoc, count: number): SkopeDoc | null {
-		let doc: SkopeDoc | null = null;
+	goTo(current: DaidalDoc, count: number): DaidalDoc | null {
+		let doc: DaidalDoc | null = null;
 		while (this.#past.length > count) doc = this.undo(doc ?? current);
 		while (this.#past.length < count && this.#future.length) doc = this.redo(doc ?? current);
 		return doc;

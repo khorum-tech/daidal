@@ -23,7 +23,7 @@ export default defineConfig({
   webServer: {
     // One signed-in person runs every test, importing the stage data each time, so the per-person limits are
     // raised for this server only (worker/src/limits.ts).
-    command: `npx wrangler d1 migrations apply skope --local && npx wrangler dev --port ${PORT} --var DEV_USER_EMAIL:${OWNER} --var SKOPE_LIMITS:${E2E_LIMITS}`,
+    command: `npx wrangler d1 migrations apply skope --local && npx wrangler dev --port ${PORT} --var DEV_USER_EMAIL:${OWNER} --var DAIDAL_LIMITS:${E2E_LIMITS}`,
     url: `http://localhost:${PORT}/api/me`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000, // wrangler builds the app before it starts serving

@@ -8,12 +8,12 @@ import { checkDiagramRoom, checkExportSize, checkWorkspaceRoom, historyFits } fr
 import { requireMember } from "./workspaces";
 
 /**
- * A `skope-backup` holds whole workspaces: their diagrams, each diagram's history, and which diagram follows
+ * A `daidal-backup` holds whole workspaces: their diagrams, each diagram's history, and which diagram follows
  * which. `POST /api/workspaces/import` turns every workspace in it into a new workspace owned by the caller (or,
  * for `personal: true`, fills the caller's personal workspace). Members are not carried over. Ids in the file
  * are local to it: everything gets a new id, and `follows` points at another diagram in the same file.
  *
- *   { "format": "skope-backup", "version": 1, "workspaces": [
+ *   { "format": "daidal-backup", "version": 1, "workspaces": [
  *       { "name": "Platform team", "personal": false,
  *         "types": [ { "name": "Billing Agent", "category": "AI", "icon": "robot" } ],
  *         "diagrams": [
@@ -24,7 +24,9 @@ import { requireMember } from "./workspaces";
  * Everything is checked before anything is written, and the writes are one batch. The import never reads the
  * database, so the stage seed can run it against a recorder (stage/seed.ts).
  */
-export const BACKUP_FORMAT = "skope-backup";
+export const BACKUP_FORMAT = "daidal-backup";
+/** What backups were called before the rename; import still reads them. */
+const LEGACY_BACKUP_FORMATS: readonly unknown[] = ["skope-backup"];
 const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
 // One bound parameter may be at most 2 MB in D1; rows go in as JSON arrays chunked well below that.
 const MAX_CHUNK_BYTES = 900_000;
@@ -125,7 +127,7 @@ async function checkImportRoom(db: D1Database, email: string, diagrams: PlannedD
 
 export async function importWorkspaces(db: D1Database, email: string, request: Request, now: number): Promise<Response> {
   const file = await readJson(request, MAX_IMPORT_BYTES);
-  if (!isPlainObject(file) || file.format !== BACKUP_FORMAT) throw new HttpError(400, "this isn't a Daidal backup file");
+  if (!isPlainObject(file) || (file.format !== BACKUP_FORMAT && !LEGACY_BACKUP_FORMATS.includes(file.format))) throw new HttpError(400, "this isn't a Daidal backup file");
   if (file.version !== 1) throw new HttpError(400, "this Daidal backup is from a newer version");
   const workspaces = list(file.workspaces, "workspaces");
   if (workspaces.length === 0) throw new HttpError(400, "the file has no workspaces to import");
@@ -270,14 +272,14 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
   return json({ workspaces: summary }, 201);
 }
 
-/** `GET /api/workspaces/:id/export`: the workspace as a `skope-backup` that import reads back. */
+/** `GET /api/workspaces/:id/export`: the workspace as a `daidal-backup` that import reads back. */
 export async function exportWorkspace(db: D1Database, workspace: string, email: string): Promise<Response> {
   await requireMember(db, workspace, email);
   await checkExportSize(db, workspace);
   return json({ format: BACKUP_FORMAT, version: 1, workspaces: [await workspaceBackup(db, workspace, email)] });
 }
 
-/** One workspace as a `skope-backup` file holds it: its diagrams, their history, who follows whom, and its types. */
+/** One workspace as a `daidal-backup` file holds it: its diagrams, their history, who follows whom, and its types. */
 export async function workspaceBackup(db: D1Database, workspace: string, email: string): Promise<Record<string, unknown>> {
   const [ws, rows, snaps, types] = await db.batch<Record<string, string | number | null>>([
     db.prepare("SELECT id, name, owner_email FROM workspaces WHERE id = ?").bind(workspace),

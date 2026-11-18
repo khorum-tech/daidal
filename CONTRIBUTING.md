@@ -32,7 +32,7 @@ npx wrangler dev --var DEV_USER_EMAIL:you@example.com   # http://localhost:8787,
 - One change per PR, with tests. CI must be green; the `stage` job deploys your branch to the shared stage site
   when it is the oldest open PR from this repository (see `docs/stage.md`).
 - Describe what changed and why in the description, in plain language. Link the spec section if there is one.
-- Keep the document format compatible. Anything that changes `SkopeDoc` needs a note in the roadmap spec and a
+- Keep the document format compatible. Anything that changes `DaidalDoc` needs a note in the roadmap spec and a
   reader that still accepts the previous shape.
 - Follow the code around you: TypeScript, no default exports, comments that say why rather than what.
 

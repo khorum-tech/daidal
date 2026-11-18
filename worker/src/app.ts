@@ -114,7 +114,7 @@ const errorName = (e: unknown) =>
 function unauthorized(message: string): Response {
   return new Response(JSON.stringify({ error: message }), {
     status: 401,
-    headers: { "content-type": "application/json", "cache-control": "no-store", "www-authenticate": 'Bearer realm="skope"' },
+    headers: { "content-type": "application/json", "cache-control": "no-store", "www-authenticate": 'Bearer realm="daidal"' },
   });
 }
 
@@ -200,7 +200,7 @@ async function route(request: Request, env: Env, getKeys: () => KeySource, as?: 
   if (url.pathname === "/mcp") return mcpEndpoint(request, env, getKeys);
   if (!url.pathname.startsWith("/api/")) return siteFile(request, env, url);
 
-  applyLimitOverrides(env.SKOPE_LIMITS);
+  applyLimitOverrides(env.DAIDAL_LIMITS);
   try {
     const now = Date.now();
     const actor = await actorOf(request, env, getKeys, now, as);
