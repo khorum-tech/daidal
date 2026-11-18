@@ -4,6 +4,9 @@
  *
  *   STAGE_D1_ID=… STAGE_ACCESS_AUD=… node scripts/stage-config.mjs
  *
+ * It also writes wrangler.stage.secrets.json, the Access AUD as a Worker secret: deploy with
+ * `wrangler deploy -c wrangler.stage.jsonc --secrets-file wrangler.stage.secrets.json`.
+ *
  * The pure parts are exported so the Worker tests can check them; only the command at the bottom touches files.
  */
 
@@ -84,9 +87,25 @@ export function stageConfig(prod, env) {
     preview_urls: false,
     routes: [{ pattern: STAGE_HOST, custom_domain: true }],
     d1_databases: [{ ...databases[0], database_name: STAGE_NAME, database_id: d1Id }],
-    vars: { ...prod.vars, ACCESS_AUD: aud },
+    // Without the AUD: it goes up as a Worker secret (stageSecrets), because `wrangler deploy` prints every
+    // variable's value in the deploy log, which anyone can read once the repository is public.
+    vars: withoutAud(prod.vars),
   };
 }
+
+/** [vars] without ACCESS_AUD, which the generated configs upload as a secret instead. */
+export function withoutAud(vars) {
+  const { ACCESS_AUD: _aud, ...rest } = vars ?? {};
+  return rest;
+}
+
+/** What `wrangler deploy --secrets-file` uploads for stage: the Worker reads it as env.ACCESS_AUD all the same. */
+export function stageSecrets(env) {
+  return { ACCESS_AUD: String(env.STAGE_ACCESS_AUD ?? "").trim() };
+}
+
+/** Where the stage secrets go: never committed, like the generated config beside it. */
+export const STAGE_SECRETS_FILE = "wrangler.stage.secrets.json";
 
 export function stageConfigText(prodText, env) {
   const config = stageConfig(parseJsonc(prodText), env);
@@ -98,7 +117,8 @@ if (invokedDirectly) {
   const { readFileSync, writeFileSync } = await import("node:fs");
   try {
     writeFileSync("wrangler.stage.jsonc", stageConfigText(readFileSync("wrangler.jsonc", "utf8"), process.env));
-    console.log(`wrote wrangler.stage.jsonc (${STAGE_NAME} at ${STAGE_HOST})`);
+    writeFileSync(STAGE_SECRETS_FILE, `${JSON.stringify(stageSecrets(process.env))}\n`, { mode: 0o600 });
+    console.log(`wrote wrangler.stage.jsonc and ${STAGE_SECRETS_FILE} (${STAGE_NAME} at ${STAGE_HOST})`);
   } catch (e) {
     console.error(e instanceof Error ? e.message : e);
     process.exit(1);

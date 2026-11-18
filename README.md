@@ -66,7 +66,7 @@ Daidal is one Worker, one D1 database and Cloudflare Access in front. Roughly:
    ```sh
    PROD_D1_ID=<database_id> PROD_ACCESS_AUD=<aud> node scripts/prod-config.mjs
    npx wrangler d1 migrations apply skope --remote -c wrangler.prod.jsonc
-   npx wrangler deploy -c wrangler.prod.jsonc
+   npx wrangler deploy -c wrangler.prod.jsonc --secrets-file wrangler.prod.secrets.json
    ```
 4. For MCP clients online, turn on Managed OAuth for the Access application ([`docs/mcp.md`](docs/mcp.md)).
 
