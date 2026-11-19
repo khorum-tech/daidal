@@ -43,14 +43,14 @@ describe("the MCP server", () => {
   it("wants a token or a sign-in, and refuses a malformed token, before reading anything", async () => {
     const none = await raw({ method: "POST", body: "{}" });
     expect(none.status).toBe(401);
-    expect(none.headers.get("www-authenticate")).toBe('Bearer realm="skope"');
+    expect(none.headers.get("www-authenticate")).toBe('Bearer realm="daidal"');
     expect((await raw({ method: "POST", body: "{}", auth: { authorization: "Bearer nope" } })).status).toBe(401);
   });
 
   it("speaks JSON-RPC: initialize, tools/list, notifications, unknown methods, bad JSON, POST only", async () => {
     const { rpc, auth } = await client("mcp-proto@example.com");
     const init = await rpc("initialize", { protocolVersion: "2025-06-18" });
-    expect(init.result).toMatchObject({ protocolVersion: "2025-06-18", serverInfo: { name: "skope" }, capabilities: { tools: { listChanged: false } } });
+    expect(init.result).toMatchObject({ protocolVersion: "2025-06-18", serverInfo: { name: "daidal" }, capabilities: { tools: { listChanged: false } } });
     expect(init.result.instructions).toContain("list_workspaces");
     expect((await rpc("initialize", { protocolVersion: "1999-01-01" })).result.protocolVersion).toBe("2025-11-25");
 

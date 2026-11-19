@@ -3,9 +3,9 @@
 	import FollowPanel from './FollowPanel.svelte';
 	import { pending } from '../diagram/review';
 	import { SAMPLE } from '../fixtures/docs';
-	import type { SkopeDoc } from '../types';
+	import type { DaidalDoc } from '../types';
 
-	const before: SkopeDoc = { ...SAMPLE, nodes: SAMPLE.nodes!.slice(0, 3), edges: SAMPLE.edges!.slice(0, 1) };
+	const before: DaidalDoc = { ...SAMPLE, nodes: SAMPLE.nodes!.slice(0, 3), edges: SAMPLE.edges!.slice(0, 1) };
 	const groups = pending(
 		[
 			{ id: 's1', label: 'First cut', authorEmail: 'lead@example.com', doc: before, createdAt: Date.now() - 86_400_000 * 3 },

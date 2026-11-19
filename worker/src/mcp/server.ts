@@ -61,7 +61,7 @@ async function handle(message: Message, api: Api): Promise<object | null> {
       return reply(id, {
         protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : LATEST,
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "skope", title: "Daidal", version: "1.0.0" },
+        serverInfo: { name: "daidal", title: "Daidal", version: "1.0.0" },
         instructions: INSTRUCTIONS,
       });
     }

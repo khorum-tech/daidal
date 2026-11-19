@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { SkopeDoc, Snapshot } from '../types';
+import type { DaidalDoc, Snapshot } from '../types';
 import { applyChange, diffDocs, pending, withNeeded } from './review';
 
-const v1 = (): SkopeDoc => ({
+const v1 = (): DaidalDoc => ({
 	version: 1,
 	tags: { core: { label: 'Core', color: '#fff' } },
 	nodes: [
@@ -12,7 +12,7 @@ const v1 = (): SkopeDoc => ({
 	edges: [{ from: 'api', to: 'db', label: 'SQL' }]
 });
 
-const v2 = (): SkopeDoc => ({
+const v2 = (): DaidalDoc => ({
 	version: 1,
 	tags: { core: { label: 'Core', color: '#fff' }, data: { label: 'Data', color: '#000' } },
 	nodes: [
@@ -61,7 +61,7 @@ describe('applyChange', () => {
 	});
 
 	it('takes only the fields that changed, and the place only on a move', () => {
-		const follower: SkopeDoc = { ...v1(), nodes: [{ ...v1().nodes![0], notes: 'mine', layout: { x: 5, y: 5, w: 220 } }, v1().nodes![1]] };
+		const follower: DaidalDoc = { ...v1(), nodes: [{ ...v1().nodes![0], notes: 'mine', layout: { x: 5, y: 5, w: 220 } }, v1().nodes![1]] };
 		const edited = applyChange(follower, one('s2:ne:api'));
 		expect(edited.nodes![0]).toMatchObject({ subtitle: 'Kotlin', layout: { x: 5, y: 5, w: 220 } });
 		expect(edited.nodes![0].notes).toBe('mine'); // the lead changed the subtitle, so nothing else is taken
@@ -95,7 +95,7 @@ describe('applyChange', () => {
 });
 
 describe('pending', () => {
-	const snap = (id: string, doc: SkopeDoc): Snapshot => ({ id, label: id, authorEmail: 'a@example.com', doc, createdAt: 0 });
+	const snap = (id: string, doc: DaidalDoc): Snapshot => ({ id, label: id, authorEmail: 'a@example.com', doc, createdAt: 0 });
 
 	it("groups what each snapshot after the synced one changed, leaving out ones that changed nothing", () => {
 		const snaps = [snap('s1', v1()), snap('s2', v2()), snap('s3', v2()), snap('s4', v1())];

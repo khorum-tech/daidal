@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { History } from './history.svelte';
-import type { SkopeDoc } from './types';
+import type { DaidalDoc } from './types';
 
-const doc = (n: number): SkopeDoc => ({ version: 1, diagram: { name: `v${n}` } });
+const doc = (n: number): DaidalDoc => ({ version: 1, diagram: { name: `v${n}` } });
 
 describe('History', () => {
 	it('undoes and redoes changes in order', () => {

@@ -6,7 +6,7 @@ order: 10
 
 # The config format
 
-Every diagram is a document, and **Config** (in the toolbar, or the diagram's sheet) shows it as YAML or JSON. Its owner can edit it there, or drop or open a `.skope.yaml` / `.skope.json` file, and apply it:
+Every diagram is a document, and **Config** (in the toolbar, or the diagram's sheet) shows it as YAML or JSON. Its owner can edit it there, or drop or open a `.daidal.yaml` / `.daidal.json` file, and apply it:
 
 - **Replace** makes the diagram exactly what the config says.
 - **Merge** adds and updates: nodes and containers by `id`, tags by key, views by name, and connections that aren't there yet. Fields the config leaves out stay as they are.

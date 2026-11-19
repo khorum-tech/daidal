@@ -3,7 +3,7 @@
 // person has really done it; otherwise Next does. Progress is kept in the account (`/api/me` settings.tutorial), so
 // it survives a reload and follows you to another device.
 import type { createApi } from './api';
-import type { Me, SkopeDoc } from './types';
+import type { Me, DaidalDoc } from './types';
 
 export interface TourStep {
 	id: string;
@@ -30,7 +30,7 @@ export interface TourCounts {
 	presenting: boolean;
 }
 
-export function tourCounts(doc: SkopeDoc, presenting = false): TourCounts {
+export function tourCounts(doc: DaidalDoc, presenting = false): TourCounts {
 	const nodes = doc.nodes ?? [];
 	return {
 		nodes: nodes.length,
@@ -146,7 +146,7 @@ export function tourOf(me: Me): TourState | null {
 export const offerTour = (me: Me) => tourOf(me) === null;
 
 /** The practice diagram the tour runs on: one node to start from. */
-export function practiceDoc(): SkopeDoc {
+export function practiceDoc(): DaidalDoc {
 	return {
 		version: 1,
 		diagram: { name: 'Getting started', kind: 'freeform' },

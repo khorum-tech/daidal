@@ -1,4 +1,4 @@
-import type { DocBoundary, DocEdge, DocNode, DocTag, SkopeDoc } from '../types';
+import type { DocBoundary, DocEdge, DocNode, DocTag, DaidalDoc } from '../types';
 import { NODE_H, NODE_W, slug, toScene, type Anchor, type Scene, type Side } from './model';
 
 /**
@@ -12,7 +12,7 @@ const NEW_NAME: Record<string, string> = { Note: 'Note', Text: 'Text' };
 const NEW_WIDTH: Record<string, number> = { Note: 200, Text: 230 };
 
 /** An id no node in [doc] has yet, in the prototype's style ("n" and a timestamp). */
-export function newNodeId(doc: SkopeDoc, now = Date.now()): string {
+export function newNodeId(doc: DaidalDoc, now = Date.now()): string {
 	const taken = new Set((doc.nodes ?? []).map(n => n.id));
 	const stem = `n${now.toString(36)}`;
 	let id = stem;
@@ -27,7 +27,7 @@ const GAP = 24;
  * Where a [w]-wide card centred on [at] can sit without covering a node: there, if it is free, else the nearest
  * free spot a whole card (and a gap) away up, down, left or right, rings further out each time.
  */
-export function freeSpot(doc: SkopeDoc, at: { x: number; y: number }, w: number): { x: number; y: number } {
+export function freeSpot(doc: DaidalDoc, at: { x: number; y: number }, w: number): { x: number; y: number } {
 	const boxes = toScene(doc).nodes;
 	const free = (x: number, y: number) => !boxes.some(b => x < b.x + b.w + GAP && b.x < x + w + GAP && y < b.y + b.h + GAP && b.y < y + NODE_H + GAP);
 	const x0 = Math.round(at.x - w / 2);
@@ -49,7 +49,7 @@ export function freeSpot(doc: SkopeDoc, at: { x: number; y: number }, w: number)
  * A node of [type] (a display name, e.g. "Web App") as near [at] as it fits without covering another node.
  * Returns the document and the new id.
  */
-export function addNode(doc: SkopeDoc, type: string, at: { x: number; y: number }, now = Date.now()): { doc: SkopeDoc; id: string } {
+export function addNode(doc: DaidalDoc, type: string, at: { x: number; y: number }, now = Date.now()): { doc: DaidalDoc; id: string } {
 	const id = newNodeId(doc, now);
 	const w = NEW_WIDTH[type] ?? NODE_W;
 	const spot = freeSpot(doc, at, w);
@@ -63,7 +63,7 @@ export function addNode(doc: SkopeDoc, type: string, at: { x: number; y: number 
 }
 
 /** Drops a node and every connection to or from it. */
-export function removeNode(doc: SkopeDoc, id: string): SkopeDoc {
+export function removeNode(doc: DaidalDoc, id: string): DaidalDoc {
 	return {
 		...doc,
 		nodes: (doc.nodes ?? []).filter(n => n.id !== id),
@@ -72,7 +72,7 @@ export function removeNode(doc: SkopeDoc, id: string): SkopeDoc {
 }
 
 /** A copy of a node, nudged down and right as the prototype pastes. Its connections stay with the original. */
-export function duplicateNode(doc: SkopeDoc, id: string, now = Date.now()): { doc: SkopeDoc; id: string } | null {
+export function duplicateNode(doc: DaidalDoc, id: string, now = Date.now()): { doc: DaidalDoc; id: string } | null {
 	const src = (doc.nodes ?? []).find(n => n.id === id);
 	if (!src) return null;
 	const copy: DocNode = structuredClone(src);
@@ -86,7 +86,7 @@ export function duplicateNode(doc: SkopeDoc, id: string, now = Date.now()): { do
 export const MIN_NODE = { w: 130, h: 64 };
 
 /** Resizes a node; a size back at the default leaves the document, as the prototype's export does. */
-export function resizeNode(doc: SkopeDoc, id: string, w: number, h: number): SkopeDoc {
+export function resizeNode(doc: DaidalDoc, id: string, w: number, h: number): DaidalDoc {
 	const scene = toScene(doc);
 	return {
 		...doc,
@@ -108,7 +108,7 @@ export type NodeChange = Partial<Pick<DocNode, 'name' | 'subtitle' | 'notes' | '
 	icon?: string | null;
 };
 
-export function updateNode(doc: SkopeDoc, id: string, change: NodeChange): SkopeDoc {
+export function updateNode(doc: DaidalDoc, id: string, change: NodeChange): DaidalDoc {
 	return {
 		...doc,
 		nodes: (doc.nodes ?? []).map(n => {
@@ -142,13 +142,13 @@ export function hostOf(url: string): string {
 // ---- connections ----
 
 /** A connection from one node to another, with the prototype's defaults (an arrow at the target, no label). */
-export function addEdge(doc: SkopeDoc, from: string, to: string): { doc: SkopeDoc; index: number } {
+export function addEdge(doc: DaidalDoc, from: string, to: string): { doc: DaidalDoc; index: number } {
 	const edges = [...(doc.edges ?? []), { from, to }];
 	return { doc: { ...doc, edges }, index: edges.length - 1 };
 }
 
 /** A new node of [type] at [at], connected from [from]: what dropping a connection on empty canvas makes. */
-export function connectToNew(doc: SkopeDoc, from: string, type: string, at: { x: number; y: number }, now = Date.now()): { doc: SkopeDoc; id: string; index: number } {
+export function connectToNew(doc: DaidalDoc, from: string, type: string, at: { x: number; y: number }, now = Date.now()): { doc: DaidalDoc; id: string; index: number } {
 	const made = addNode(doc, type, at, now);
 	const linked = addEdge(made.doc, from, made.id);
 	return { doc: linked.doc, id: made.id, index: linked.index };
@@ -172,7 +172,7 @@ export function endSide(edge: DocEdge, end: 'from' | 'to'): EndSide | null {
 const SIDE_NAME: Record<Side, EndSide> = { l: 'left', r: 'right', t: 'top', b: 'bottom' };
 
 /** Pins one end of a connection to a spot on a side (dragged there), or with null puts it back on auto. */
-export function setEnd(doc: SkopeDoc, index: number, end: 'from' | 'to', at: Anchor | null): SkopeDoc {
+export function setEnd(doc: DaidalDoc, index: number, end: 'from' | 'to', at: Anchor | null): DaidalDoc {
 	return {
 		...doc,
 		edges: (doc.edges ?? []).map((e, i) => {
@@ -186,7 +186,7 @@ export function setEnd(doc: SkopeDoc, index: number, end: 'from' | 'to', at: Anc
 	};
 }
 
-export function updateEdge(doc: SkopeDoc, index: number, change: EdgeChange): SkopeDoc {
+export function updateEdge(doc: DaidalDoc, index: number, change: EdgeChange): DaidalDoc {
 	return {
 		...doc,
 		edges: (doc.edges ?? []).map((e, i) => {
@@ -214,7 +214,7 @@ export function updateEdge(doc: SkopeDoc, index: number, change: EdgeChange): Sk
 }
 
 /** The same connection the other way round; pinned ends swap with it. */
-export function reverseEdge(doc: SkopeDoc, index: number): SkopeDoc {
+export function reverseEdge(doc: DaidalDoc, index: number): DaidalDoc {
 	return {
 		...doc,
 		edges: (doc.edges ?? []).map((e, i) => {
@@ -231,7 +231,7 @@ export function reverseEdge(doc: SkopeDoc, index: number): SkopeDoc {
 	};
 }
 
-export function removeEdge(doc: SkopeDoc, index: number): SkopeDoc {
+export function removeEdge(doc: DaidalDoc, index: number): DaidalDoc {
 	return { ...doc, edges: (doc.edges ?? []).filter((_, i) => i !== index) };
 }
 
@@ -252,7 +252,7 @@ export function contentsOf(scene: Scene, id: string): { nodes: string[]; boxes: 
 }
 
 /** An id no node or container in [doc] has yet, in the prototype's style ("bx" and a timestamp). */
-function newBoxId(doc: SkopeDoc, now: number): string {
+function newBoxId(doc: DaidalDoc, now: number): string {
 	const taken = new Set([...(doc.nodes ?? []).map(n => n.id), ...(doc.boundaries ?? []).map(b => b.id)]);
 	const stem = `bx${now.toString(36)}`;
 	let id = stem;
@@ -265,14 +265,14 @@ function newBoxId(doc: SkopeDoc, now: number): string {
  * A new container centred on [at], as the prototype adds one: 520 × 340, labelled, and moving alone (so laying it
  * over existing nodes doesn't sweep them up when it is dragged).
  */
-export function addBoundary(doc: SkopeDoc, at: { x: number; y: number }, now = Date.now()): { doc: SkopeDoc; id: string } {
+export function addBoundary(doc: DaidalDoc, at: { x: number; y: number }, now = Date.now()): { doc: DaidalDoc; id: string } {
 	const id = newBoxId(doc, now);
 	const box: DocBoundary = { id, label: 'NEW CONTAINER', moveContents: false, layout: { x: Math.round(at.x - 260), y: Math.round(at.y - 170), w: 520, h: 340 } };
 	return { doc: { ...doc, boundaries: [...(doc.boundaries ?? []), box] }, id };
 }
 
 /** A copy of a container, nudged down and right, labelled as a copy. What is inside it is not copied. */
-export function duplicateBoundary(doc: SkopeDoc, id: string, now = Date.now()): { doc: SkopeDoc; id: string } | null {
+export function duplicateBoundary(doc: DaidalDoc, id: string, now = Date.now()): { doc: DaidalDoc; id: string } | null {
 	const src = (doc.boundaries ?? []).find(b => b.id === id);
 	if (!src) return null;
 	const copy: DocBoundary = structuredClone(src);
@@ -315,7 +315,7 @@ function withoutBoxDefaults(b: DocBoundary): DocBoundary {
 	return next;
 }
 
-export function updateBoundary(doc: SkopeDoc, id: string, change: BoundaryChange): SkopeDoc {
+export function updateBoundary(doc: DaidalDoc, id: string, change: BoundaryChange): DaidalDoc {
 	const { label, labelPosition, moveContents } = change;
 	const fields = Object.fromEntries(Object.entries({ label, labelPosition, moveContents }).filter(([, v]) => v !== undefined));
 	const touchesBorder = change.borderWidth !== undefined || change.borderStyle !== undefined;
@@ -328,7 +328,7 @@ export function updateBoundary(doc: SkopeDoc, id: string, change: BoundaryChange
 }
 
 /** Moves a container to ([x], [y]), and by the same amount what sits wholly inside it, unless it moves alone. */
-export function moveBoundary(doc: SkopeDoc, id: string, x: number, y: number): SkopeDoc {
+export function moveBoundary(doc: DaidalDoc, id: string, x: number, y: number): DaidalDoc {
 	const scene = toScene(doc);
 	const b = scene.boundaries.find(o => o.id === id);
 	if (!b) return doc;
@@ -352,7 +352,7 @@ export function moveBoundary(doc: SkopeDoc, id: string, x: number, y: number): S
 	};
 }
 
-export function resizeBoundary(doc: SkopeDoc, id: string, w: number, h: number): SkopeDoc {
+export function resizeBoundary(doc: DaidalDoc, id: string, w: number, h: number): DaidalDoc {
 	const scene = toScene(doc);
 	return {
 		...doc,
@@ -365,7 +365,7 @@ export function resizeBoundary(doc: SkopeDoc, id: string, w: number, h: number):
 }
 
 /** Drops a container and the connections to or from it; what was inside stays where it is. */
-export function removeBoundary(doc: SkopeDoc, id: string): SkopeDoc {
+export function removeBoundary(doc: DaidalDoc, id: string): DaidalDoc {
 	return {
 		...doc,
 		boundaries: (doc.boundaries ?? []).filter(b => b.id !== id),
@@ -392,7 +392,7 @@ export type PaletteId = (typeof PALETTES)[number]['id'];
 export const paletteById = (id: PaletteId) => PALETTES.find(p => p.id === id) ?? PALETTES[0];
 
 /** The palette a document's tags are drawn from: the one holding most of their colours (Nocturne when none do). */
-export function paletteOf(doc: SkopeDoc): PaletteId {
+export function paletteOf(doc: DaidalDoc): PaletteId {
 	const colors = Object.values(doc.tags ?? {}).map(t => t.color);
 	let best: { id: PaletteId; n: number } = { id: 'nocturne', n: 0 };
 	for (const p of PALETTES) {
@@ -407,7 +407,7 @@ export function paletteOf(doc: SkopeDoc): PaletteId {
  * same place in the new palette as it held in the old), or else takes the next by tag order. [colors] narrows the
  * new palette (to those told apart under a colour-vision condition, say).
  */
-export function recolourTags(doc: SkopeDoc, to: PaletteId, colors: readonly string[] = paletteById(to).colors): SkopeDoc {
+export function recolourTags(doc: DaidalDoc, to: PaletteId, colors: readonly string[] = paletteById(to).colors): DaidalDoc {
 	const from = paletteById(paletteOf(doc)).colors as readonly string[];
 	const next = colors.length ? colors : paletteById(to).colors;
 	const tags = Object.fromEntries(
@@ -423,7 +423,7 @@ export function recolourTags(doc: SkopeDoc, to: PaletteId, colors: readonly stri
  * A new tag, keyed by its slugged label (made unique), coloured from the palette in turn. Returns the document and
  * the new key.
  */
-export function addTag(doc: SkopeDoc, label: string, group = NEW_TAG_GROUP): { doc: SkopeDoc; key: string } {
+export function addTag(doc: DaidalDoc, label: string, group = NEW_TAG_GROUP): { doc: DaidalDoc; key: string } {
 	const tags = doc.tags ?? {};
 	const stem = slug(label);
 	let key = stem;
@@ -434,7 +434,7 @@ export function addTag(doc: SkopeDoc, label: string, group = NEW_TAG_GROUP): { d
 	return { doc: { ...doc, tags: { ...tags, [key]: { label: label.trim(), color, group: group.trim() || NEW_TAG_GROUP } } }, key };
 }
 
-export function updateTag(doc: SkopeDoc, key: string, change: { label?: string; color?: string; group?: string }): SkopeDoc {
+export function updateTag(doc: DaidalDoc, key: string, change: { label?: string; color?: string; group?: string }): DaidalDoc {
 	const tag = doc.tags?.[key];
 	if (!tag) return doc;
 	const next = { ...tag, ...Object.fromEntries(Object.entries(change).filter(([, v]) => v !== undefined)) };
@@ -443,7 +443,7 @@ export function updateTag(doc: SkopeDoc, key: string, change: { label?: string; 
 }
 
 /** Drops a tag, and takes it off every node and out of every view. */
-export function removeTag(doc: SkopeDoc, key: string): SkopeDoc {
+export function removeTag(doc: DaidalDoc, key: string): DaidalDoc {
 	const tags = { ...doc.tags };
 	delete tags[key];
 	return {
@@ -460,7 +460,7 @@ function withoutEmpty(n: DocNode): DocNode {
 }
 
 /** A new view of [tags], named "View N" with the first free N, as the prototype names one. */
-export function addView(doc: SkopeDoc, tags: string[]): { doc: SkopeDoc; name: string } {
+export function addView(doc: DaidalDoc, tags: string[]): { doc: DaidalDoc; name: string } {
 	const views = doc.views ?? [];
 	let n = views.length + 1;
 	while (views.some(v => v.name === `View ${n}`)) n++;
@@ -469,19 +469,19 @@ export function addView(doc: SkopeDoc, tags: string[]): { doc: SkopeDoc; name: s
 }
 
 /** Whether [name] could be given to view [current] (not empty, and no other view has it). */
-export function viewNameFree(doc: SkopeDoc, name: string, current: string): boolean {
+export function viewNameFree(doc: DaidalDoc, name: string, current: string): boolean {
 	const n = name.trim();
 	return !!n && !(doc.views ?? []).some(v => v.name === n && v.name !== current);
 }
 
 /** Renames a view or re-saves its tags. A rename keeps it the default view if it was. */
-const isLocked = (doc: SkopeDoc, name: string) => !!doc.views?.find(v => v.name === name)?.locked;
+const isLocked = (doc: DaidalDoc, name: string) => !!doc.views?.find(v => v.name === name)?.locked;
 
 /** Renames or re-saves a view; a locked one stays as it is. */
-export function updateView(doc: SkopeDoc, name: string, change: { name?: string; tags?: string[] }): SkopeDoc {
+export function updateView(doc: DaidalDoc, name: string, change: { name?: string; tags?: string[] }): DaidalDoc {
 	const rename = change.name?.trim();
 	if (isLocked(doc, name) || (rename !== undefined && !viewNameFree(doc, rename, name))) return doc;
-	const next: SkopeDoc = {
+	const next: DaidalDoc = {
 		...doc,
 		views: (doc.views ?? []).map(v => (v.name === name ? { ...v, name: rename ?? v.name, tags: change.tags ? [...change.tags] : v.tags } : v))
 	};
@@ -490,7 +490,7 @@ export function updateView(doc: SkopeDoc, name: string, change: { name?: string;
 }
 
 /** Locks a view (the prototype's freeze) or unlocks it; an unlocked view leaves the flag out. */
-export function lockView(doc: SkopeDoc, name: string, locked: boolean): SkopeDoc {
+export function lockView(doc: DaidalDoc, name: string, locked: boolean): DaidalDoc {
 	return {
 		...doc,
 		views: (doc.views ?? []).map(v => {
@@ -503,9 +503,9 @@ export function lockView(doc: SkopeDoc, name: string, locked: boolean): SkopeDoc
 }
 
 /** Deletes a view, unless it is locked. */
-export function removeView(doc: SkopeDoc, name: string): SkopeDoc {
+export function removeView(doc: DaidalDoc, name: string): DaidalDoc {
 	if (isLocked(doc, name)) return doc;
-	const next: SkopeDoc = { ...doc, views: (doc.views ?? []).filter(v => v.name !== name) };
+	const next: DaidalDoc = { ...doc, views: (doc.views ?? []).filter(v => v.name !== name) };
 	if (doc.diagram?.view === name) {
 		const diagram = { ...doc.diagram };
 		delete diagram.view;
@@ -515,7 +515,7 @@ export function removeView(doc: SkopeDoc, name: string): SkopeDoc {
 }
 
 /** The view the diagram opens on, or (null) everything. */
-export function setDefaultView(doc: SkopeDoc, name: string | null): SkopeDoc {
+export function setDefaultView(doc: DaidalDoc, name: string | null): DaidalDoc {
 	const diagram = { ...doc.diagram };
 	if (name) diagram.view = name;
 	else delete diagram.view;
@@ -531,7 +531,7 @@ export interface Picked {
 }
 
 /** Drops the picked nodes (with every connection to or from them) and the picked connections. */
-export function removeMany(doc: SkopeDoc, picked: Picked): SkopeDoc {
+export function removeMany(doc: DaidalDoc, picked: Picked): DaidalDoc {
 	const gone = new Set(picked.nodes);
 	return {
 		...doc,
@@ -540,12 +540,12 @@ export function removeMany(doc: SkopeDoc, picked: Picked): SkopeDoc {
 	};
 }
 
-export function updateNodes(doc: SkopeDoc, ids: string[], change: NodeChange): SkopeDoc {
+export function updateNodes(doc: DaidalDoc, ids: string[], change: NodeChange): DaidalDoc {
 	return ids.reduce((d, id) => updateNode(d, id, change), doc);
 }
 
 /** A tag on every one of [ids], or, when they all carry it already, off every one (the prototype's chip). */
-export function toggleTagOn(doc: SkopeDoc, ids: string[], key: string): SkopeDoc {
+export function toggleTagOn(doc: DaidalDoc, ids: string[], key: string): DaidalDoc {
 	const picked = (doc.nodes ?? []).filter(n => ids.includes(n.id));
 	const all = picked.length > 0 && picked.every(n => n.tags?.includes(key));
 	return picked.reduce((d, n) => {
@@ -556,12 +556,12 @@ export function toggleTagOn(doc: SkopeDoc, ids: string[], key: string): SkopeDoc
 	}, doc);
 }
 
-export function updateEdges(doc: SkopeDoc, indices: number[], change: EdgeChange): SkopeDoc {
+export function updateEdges(doc: DaidalDoc, indices: number[], change: EdgeChange): DaidalDoc {
 	return indices.reduce((d, i) => updateEdge(d, i, change), doc);
 }
 
 /** Moves [ids] together by ([dx], [dy]). */
-export function moveNodes(doc: SkopeDoc, ids: string[], dx: number, dy: number): SkopeDoc {
+export function moveNodes(doc: DaidalDoc, ids: string[], dx: number, dy: number): DaidalDoc {
 	const scene = toScene(doc);
 	return {
 		...doc,
@@ -580,7 +580,7 @@ export interface Clip {
 	tags: Record<string, DocTag>;
 }
 
-export function copyNodes(doc: SkopeDoc, ids: string[]): Clip {
+export function copyNodes(doc: DaidalDoc, ids: string[]): Clip {
 	const scene = toScene(doc);
 	const nodes = (doc.nodes ?? []).flatMap((n, i) => {
 		if (!ids.includes(n.id)) return [];
@@ -600,7 +600,7 @@ export function copyNodes(doc: SkopeDoc, ids: string[]): Clip {
  * The clip's nodes added as new ones, shifted by ([dx], [dy]), with the connections between them. A tag the
  * document doesn't have comes along; one it has stays as the document has it. Returns the new ids.
  */
-export function pasteNodes(doc: SkopeDoc, clip: Clip, dx: number, dy: number, now = Date.now()): { doc: SkopeDoc; ids: string[] } {
+export function pasteNodes(doc: DaidalDoc, clip: Clip, dx: number, dy: number, now = Date.now()): { doc: DaidalDoc; ids: string[] } {
 	const map = new Map<string, string>();
 	let nodes = doc.nodes ?? [];
 	for (const n of clip.nodes) {

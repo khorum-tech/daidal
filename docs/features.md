@@ -47,11 +47,11 @@ shown, not renamed, re-saved or deleted. The diagram's sheet also **exports an i
 the diagram as it shows now, drawn from the document in the canvas's colours (`src/lib/diagram/render.ts`), with
 what the view switches off kept faintly or left out. The **config** (Config in the toolbar, or the diagram's sheet) is the
 document as YAML or JSON, written and read as the prototype does (`src/lib/diagram/yaml.ts`): its owner edits it, or
-drops or opens a `.skope.yaml` / `.skope.json` file, and applies it, replacing the diagram or merging it in (nodes by
+drops or opens a `.daidal.yaml` / `.daidal.json` file, and applies it, replacing the diagram or merging it in (nodes by
 id), as one undo step. A config that can't be read says why, with the line, and changes nothing. Anyone can copy or
 download it.
 **Profile** and **Appearance** (in the menu under your name) save your name and title to your account, and set how this
-browser shows Skope (`src/lib/appearance.svelte.ts`, kept in the browser like the prototype's): a dark, light or
+browser shows Daidal (`src/lib/appearance.svelte.ts`, kept in the browser like the prototype's): a dark, light or
 system theme; a colour-vision condition, which strikes the colours that collide under it from the tag colour pickers
 and can be simulated over the whole app (an SVG colour matrix, `src/lib/diagram/colour.ts`); and **icon-only cards**
 when presenting (also a switch in the presenting bar), each node drawn as its icon and name.
@@ -75,7 +75,7 @@ on a desktop and an iPhone.
 and Lightness steps): every tag is recoloured, keeping its place in the palette, as one undo step. Colour pickers
 lead with the diagram's palette, with the others under More colours.
 
-What's left to port, and the order it's planned in: [`docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md`](../docs/superpowers/specs/2026-10-26-skope-app-port-roadmap.md).
+What's left to port, and the order it's planned in: [`docs/superpowers/specs/2026-10-26-daidal-app-port-roadmap.md`](../docs/superpowers/specs/2026-10-26-daidal-app-port-roadmap.md).
 
 | Route | What it shows |
 |-------|---------------|
@@ -99,7 +99,7 @@ History), opening as sheets. While a node is selected the toolbar becomes the no
 and Done. The e2e `phone` project (`e2e/mobile.spec.ts`) keeps this working.
 
 Components live in `src/lib/components/`. What they draw is worked out in `src/lib/diagram/`: `model.ts` turns a
-`.skope.json` document into a scene the way the prototype's config import does, and `geometry.ts` routes
+`.daidal.json` document into a scene the way the prototype's config import does, and `geometry.ts` routes
 connections the way the prototype's canvas does.
 
 The docs at `/app/docs` are markdown in `src/lib/docs/`, one file per page with a small header (title, summary,
@@ -113,7 +113,7 @@ The getting-started tour is `src/lib/tour.ts` (the steps, each pointing at a `da
 when its check sees it done) and `TourCallout.svelte`. It runs on a practice diagram, starts from the account menu's
 **Tutorial**, the offer on home, or `/app/?tour=start`, and keeps its place in `/api/me` settings (`tutorial`).
 
-Icons and node types are data. `src/lib/diagram/icon-library.json` holds every icon Skope draws, all from
+Icons and node types are data. `src/lib/diagram/icon-library.json` holds every icon Daidal draws, all from
 [Phosphor](https://phosphoricons.com) (MIT, regular weight) so they look alike. `src/lib/diagram/types.json` lists the
 type picker's categories, each type with an icon from that library. To add an icon, put its Phosphor name in the list
 in `scripts/icons.mjs` and run `node scripts/icons.mjs` from the project root. It's stored under the camelCase of the

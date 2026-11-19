@@ -3,10 +3,10 @@ import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import FollowPanel from './FollowPanel.svelte';
 import { pending, type Change } from '../diagram/review';
-import type { SkopeDoc, Snapshot } from '../types';
+import type { DaidalDoc, Snapshot } from '../types';
 
-const v1: SkopeDoc = { version: 1, nodes: [{ id: 'api', name: 'API', type: 'service', layout: { x: 0, y: 0 } }] };
-const v2: SkopeDoc = {
+const v1: DaidalDoc = { version: 1, nodes: [{ id: 'api', name: 'API', type: 'service', layout: { x: 0, y: 0 } }] };
+const v2: DaidalDoc = {
 	version: 1,
 	nodes: [...v1.nodes!, { id: 'db', name: 'Orders DB', type: 'database', layout: { x: 300, y: 0 } }],
 	edges: [{ from: 'api', to: 'db', label: 'SQL' }]

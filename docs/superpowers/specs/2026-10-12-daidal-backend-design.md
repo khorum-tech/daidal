@@ -1,11 +1,11 @@
-# Skope backend: Workers + D1 + Cloudflare Access
+# Daidal backend: Workers + D1 + Cloudflare Access
 
 Date: 2026-10-12
 Status: approved 2026-10-12
 
 ## Goal
 
-Skope is a diagram editor that today runs as a static HTML/JS bundle and keeps
+Daidal is a diagram editor that today runs as a static HTML/JS bundle and keeps
 everything in one `localStorage` blob. This design gives it a real backend so
 that a small group (the owner and some friends) can sign in, keep their
 diagrams on a server, and clone and follow each other's diagrams.
@@ -135,7 +135,7 @@ Notes:
 
 ### The diagram document
 
-The document is the JSON form of the existing `.skope.yml` export, version 1:
+The document is the JSON form of the existing `.daidal.yml` export, version 1:
 
 ```json
 {
@@ -198,8 +198,8 @@ All bodies are JSON. Errors are `{ "error": "<message>" }`.
 | `DELETE /api/diagrams/:id` | diagram owner | Delete with its snapshots |
 | `GET /api/diagrams/:id/snapshots` | member | History, newest last; documents included |
 | `POST /api/diagrams/:id/snapshots` | diagram owner | Append `{label, doc}` |
-| `POST /api/workspaces/import` | self | Create workspaces from a `skope-backup` file (added 2026-10-24) |
-| `GET /api/workspaces/:id/export` | member | The workspace as a `skope-backup` file (added 2026-10-24) |
+| `POST /api/workspaces/import` | self | Create workspaces from a `daidal-backup` file (added 2026-10-24) |
+| `GET /api/workspaces/:id/export` | member | The workspace as a `daidal-backup` file (added 2026-10-24) |
 
 Rules:
 
@@ -255,7 +255,7 @@ Each step is deployed before the next starts. Each gets its own plan.
 
 > **Changed 2026-10-24:** the server's data layer was built ahead of the port, as a step of its own, matching
 > Storybild's order ("Server data"). Migration `0002_diagrams.sql`, the workspace, diagram, snapshot, clone and
-> follow routes in the API table, and an import/export of whole workspaces (`skope-backup`, see
+> follow routes in the API table, and an import/export of whole workspaces (`daidal-backup`, see
 > `worker/src/importer.ts`) are live; the stage seed runs that importer (`docs/stage.md`). Steps 4 and 5 below
 > are therefore done on the server and remain for the client. The prototype still keeps diagrams in
 > `localStorage`; the SvelteKit port wires each screen to the API.
@@ -285,7 +285,7 @@ in the SvelteKit app. The "Client changes" table above still describes where
 each piece of prototype state ends up; it is the port's data map.
 
 The one-time import of an existing `skope.prototype.v1` blob is dropped unless
-there is prototype data worth keeping when step 3 starts. The `.skope.yml`
+there is prototype data worth keeping when step 3 starts. The `.daidal.yml`
 export and import already move a diagram between the two.
 
 ## Deploy

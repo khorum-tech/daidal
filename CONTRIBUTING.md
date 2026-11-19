@@ -10,8 +10,9 @@ second, so that nobody spends an evening on something that won't merge.
 - **Check the license.** The software is under the Functional Source License (`LICENSE.md`): use it, self-host it,
   change it, but don't offer it as a competing hosted product. Each release becomes Apache-2.0 two years after it
   ships.
-- **Contributor License Agreement.** Because of that license, contributions need a short CLA so the project can
-  keep relicensing cleanly. A bot asks you to sign on your first pull request; it takes a minute.
+- **Contributor License Agreement.** Because of that license, contributions need a short CLA ([`CLA.md`](CLA.md))
+  so the project can keep relicensing cleanly. You keep your copyright. On your first pull request a bot asks you
+  to sign by commenting *I have read the Daidal CLA and I agree to its terms*; that covers every later one too.
 
 ## Setup
 
@@ -32,7 +33,7 @@ npx wrangler dev --var DEV_USER_EMAIL:you@example.com   # http://localhost:8787,
 - One change per PR, with tests. CI must be green; the `stage` job deploys your branch to the shared stage site
   when it is the oldest open PR from this repository (see `docs/stage.md`).
 - Describe what changed and why in the description, in plain language. Link the spec section if there is one.
-- Keep the document format compatible. Anything that changes `SkopeDoc` needs a note in the roadmap spec and a
+- Keep the document format compatible. Anything that changes `DaidalDoc` needs a note in the roadmap spec and a
   reader that still accepts the previous shape.
 - Follow the code around you: TypeScript, no default exports, comments that say why rather than what.
 

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import ConfigPanel from './ConfigPanel.svelte';
-import type { SkopeDoc } from '../types';
+import type { DaidalDoc } from '../types';
 
-const doc: SkopeDoc = {
+const doc: DaidalDoc = {
 	version: 1,
 	diagram: { name: 'checkout' },
 	nodes: [
@@ -23,15 +23,15 @@ describe('the config panel', () => {
 		await expect.element(area()).toHaveAttribute('readonly');
 		await page.getByRole('radio', { name: 'JSON' }).click();
 		await expect.element(area()).toHaveValue(expect.stringMatching(/^\{\n {2}"version": 1/));
-		await page.getByRole('button', { name: 'Download .skope.json' }).click();
+		await page.getByRole('button', { name: 'Download .daidal.json' }).click();
 		expect(got[0][0]).toBe('json');
 		expect(JSON.parse(got[0][1])).toEqual(doc);
 		expect(page.getByRole('button', { name: 'Apply' }).elements()).toHaveLength(0);
 	});
 
 	it('applies an edit, replacing or merging, and says what it did', async () => {
-		const applied: [SkopeDoc, string, string][] = [];
-		await render(ConfigPanel, { doc, editable: true, onapply: (next: SkopeDoc, mode: string, summary: string) => applied.push([next, mode, summary]) });
+		const applied: [DaidalDoc, string, string][] = [];
+		await render(ConfigPanel, { doc, editable: true, onapply: (next: DaidalDoc, mode: string, summary: string) => applied.push([next, mode, summary]) });
 		await expect.element(page.getByRole('button', { name: 'Apply' })).toBeDisabled();
 		await area().fill((area().element() as HTMLTextAreaElement).value.replace('name: Orders DB', 'name: Ledger'));
 		await page.getByRole('button', { name: 'Apply' }).click();
@@ -60,10 +60,10 @@ describe('the config panel', () => {
 
 	it('opens a file into the editor to check before applying', async () => {
 		await render(ConfigPanel, { doc, editable: true, onapply: () => {} });
-		const file = new File([JSON.stringify({ nodes: [{ id: 'x', name: 'From a file' }] })], 'other.skope.json', { type: 'application/json' });
+		const file = new File([JSON.stringify({ nodes: [{ id: 'x', name: 'From a file' }] })], 'other.daidal.json', { type: 'application/json' });
 		await userEvent.upload(page.getByLabelText('Config file to open'), file);
 		await expect.element(area()).toHaveValue(expect.stringContaining('From a file'));
 		await expect.element(page.getByRole('radio', { name: 'JSON' })).toHaveAttribute('aria-checked', 'true');
-		await expect.element(page.getByRole('status')).toMatchTextContent('Loaded other.skope.json');
+		await expect.element(page.getByRole('status')).toMatchTextContent('Loaded other.daidal.json');
 	});
 });

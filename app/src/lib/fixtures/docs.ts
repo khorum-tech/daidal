@@ -1,7 +1,7 @@
-import type { SkopeDoc } from '../types';
+import type { DaidalDoc } from '../types';
 
 /** A small diagram that uses each thing the canvas draws: tags in two groups, views, a boundary, every edge option. */
-export const SAMPLE: SkopeDoc = {
+export const SAMPLE: DaidalDoc = {
 	version: 1,
 	diagram: { id: 'checkout', name: 'checkout', kind: 'c4', view: 'Request path' },
 	tags: {

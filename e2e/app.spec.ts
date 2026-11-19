@@ -132,7 +132,7 @@ test.describe("the app at /app", () => {
 
   test("shows the first sixty cards, and more on asking", async ({ page, request }) => {
     const diagrams = Array.from({ length: 65 }, (_, i) => ({ id: `d${i}`, doc: { version: 1, diagram: { name: `Diagram ${i}` } }, updated: new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString() }));
-    const res = await request.post("/api/workspaces/import", { data: { format: "skope-backup", version: 1, workspaces: [{ name: "Many", diagrams }] } });
+    const res = await request.post("/api/workspaces/import", { data: { format: "daidal-backup", version: 1, workspaces: [{ name: "Many", diagrams }] } });
     const many = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
     await page.goto(`/app/?ws=${encodeURIComponent(many)}`);
     await expect(page.getByTestId("diagram-count")).toHaveText("60+ diagrams");
@@ -383,7 +383,7 @@ test.describe("the app at /app", () => {
     const { token } = await (await request.post("/api/me/tokens", { data: { name: "e2e mcp", scope: "write" } })).json();
     const rpc = async (method: string, params: unknown) =>
       (await request.post("/mcp", { headers: { authorization: `Bearer ${token}` }, data: { jsonrpc: "2.0", id: 1, method, params } })).json();
-    expect((await rpc("initialize", { protocolVersion: "2025-06-18" })).result.serverInfo.name).toBe("skope");
+    expect((await rpc("initialize", { protocolVersion: "2025-06-18" })).result.serverInfo.name).toBe("daidal");
     const added = await rpc("tools/call", { name: "add_node", arguments: { diagram: made.id, name: "Billing Agent", type: "AI Agent" } });
     expect(added.result.structuredContent).toMatchObject({ nodes: 1 });
 
@@ -977,7 +977,7 @@ test.describe("the app at /app", () => {
     const download = page.waitForEvent("download");
     await page.getByRole("dialog", { name: "Platform team" }).getByRole("button", { name: "Export a backup" }).click();
     const file = await download;
-    expect(file.suggestedFilename()).toBe("platform-team.skope-backup.json");
+    expect(file.suggestedFilename()).toBe("platform-team.daidal-backup.json");
     const path = info.outputPath("backup.json");
     await file.saveAs(path);
     await page.keyboard.press("Escape");
@@ -1547,11 +1547,11 @@ test.describe("the app at /app", () => {
 
     await config.getByLabel("Merge it in").check();
     await config.getByLabel("Config file to open").setInputFiles({
-      name: "audit.skope.json",
+      name: "audit.daidal.json",
       mimeType: "application/json",
       buffer: Buffer.from(JSON.stringify({ nodes: [{ id: "audit", name: "Audit Log", type: "log-sink", layout: { x: 900, y: 600 } }], edges: [{ from: "journal", to: "audit", label: "copies" }] }))
     });
-    await expect(config.getByRole("status")).toContainText("Loaded audit.skope.json");
+    await expect(config.getByRole("status")).toContainText("Loaded audit.daidal.json");
     await config.getByRole("button", { name: "Apply" }).click();
     await expect(config.getByRole("status")).toContainText("Merged in: 1 new node, 1 new connection");
     await expect(page.getByRole("button", { name: "Log Sink: Audit Log" })).toBeVisible();
@@ -1560,8 +1560,8 @@ test.describe("the app at /app", () => {
     expect(doc.edges.at(-1)).toEqual({ from: "journal", to: "audit", label: "copies" });
 
     await config.getByRole("radio", { name: "JSON" }).click();
-    const [file] = await Promise.all([page.waitForEvent("download"), config.getByRole("button", { name: "Download .skope.json" }).click()]);
-    expect(file.suggestedFilename()).toBe("ledger-platform.skope.json");
+    const [file] = await Promise.all([page.waitForEvent("download"), config.getByRole("button", { name: "Download .daidal.json" }).click()]);
+    expect(file.suggestedFilename()).toBe("ledger-platform.daidal.json");
     const body = JSON.parse(await import("node:fs/promises").then(fs => file.path().then(p => fs.readFile(p, "utf8"))));
     expect(body.nodes.map((n: { id: string }) => n.id)).toContain("audit");
   });
@@ -1591,12 +1591,12 @@ test.describe("the app at /app", () => {
     const data = page.getByRole("dialog", { name: "Profile and appearance" }).getByRole("region", { name: "Your data" });
     // The one person every test signs in as owns hundreds of workspaces by now, past the export's size limit, so the
     // server's answer is stood in for here; worker/test/account.test.ts checks what the export holds.
-    const sample = { format: "skope-account", version: 1, profile: { email: "e2e-owner@example.com" }, backup: { format: "skope-backup", version: 1, workspaces: [] } };
+    const sample = { format: "daidal-account", version: 1, profile: { email: "e2e-owner@example.com" }, backup: { format: "daidal-backup", version: 1, workspaces: [] } };
     await page.route("**/api/me/export", route => route.fulfill({ json: sample }));
     const [file] = await Promise.all([page.waitForEvent("download"), data.getByRole("button", { name: "Download my data" }).click()]);
-    expect(file.suggestedFilename()).toMatch(/^skope-account-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(file.suggestedFilename()).toMatch(/^daidal-account-\d{4}-\d{2}-\d{2}\.json$/);
     const account = JSON.parse(await readFile((await file.path())!, "utf8"));
-    expect(account).toMatchObject({ format: "skope-account", profile: { email: "e2e-owner@example.com" }, backup: { format: "skope-backup" } });
+    expect(account).toMatchObject({ format: "daidal-account", profile: { email: "e2e-owner@example.com" }, backup: { format: "daidal-backup" } });
 
     // Every test signs in as the same person, so this one stops short of deleting them (the worker tests delete).
     await data.getByRole("button", { name: "Delete my account…" }).click();

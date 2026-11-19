@@ -1,4 +1,4 @@
-// Diagram kinds (docs/superpowers/specs/2026-11-05-skope-kinds-c4-and-repo-aware-ai.md). A kind changes three things
+// Diagram kinds (docs/superpowers/specs/2026-11-05-daidal-kinds-c4-and-repo-aware-ai.md). A kind changes three things
 // and no more: which types the Add menu offers first, which checks run (later), and what "Zoom in → New diagram"
 // creates (the child kind). Every type stays reachable whatever the kind, and changing a diagram's kind loses nothing.
 

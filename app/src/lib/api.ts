@@ -1,4 +1,4 @@
-import type { AccessToken, CustomType, Diagram, ListedDiagram, Me, SkopeDoc, Snapshot, Workspace } from './types';
+import type { AccessToken, CustomType, Diagram, ListedDiagram, Me, DaidalDoc, Snapshot, Workspace } from './types';
 
 /** An API answer other than 2xx, with the server's `{ error }` message. */
 export class ApiError extends Error {
@@ -42,7 +42,7 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		updateMe: (profile: { name: string; title: string }) => send<Me>('/api/me', 'PUT', profile),
 		/** Replaces the signed-in person's settings (all of them: read, change and send back the whole object). */
 		saveSettings: (settings: Record<string, unknown>) => send<Me>('/api/me', 'PUT', { settings }),
-		/** Everything kept about the signed-in person, as one file (`skope-account`). */
+		/** Everything kept about the signed-in person, as one file (`daidal-account`). */
 		exportAccount: () => get<Record<string, unknown>>('/api/me/export'),
 		/** Deletes the signed-in person's account; [confirm] must be their email. */
 		deleteAccount: (confirm: string) =>
@@ -61,13 +61,13 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		/** Save as the owner. [rev] is the revision the change was made against; a stale one gets a 409. */
 		save: (
 			id: string,
-			change: { rev: number; doc: SkopeDoc; name?: string; syncedSnapshotId?: string | null; decided?: Record<string, string>; paused?: boolean; leadId?: null }
+			change: { rev: number; doc: DaidalDoc; name?: string; syncedSnapshotId?: string | null; decided?: Record<string, string>; paused?: boolean; leadId?: null }
 		) => send<Diagram>(`/api/diagrams/${q(id)}`, 'PUT', change),
 		/**
 		 * A new diagram in [workspace]: from a document, or as a copy of the diagram [from] (its latest snapshot), which
 		 * with [follow] tracks that diagram's snapshots.
 		 */
-		createDiagram: (body: { workspace: string; name?: string; doc?: SkopeDoc; from?: string; follow?: boolean }) => send<Diagram>('/api/diagrams', 'POST', body),
+		createDiagram: (body: { workspace: string; name?: string; doc?: DaidalDoc; from?: string; follow?: boolean }) => send<Diagram>('/api/diagrams', 'POST', body),
 		/** Moves the diagram, with its history, into another workspace of the owner's. */
 		moveDiagram: (id: string, workspace: string) => send<Diagram>(`/api/diagrams/${q(id)}`, 'PATCH', { workspace }),
 		/** Deletes the diagram and its history, as its owner. Its followers keep their copies. */
@@ -88,12 +88,12 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		/** A new access token; its secret comes back this once. */
 		createToken: (body: { name: string; scope: AccessToken['scope']; workspaces?: string[] }) => send<AccessToken & { token: string }>('/api/me/tokens', 'POST', body),
 		revokeToken: (id: string) => call<void>(`/api/me/tokens/${q(id)}`, { method: 'DELETE' }),
-		/** A workspace as a skope-backup file: its diagrams, their history and who follows whom (not its members). */
+		/** A workspace as a daidal-backup file: its diagrams, their history and who follows whom (not its members). */
 		exportWorkspace: (id: string) => get<Record<string, unknown>>(`/api/workspaces/${q(id)}/export`),
-		/** Imports a skope-backup file: each workspace in it becomes a new one of yours (a personal one fills yours). */
+		/** Imports a daidal-backup file: each workspace in it becomes a new one of yours (a personal one fills yours). */
 		importBackup: (backup: unknown) => send<{ workspaces: ImportedWorkspace[] }>('/api/workspaces/import', 'POST', backup),
 		/** Records [doc] as a snapshot of the diagram, as its owner. */
-		createSnapshot: (id: string, body: { label: string; doc: SkopeDoc }) => send<Snapshot>(`/api/diagrams/${q(id)}/snapshots`, 'POST', body)
+		createSnapshot: (id: string, body: { label: string; doc: DaidalDoc }) => send<Snapshot>(`/api/diagrams/${q(id)}/snapshots`, 'POST', body)
 	};
 }
 

@@ -1,4 +1,4 @@
--- Diagrams and their history (docs/superpowers/specs/2026-10-12-skope-backend-design.md, "Data model").
+-- Diagrams and their history (docs/superpowers/specs/2026-10-12-daidal-backend-design.md, "Data model").
 -- `doc` is the JSON form of the .skope.json export, version 1; the server only checks its envelope.
 
 CREATE TABLE diagrams (

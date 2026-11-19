@@ -1,4 +1,4 @@
-import type { DocBoundary, DocEdge, DocNode, DocTag, SkopeDoc, Snapshot } from '../types';
+import type { DocBoundary, DocEdge, DocNode, DocTag, DaidalDoc, Snapshot } from '../types';
 import { removeBoundary, removeNode } from './edit';
 import { toScene } from './model';
 
@@ -41,7 +41,7 @@ function edgeKeys(edges: DocEdge[]): Map<string, DocEdge> {
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 const sorted = (xs?: string[]) => [...(xs ?? [])].sort((x, y) => x.localeCompare(y)).join(',');
-const tagsOf = (doc: SkopeDoc, keys: string[] = []) => Object.fromEntries(keys.filter(k => doc.tags?.[k]).map(k => [k, doc.tags![k]]));
+const tagsOf = (doc: DaidalDoc, keys: string[] = []) => Object.fromEntries(keys.filter(k => doc.tags?.[k]).map(k => [k, doc.tags![k]]));
 
 type Key = (p: string) => string;
 type SceneNode = ReturnType<typeof toScene>['nodes'][number];
@@ -61,7 +61,7 @@ function nodeEdit(o: DocNode, n: DocNode, os: SceneNode, ns: SceneNode) {
 }
 
 /** The changes to one node both versions have: its fields, its tags, where it is. */
-function nodeUpdates(b: SkopeDoc, o: DocNode, n: DocNode, os: SceneNode, ns: SceneNode, k: Key): Change[] {
+function nodeUpdates(b: DaidalDoc, o: DocNode, n: DocNode, os: SceneNode, ns: SceneNode, k: Key): Change[] {
 	const out: Change[] = [];
 	const { fields, bits } = nodeEdit(o, n, os, ns);
 	if (bits.length) out.push({ id: k(`ne:${n.id}`), kind: 'node-edit', label: `Update “${os.name}”`, detail: bits.join(' · '), node: n, target: n.id, fields });
@@ -73,7 +73,7 @@ function nodeUpdates(b: SkopeDoc, o: DocNode, n: DocNode, os: SceneNode, ns: Sce
 	return out;
 }
 
-function nodeChanges(a: SkopeDoc, b: SkopeDoc, k: Key): Change[] {
+function nodeChanges(a: DaidalDoc, b: DaidalDoc, k: Key): Change[] {
 	const an = new Map((a.nodes ?? []).map(n => [n.id, n]));
 	const bn = new Map((b.nodes ?? []).map(n => [n.id, n]));
 	const at = new Map(toScene(a).nodes.map(n => [n.id, n]));
@@ -109,13 +109,13 @@ function edgeEdit(o: DocEdge, e: DocEdge): string[] {
 }
 
 /** What a connection's ends are called, in either version: a node's name or a container's label. */
-function endNames(a: SkopeDoc, b: SkopeDoc): (e: DocEdge) => string {
+function endNames(a: DaidalDoc, b: DaidalDoc): (e: DocEdge) => string {
 	const names = new Map([...toScene(a).nodes, ...toScene(b).nodes].map(n => [n.id, n.name]));
 	for (const bx of [...(a.boundaries ?? []), ...(b.boundaries ?? [])]) if (bx.label) names.set(bx.id, bx.label);
 	return e => `${names.get(e.from) ?? e.from} → ${names.get(e.to) ?? e.to}`;
 }
 
-function edgeChanges(a: SkopeDoc, b: SkopeDoc, k: Key): Change[] {
+function edgeChanges(a: DaidalDoc, b: DaidalDoc, k: Key): Change[] {
 	const ae = edgeKeys(a.edges ?? []);
 	const be = edgeKeys(b.edges ?? []);
 	const nm = endNames(a, b);
@@ -129,7 +129,7 @@ function edgeChanges(a: SkopeDoc, b: SkopeDoc, k: Key): Change[] {
 	return [...added, ...removed, ...updated];
 }
 
-function boxChanges(a: SkopeDoc, b: SkopeDoc, k: Key): Change[] {
+function boxChanges(a: DaidalDoc, b: DaidalDoc, k: Key): Change[] {
 	const out: Change[] = [];
 	const ab = new Map((a.boundaries ?? []).map(x => [x.id, x]));
 	const bb = new Map((b.boundaries ?? []).map(x => [x.id, x]));
@@ -144,18 +144,18 @@ function boxChanges(a: SkopeDoc, b: SkopeDoc, k: Key): Change[] {
 }
 
 /** What changed from [a] to [b], keyed under [key] (the newer snapshot's id). */
-export function diffDocs(a: SkopeDoc, b: SkopeDoc, key: string): Change[] {
+export function diffDocs(a: DaidalDoc, b: DaidalDoc, key: string): Change[] {
 	const k = (p: string) => `${key}:${p}`;
 	return [...nodeChanges(a, b, k), ...edgeChanges(a, b, k), ...boxChanges(a, b, k)];
 }
 
 /** Puts tags the follower doesn't have yet into it, so a node brought in keeps its tags. */
-function withTags(doc: SkopeDoc, tags: Record<string, DocTag> = {}): SkopeDoc {
+function withTags(doc: DaidalDoc, tags: Record<string, DocTag> = {}): DaidalDoc {
 	const missing = Object.entries(tags).filter(([key]) => !doc.tags?.[key]);
 	return missing.length ? { ...doc, tags: { ...doc.tags, ...Object.fromEntries(missing) } } : doc;
 }
 
-function replaceEdge(doc: SkopeDoc, key: string, edge: DocEdge | null): SkopeDoc {
+function replaceEdge(doc: DaidalDoc, key: string, edge: DocEdge | null): DaidalDoc {
 	const keys = [...edgeKeys(doc.edges ?? []).entries()];
 	const hit = keys.find(([k]) => k === key)?.[1];
 	if (!hit) return doc;
@@ -165,7 +165,7 @@ function replaceEdge(doc: SkopeDoc, key: string, edge: DocEdge | null): SkopeDoc
 }
 
 /** The follower's document with one of the lead's changes in it. */
-export function applyChange(doc: SkopeDoc, ch: Change): SkopeDoc {
+export function applyChange(doc: DaidalDoc, ch: Change): DaidalDoc {
 	const nodes = doc.nodes ?? [];
 	switch (ch.kind) {
 		case 'node-add':
@@ -227,7 +227,7 @@ export function pending(snapshots: Snapshot[], syncedId: string | null): Pending
  * What accepting [chosen] takes: those changes, and a node a connection among them needs that [doc] doesn't have
  * yet, when one of the [offered] changes adds it (accepting "Connect A → B" brings B in, even if B was skipped).
  */
-export function withNeeded(doc: SkopeDoc, chosen: Change[], offered: Change[]): Change[] {
+export function withNeeded(doc: DaidalDoc, chosen: Change[], offered: Change[]): Change[] {
 	const have = new Set([...(doc.nodes ?? []).map(n => n.id), ...(doc.boundaries ?? []).map(b => b.id)]);
 	for (const c of chosen) if (c.kind === 'node-add' || c.kind === 'box-add') have.add(c.target);
 	const needed = new Set(chosen.flatMap(c => (c.kind === 'edge-add' && c.edge ? [c.edge.from, c.edge.to] : [])).filter(id => !have.has(id)));

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { SkopeDoc } from '../types';
+import type { DaidalDoc } from '../types';
 import { ConfigError, configText, langOf, readConfig } from './config';
 
-const current = (): SkopeDoc => ({
+const current = (): DaidalDoc => ({
 	version: 1,
 	diagram: { name: 'checkout', kind: 'c4' },
 	tags: { core: { label: 'Core', color: '#fff', group: 'Layer' } },

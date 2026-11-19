@@ -81,7 +81,7 @@
 	import { applyChange, pending, withNeeded, type Change } from '#lib/diagram/review.ts';
 	import FollowPanel from '#lib/components/FollowPanel.svelte';
 	import { Saver } from '#lib/saver.svelte.ts';
-	import type { Diagram, SkopeDoc, Snapshot } from '#lib/types.ts';
+	import type { Diagram, DaidalDoc, Snapshot } from '#lib/types.ts';
 	import { ago } from '#lib/time.ts';
 
 	let { data } = $props();
@@ -229,7 +229,7 @@
 	// (re)loads.
 	// The name rides along with every save, so a rename has the same conflict check as an edit.
 	interface Working {
-		doc: SkopeDoc;
+		doc: DaidalDoc;
 		name: string;
 		saver: Saver;
 		history: History;
@@ -399,13 +399,13 @@
 	});
 
 	// Every edit goes through here: the document as it was goes on the undo history, the new one is shown and saved.
-	const current = () => $state.snapshot(working.doc) as SkopeDoc;
-	function apply(next: SkopeDoc, before: SkopeDoc, label: string, group?: string) {
+	const current = () => $state.snapshot(working.doc) as DaidalDoc;
+	function apply(next: DaidalDoc, before: DaidalDoc, label: string, group?: string) {
 		if (!editable) return;
 		working.history.record(before, label, group);
 		show(next);
 	}
-	function show(doc: SkopeDoc) {
+	function show(doc: DaidalDoc) {
 		canvasRef?.hold();
 		working.doc = doc;
 		working.saver.queue(doc);
@@ -571,13 +571,13 @@
 			configOpen = true;
 		}
 	}
-	function applyConfig(next: SkopeDoc, mode: 'replace' | 'merge', summary: string) {
+	function applyConfig(next: DaidalDoc, mode: 'replace' | 'merge', summary: string) {
 		const before = current();
 		apply(next, before, mode === 'replace' ? 'Replace from the config' : 'Merge in a config');
 		notify(summary);
 	}
 	function downloadConfig(text: string, lang: ConfigLang) {
-		const name = exportName(working.name, `skope.${lang}`);
+		const name = exportName(working.name, `daidal.${lang}`);
 		download(name, new Blob([text], { type: lang === 'json' ? 'application/json' : 'text/yaml' }));
 		notify(`Downloaded ${name}`);
 	}
@@ -918,7 +918,7 @@
 		working.name = name;
 		const doc = current();
 		working.doc = { ...doc, diagram: { ...doc.diagram, name } };
-		working.saver.queue($state.snapshot(working.doc) as SkopeDoc);
+		working.saver.queue($state.snapshot(working.doc) as DaidalDoc);
 	}
 	function setKind(to: KindId) {
 		if (!mine || to === kind.id) return;

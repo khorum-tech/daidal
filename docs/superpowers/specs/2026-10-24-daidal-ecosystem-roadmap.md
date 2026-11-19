@@ -1,20 +1,20 @@
-# Skope ecosystem: from app to format
+# Daidal ecosystem: from app to format
 
 Date: 2026-10-24
 Status: draft
 
 ## Goal
 
-Skope today is a diagram editor with a backend (see
-`2026-10-12-skope-backend-design.md`). This roadmap turns it into something
+Daidal today is a diagram editor with a backend (see
+`2026-10-12-daidal-backend-design.md`). This roadmap turns it into something
 closer to Mermaid: a format with meaning that renders anywhere, with the app
 as one client among several.
 
 The positioning: **opinionated diagramming**. draw.io, Miro and Lucid store
-shapes; Skope stores typed nodes, tags, views and boundaries. That is why
-Skope documents can render inside Confluence, a README or a docs site from a
+shapes; Daidal stores typed nodes, tags, views and boundaries. That is why
+Daidal documents can render inside Confluence, a README or a docs site from a
 code fence, and theirs cannot. The closest existing players are Structurizr
-and IcePanel. Skope's wedge against them:
+and IcePanel. Daidal's wedge against them:
 
 - tag-driven views instead of hand-declared ones
 - a small, hand-writable format (YAML or JSON)
@@ -26,12 +26,12 @@ Success means:
 
 - `renderSvg(doc, { view })` runs in Node, a Worker and a browser with no DOM
   and produces an identical picture to the editor.
-- A `.skope.yaml` written by hand in a code fence renders; the same file opened
+- A `.daidal.yaml` written by hand in a code fence renders; the same file opened
   in the editor, dragged around and saved still renders, with positions kept.
 - A node can link to another diagram, and the static render carries that link.
 - A node can declare itself the same entity as a node in another diagram, so a
   flow can be traced across diagrams.
-- Someone outside the project can run Skope from a tutorial in under an hour.
+- Someone outside the project can run Daidal from a tutorial in under an hour.
 
 ## Out of scope for this roadmap
 
@@ -42,8 +42,8 @@ Success means:
 
 ## The format is the product
 
-Everything below hangs off `.skope.yaml` / `.skope.json` version 1 (defined in
-`app/src/lib/types.ts`, `SkopeDoc`). Two rules keep it fit for every client:
+Everything below hangs off `.daidal.yaml` / `.daidal.json` version 1 (defined in
+`app/src/lib/types.ts`, `DaidalDoc`). Two rules keep it fit for every client:
 
 1. **The format is the only contract.** The editor, the static renderer, the
    CLI, the Confluence macro and every export read and write this document and
@@ -67,19 +67,19 @@ until something breaks an existing reader:
 ## Architecture
 
 ```
-                  .skope.yaml / .skope.json
+                  .daidal.yaml / .daidal.json
                            │
                  ┌─────────┴──────────┐
-                 │   @skope/core      │   parse · validate · toScene · layout · renderSvg
+                 │   @daidal/core      │   parse · validate · toScene · layout · renderSvg
                  │   (no DOM, no fw)  │   themes · type/icon catalogue · export
                  └─────────┬──────────┘
       ┌──────────┬─────────┼──────────┬──────────────┬──────────────┐
    SvelteKit   Worker    CLI      web component   markdown        Confluence
-   editor     /r/:id.svg  svg/png  <skope-diagram>  plugins        Forge macro
+   editor     /r/:id.svg  svg/png  <daidal-diagram>  plugins        Forge macro
                 /render
 ```
 
-`@skope/core` is the whole bet. Every integration is a thin wrapper around it,
+`@daidal/core` is the whole bet. Every integration is a thin wrapper around it,
 which is exactly how Mermaid reaches GitHub, Confluence, VS Code and every
 docs generator with one library.
 
@@ -101,7 +101,7 @@ Move the already pure code out of the app and into a workspace package:
 
 Add:
 
-- `parse(text: string): SkopeDoc` — YAML or JSON, detected by first
+- `parse(text: string): DaidalDoc` — YAML or JSON, detected by first
   non-blank character. YAML via the `yaml` package (no eval, no custom tags).
 - `layout(scene): Scene` — fills missing positions. First version: a layered
   pass (dagre-style ranking over edges, boundaries kept as groups), falling
@@ -122,7 +122,7 @@ Then make `app/` and `worker/` depend on the package. The Svelte canvas keeps
 its HTML nodes for interaction but takes scene, geometry and catalogue from
 core, so the picture cannot drift between editor and renderer.
 
-Publish as `@khorum-oss/skope-core` (or `skope-core`), ESM, no dependencies
+Publish as `@khorum-oss/daidal-core` (or `daidal-core`), ESM, no dependencies
 beyond `yaml`.
 
 ### Step 2: render endpoints on the Worker
@@ -138,17 +138,17 @@ No headless browser anywhere: core produces the SVG string directly.
 
 ### Step 3: CLI
 
-`skope render diagram.skope.yaml -o diagram.svg [--view Ops] [--theme light]`,
-plus `--png` through `@resvg/resvg-js` (still no browser). `skope validate`
-and `skope export --to mermaid|structurizr` (step 6) live in the same binary.
+`daidal render diagram.daidal.yaml -o diagram.svg [--view Ops] [--theme light]`,
+plus `--png` through `@resvg/resvg-js` (still no browser). `daidal validate`
+and `daidal export --to mermaid|structurizr` (step 6) live in the same binary.
 This is the docs-as-code and CI entry point, and the pre-commit hook that keeps
 rendered SVGs next to their sources.
 
 ### Step 4: embedding
 
-- `<skope-diagram src="…" view="…">` and inline `<skope-diagram>…yaml…</skope-diagram>`
+- `<daidal-diagram src="…" view="…">` and inline `<daidal-diagram>…yaml…</daidal-diagram>`
   as a web component bundling core. One `<script type="module">` tag.
-- `markdown-it-skope` and `remark-skope`: a ```` ```skope ```` fence becomes an
+- `markdown-it-daidal` and `remark-daidal`: a ```` ```daidal ```` fence becomes an
   inline SVG at build time. That covers Docusaurus, MkDocs, Astro, VitePress
   and Obsidian with little code each.
 - A `<img src="https://…/r/<id>.svg">` already works anywhere HTML works once
@@ -158,11 +158,11 @@ rendered SVGs next to their sources.
 
 Cloud first, as a Forge app with a custom macro:
 
-- Macro body: a `.skope.yaml` document. Config fields: view, theme.
-- v0 renders by `<img>` against `POST /render` on a Skope instance the admin
+- Macro body: a `.daidal.yaml` document. Config fields: view, theme.
+- v0 renders by `<img>` against `POST /render` on a Daidal instance the admin
   configures. Zero client code.
 - v1 bundles core in the macro's Custom UI and renders client-side, so the
-  macro works with no Skope backend at all.
+  macro works with no Daidal backend at all.
 
 Data Center needs a Java plugin; the cheaper route there is the Kroki step
 below.
@@ -188,9 +188,9 @@ derive a workspace-wide model from the refs if that ever becomes useful.
 ### Step 7: export and import
 
 - **Structurizr DSL / workspace JSON.** Boundaries map to groups or software
-  systems, tags to tags, a Skope view to a Structurizr view with a tag-filtered
+  systems, tags to tags, a Daidal view to a Structurizr view with a tag-filtered
   include, and positions into the workspace JSON so layout survives. One table
-  maps Skope node types to C4 levels. That table is Skope's opinion written
+  maps Daidal node types to C4 levels. That table is Daidal's opinion written
   down, so it lives in `core/src/catalogue.ts` beside the type list.
 - **Mermaid.** One `flowchart` per view, boundaries as `subgraph`. Layout, tags
   and the view machinery do not survive; exporting per view is the honest
@@ -201,7 +201,7 @@ derive a workspace-wide model from the refs if that ever becomes useful.
 
 ### Step 8: Kroki backend
 
-Contribute a Skope companion service to Kroki once core is stable. That
+Contribute a Daidal companion service to Kroki once core is stable. That
 inherits Kroki's Confluence Data Center, GitLab and docs integrations in one
 move.
 
@@ -224,7 +224,7 @@ account:
    `X-Forwarded-Email`), and the server trusts it from the proxy's address
    only. Access, Authelia, Authentik and oauth2-proxy all fit that shape.
 
-Then the self-host story is one `docker-compose.yml`: the Skope image, a
+Then the self-host story is one `docker-compose.yml`: the Daidal image, a
 volume for SQLite, and any forward-auth proxy of the user's choice. Tutorials
 cover Access, Authelia and "no auth, single user on a LAN".
 
@@ -243,7 +243,7 @@ cover Access, Authelia and "no auth, single user on a LAN".
 | self-host | — | medium; can run in parallel with any of the above |
 
 Steps 2 and 3 can ship the same week as step 1. Step 6 is the first feature
-step that changes what Skope *is* rather than where it runs, and is worth
+step that changes what Daidal *is* rather than where it runs, and is worth
 doing before export so the export carries refs.
 
 ## Risks

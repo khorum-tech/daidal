@@ -1,5 +1,5 @@
 import { ApiError } from './api';
-import type { SkopeDoc } from './types';
+import type { DaidalDoc } from './types';
 
 export type SaveState = 'saved' | 'pending' | 'saving' | 'error' | 'conflict';
 
@@ -11,16 +11,16 @@ export type SaveState = 'saved' | 'pending' | 'saving' | 'error' | 'conflict';
 export class Saver {
 	state = $state<SaveState>('saved');
 	rev: number;
-	#save: (rev: number, doc: SkopeDoc) => Promise<{ rev: number }>;
+	#save: (rev: number, doc: DaidalDoc) => Promise<{ rev: number }>;
 	#delay: number;
 	#retry: number;
-	#doc: SkopeDoc | null = null;
+	#doc: DaidalDoc | null = null;
 	#timer: ReturnType<typeof setTimeout> | undefined;
 	#busy = false;
 	#again = false;
 
 	/** [retry]: how long to wait after the server says to slow down (429) before trying the same save again. */
-	constructor(save: (rev: number, doc: SkopeDoc) => Promise<{ rev: number }>, rev: number, delay = 600, retry = 5000) {
+	constructor(save: (rev: number, doc: DaidalDoc) => Promise<{ rev: number }>, rev: number, delay = 600, retry = 5000) {
 		this.#save = save;
 		this.rev = rev;
 		this.#delay = delay;
@@ -28,7 +28,7 @@ export class Saver {
 	}
 
 	/** A new version of the document to save, soon. */
-	queue(doc: SkopeDoc): void {
+	queue(doc: DaidalDoc): void {
 		if (this.state === 'conflict') return;
 		this.#doc = doc;
 		this.state = 'pending';

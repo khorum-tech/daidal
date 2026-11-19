@@ -126,7 +126,7 @@ therefore always matches the tables. The stage owner imports their personal work
 an invented teammate, `priya@example.com`, imports *Payments*. Only what an import cannot carry is written
 directly, through the same renderer: profiles, and the members who share each team.
 
-The stage data is a `skope-backup` file, the same format `GET /api/workspaces/:id/export` writes, so anything on
+The stage data is a `daidal-backup` file, the same format `GET /api/workspaces/:id/export` writes, so anything on
 stage can be exported and re-imported.
 
 ## Keeping the data whole

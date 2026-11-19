@@ -28,7 +28,7 @@ import { catalogue, isNodeIcon, typeKey, type TypeCats } from "../../../app/src/
 import { KINDS, kindOf, type KindId } from "../../../app/src/lib/diagram/kinds";
 import { toScene } from "../../../app/src/lib/diagram/model";
 import { fromTemplate, TEMPLATES } from "../../../app/src/lib/diagram/templates";
-import type { CustomType, DocEdge, DocNode, SkopeDoc } from "../../../app/src/lib/types";
+import type { CustomType, DocEdge, DocNode, DaidalDoc } from "../../../app/src/lib/types";
 
 /** A call to this Worker's API as the MCP client: the parsed JSON, or a thrown ToolError saying why not. */
 export type Api = (method: string, path: string, body?: unknown) => Promise<any>;
@@ -60,7 +60,7 @@ interface Diagram {
   ownerEmail: string;
   name: string;
   rev: number;
-  doc: SkopeDoc;
+  doc: DaidalDoc;
   updatedAt: number;
 }
 
@@ -157,7 +157,7 @@ function typeIn(cats: TypeCats, given: string): string {
 }
 
 /** Nodes [next] gives a type [cats] doesn't offer, that [before] didn't already have: "Name (type)". */
-function strangers(before: SkopeDoc, next: SkopeDoc, cats: TypeCats): string[] {
+function strangers(before: DaidalDoc, next: DaidalDoc, cats: TypeCats): string[] {
   const had = new Map((before.nodes ?? []).map(n => [n.id, n.type]));
   const known = new Set(cats.flatMap(c => c.items.map(([label]) => typeKey(label))));
   return (next.nodes ?? []).filter(n => had.get(n.id) !== n.type && !known.has(typeKey(n.type ?? ""))).map(n => `${n.name} (${n.type})`);
@@ -176,7 +176,7 @@ async function linksIn(api: Api, given: Row[]): Promise<NonNullable<DocNode["lin
   );
 }
 
-function nodeOf(doc: SkopeDoc, param: unknown, label = "node"): string {
+function nodeOf(doc: DaidalDoc, param: unknown, label = "node"): string {
   const wanted = str(param).trim();
   if (!wanted) throw new ToolError(`${label} is required (a node id, or an exact name)`);
   const nodes = doc.nodes ?? [];
@@ -186,13 +186,13 @@ function nodeOf(doc: SkopeDoc, param: unknown, label = "node"): string {
 }
 
 /** A node or a container: a connection can join either. */
-function endOf(doc: SkopeDoc, param: unknown, label: string): string {
+function endOf(doc: DaidalDoc, param: unknown, label: string): string {
   const wanted = str(param).trim();
   const box = (doc.boundaries ?? []).find(b => b.id === wanted || same(b.label, wanted));
   return box ? box.id : nodeOf(doc, param, label);
 }
 
-function boxOf(doc: SkopeDoc, param: unknown): string {
+function boxOf(doc: DaidalDoc, param: unknown): string {
   const wanted = str(param).trim();
   const boxes = doc.boundaries ?? [];
   const hit = boxes.find(b => b.id === wanted) ?? boxes.find(b => same(b.label, wanted));
@@ -201,7 +201,7 @@ function boxOf(doc: SkopeDoc, param: unknown): string {
 }
 
 /** A connection by its index, or by the ends it joins. */
-function edgeOf(doc: SkopeDoc, args: Row): number {
+function edgeOf(doc: DaidalDoc, args: Row): number {
   const edges = doc.edges ?? [];
   const index = num(args.index);
   if (index !== undefined) {
@@ -216,7 +216,7 @@ function edgeOf(doc: SkopeDoc, args: Row): number {
 }
 
 /** Tag keys for [names] (keys or labels); a name no tag has becomes a new tag in [group]. */
-function tagKeys(doc: SkopeDoc, names: string[], group?: string): { doc: SkopeDoc; keys: string[] } {
+function tagKeys(doc: DaidalDoc, names: string[], group?: string): { doc: DaidalDoc; keys: string[] } {
   let next = doc;
   const keys: string[] = [];
   for (const name of names) {
@@ -233,7 +233,7 @@ function tagKeys(doc: SkopeDoc, names: string[], group?: string): { doc: SkopeDo
 }
 
 /** The box around [ids] with room for a label. */
-function around(doc: SkopeDoc, ids: string[]): { x: number; y: number; w: number; h: number } {
+function around(doc: DaidalDoc, ids: string[]): { x: number; y: number; w: number; h: number } {
   const nodes = toScene(doc).nodes.filter(n => ids.includes(n.id));
   const x = Math.min(...nodes.map(n => n.x)) - 40;
   const y = Math.min(...nodes.map(n => n.y)) - 56;
@@ -242,7 +242,7 @@ function around(doc: SkopeDoc, ids: string[]): { x: number; y: number; w: number
   return { x: Math.round(x), y: Math.round(y), w: Math.round(r - x), h: Math.round(b - y) };
 }
 
-function readText(text: string, current: SkopeDoc, mode: "replace" | "merge") {
+function readText(text: string, current: DaidalDoc, mode: "replace" | "merge") {
   try {
     return readConfig(text, current, mode);
   } catch (e) {
@@ -298,7 +298,7 @@ const summary = (d: Diagram, what: string, extra: Row = {}): Row => ({
  * Applies [change] to the diagram and saves it with the revision it was loaded at. If someone saved in between
  * (409), the same change is applied once more to what they saved.
  */
-async function save(api: Api, param: unknown, change: (doc: SkopeDoc) => { doc: SkopeDoc; out?: Row }, what: string): Promise<Row> {
+async function save(api: Api, param: unknown, change: (doc: DaidalDoc) => { doc: DaidalDoc; out?: Row }, what: string): Promise<Row> {
   let d = await diagramOf(api, param);
   for (let attempt = 0; ; attempt++) {
     const { doc, out } = change(d.doc);
@@ -312,7 +312,7 @@ async function save(api: Api, param: unknown, change: (doc: SkopeDoc) => { doc: 
   }
 }
 
-const just = (doc: SkopeDoc, out?: Row) => ({ doc, ...(out ? { out } : {}) });
+const just = (doc: DaidalDoc, out?: Row) => ({ doc, ...(out ? { out } : {}) });
 
 // ---- schemas ----
 
@@ -436,7 +436,7 @@ export const TOOLS: Tool[] = [
     run: async (args, api) => {
       const w = await workspaceOf(api, args.workspace);
       const name = need(args, "name");
-      let doc: SkopeDoc = { version: 1, diagram: { name } };
+      let doc: DaidalDoc = { version: 1, diagram: { name } };
       if (str(args.config).trim()) {
         const read = readText(str(args.config), doc, "replace").doc;
         doc = { ...read, diagram: { ...read.diagram, name } };

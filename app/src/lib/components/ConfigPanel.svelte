@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { SkopeDoc } from '../types';
+	import type { DaidalDoc } from '../types';
 	import { ConfigError, configText, langOf, readConfig, type ConfigLang } from '../diagram/config';
 
 	/**
 	 * The diagram as a config file: the prototype's config dock. It shows the saved document as YAML or JSON; its
-	 * owner edits it here (or drops or picks a .skope.yaml / .skope.json file) and applies it, replacing the diagram
+	 * owner edits it here (or drops or picks a .daidal.yaml / .daidal.json file) and applies it, replacing the diagram
 	 * or merging it in, as one undo step. Anyone can copy or download it. A config that can't be read says why, with
 	 * the line for YAML, and nothing changes.
 	 */
@@ -15,10 +15,10 @@
 		ondownload,
 		onclose
 	}: {
-		doc: SkopeDoc;
+		doc: DaidalDoc;
 		editable?: boolean;
 		/** Applies the diagram a config makes; [summary] says what changed. */
-		onapply?: (next: SkopeDoc, mode: 'replace' | 'merge', summary: string) => void;
+		onapply?: (next: DaidalDoc, mode: 'replace' | 'merge', summary: string) => void;
 		ondownload?: (text: string, lang: ConfigLang) => void;
 		onclose?: () => void;
 	} = $props();
@@ -146,7 +146,7 @@
 	{/if}
 	<div class="row">
 		<button type="button" class="btn btn-secondary" onclick={copy}>{copied ? 'Copied' : 'Copy'}</button>
-		<button type="button" class="btn btn-secondary" onclick={() => ondownload?.(text, lang)}>Download .skope.{lang}</button>
+		<button type="button" class="btn btn-secondary" onclick={() => ondownload?.(text, lang)}>Download .daidal.{lang}</button>
 		{#if editable}
 			<label class="btn btn-secondary pick">
 				Open a file…
@@ -156,7 +156,7 @@
 	</div>
 	<p class="note">
 		{editable
-			? 'Edit the text, or drop a .skope.yaml or .skope.json file on it, then apply. Replacing makes the diagram what the config says; merging updates nodes by id and adds what is new. Either can be undone.'
+			? 'Edit the text, or drop a .daidal.yaml or .daidal.json file on it, then apply. Replacing makes the diagram what the config says; merging updates nodes by id and adds what is new. Either can be undone.'
 			: 'The diagram as a config file: copy it or download it to keep it, or to open it elsewhere.'}
 	</p>
 </section>

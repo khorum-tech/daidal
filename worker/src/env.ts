@@ -5,5 +5,5 @@ export interface Env {
   ACCESS_AUD: string;
   DEV_USER_EMAIL?: string;
   /** Limit overrides for the end-to-end tests only (worker/src/limits.ts); unset on stage and prod. */
-  SKOPE_LIMITS?: string;
+  DAIDAL_LIMITS?: string;
 }

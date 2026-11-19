@@ -47,7 +47,7 @@ describe('the access tokens tab', () => {
 		expect(calls).toEqual([['create', { name: 'Claude Code', scope: 'read', workspaces: ['t'] }]]);
 		await expect.element(page.getByLabelText('Your new token')).toHaveValue('skt_secret');
 		await expect.element(page.getByLabelText('Claude Code command')).toHaveValue(
-			'claude mcp add --transport http skope http://localhost:8787/mcp --header "Authorization: Bearer skt_secret"'
+			'claude mcp add --transport http daidal http://localhost:8787/mcp --header "Authorization: Bearer skt_secret"'
 		);
 		await page.getByRole('button', { name: 'Done' }).click();
 		expect(page.getByLabelText('Your new token').elements()).toHaveLength(0);

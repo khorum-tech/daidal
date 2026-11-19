@@ -1,14 +1,14 @@
-# Skope Pipeline and Login Implementation Plan
+# Daidal Pipeline and Login Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deploy the Skope bundle on a Cloudflare Worker behind Cloudflare Access, with `/api/me` backed by D1 replacing the mock login and the hard-coded profile.
+**Goal:** Deploy the Daidal bundle on a Cloudflare Worker behind Cloudflare Access, with `/api/me` backed by D1 replacing the mock login and the hard-coded profile.
 
 **Architecture:** One Worker serves `web/` as static assets and handles `/api/*`. Cloudflare Access signs every request with a token; the Worker verifies it and uses the email as the user id. D1 holds users and their personal workspace. GitHub Actions tests, migrates and deploys on push to `main`.
 
 **Tech Stack:** Cloudflare Workers, D1, Cloudflare Access, TypeScript, `jose` (token verification), Wrangler 4, Vitest 4.1 with `@cloudflare/vitest-plugin`, GitHub Actions.
 
-**Spec:** `docs/superpowers/specs/2026-10-12-skope-backend-design.md`. This plan covers build step 1 of 4 ("Pipeline and login"). Steps 2 to 4 get their own plans.
+**Spec:** `docs/superpowers/specs/2026-10-12-daidal-backend-design.md`. This plan covers build step 1 of 4 ("Pipeline and login"). Steps 2 to 4 get their own plans.
 
 All paths are relative to `~/Projects/skope`.
 
@@ -40,7 +40,7 @@ Conditions the spec implies that are most likely to bite a real user, and the te
 
 | File | Responsibility |
 |---|---|
-| `web/` | The exported bundle, served as-is: `index.html`, `support.js`, `Skope-Network-Module.dc.html`, `_ds/` |
+| `web/` | The exported bundle, served as-is: `index.html`, `support.js`, `Daidal-Network-Module.dc.html`, `_ds/` |
 | `worker/src/env.ts` | The `Env` bindings type |
 | `worker/src/auth.ts` | Turn a request into a verified email, or `null` |
 | `worker/src/db.ts` | User queries: `ensureUser`, `updateUser` |
@@ -73,11 +73,11 @@ Conditions the spec implies that are most likely to bite a real user, and the te
 
 - [ ] **Step 1: Clean up the repo's staged state**
 
-The repo has no commits. An empty `proto/hestia-systems.skope.yml` is staged but no longer exists on disk. Unstage it:
+The repo has no commits. An empty `proto/hestia-systems.daidal.yml` is staged but no longer exists on disk. Unstage it:
 
 ```bash
 cd ~/Projects/skope
-git rm --cached proto/hestia-systems.skope.yml
+git rm --cached proto/hestia-systems.daidal.yml
 git status --short
 ```
 
@@ -98,12 +98,12 @@ node_modules
 
 ```bash
 mkdir -p web
-cp proto/tmp/mockup/index.html proto/tmp/mockup/support.js proto/tmp/mockup/Skope-Network-Module.dc.html web/
+cp proto/tmp/mockup/index.html proto/tmp/mockup/support.js proto/tmp/mockup/Daidal-Network-Module.dc.html web/
 cp -R proto/tmp/mockup/_ds web/_ds
 ls web
 ```
 
-Expected: `Skope-Network-Module.dc.html  _ds  index.html  support.js`. `index.html` loads the network module by name at runtime, so it must sit next to it.
+Expected: `Daidal-Network-Module.dc.html  _ds  index.html  support.js`. `index.html` loads the network module by name at runtime, so it must sit next to it.
 
 - [ ] **Step 4: Write `package.json`**
 
@@ -329,13 +329,13 @@ Expected: 1 test passes; `tsc` prints nothing.
 npx wrangler dev --port 8787
 ```
 
-Open `http://localhost:8787/`. Expected: the Skope mock login screen appears, styled, with no failed requests in the browser's network tab (Google Fonts and `unpkg.com` requests are expected). Stop the server with Ctrl-C.
+Open `http://localhost:8787/`. Expected: the Daidal mock login screen appears, styled, with no failed requests in the browser's network tab (Google Fonts and `unpkg.com` requests are expected). Stop the server with Ctrl-C.
 
 - [ ] **Step 17: Commit**
 
 ```bash
 git add .gitignore package.json package-lock.json wrangler.jsonc tsconfig.json vitest.config.ts migrations worker web docs
-git commit -m "feat: serve the Skope bundle from a Worker with D1 scaffolding"
+git commit -m "feat: serve the Daidal bundle from a Worker with D1 scaffolding"
 ```
 
 ---
@@ -1026,10 +1026,10 @@ Replace with:
       this.setState(s=>({profile:{name:u.name,email:u.email,title:u.title||''},screen:s.screen==='auth'?'projects':s.screen}),
         ()=>document.documentElement.classList.remove('skope-boot'));
     }catch(e){
-      console.warn('Skope: could not load the signed-in user —',e&&e.message);
+      console.warn('Daidal: could not load the signed-in user —',e&&e.message);
       if(document.getElementById('skope-boot-error')) return;
       const el=document.createElement('div'); el.id='skope-boot-error';
-      const msg=document.createElement('div'); msg.textContent='Skope couldn’t load your account. Your sign-in may have expired.';
+      const msg=document.createElement('div'); msg.textContent='Daidal couldn’t load your account. Your sign-in may have expired.';
       const btn=document.createElement('button'); btn.textContent='Reload'; btn.onclick=()=>location.reload();
       el.append(msg,btn); document.body.appendChild(el);
     }
@@ -1136,7 +1136,7 @@ With `.dev.vars` from Task 4 in place, open `http://localhost:8787/` and confirm
 3. Open the profile dialog, change the name to `Dev User` and the title to `Tester`, save. The toast says "Profile updated". Reload: the new name and title are still shown.
 4. In the profile dialog, type in the email field. A toast explains it can't be changed and the value does not change.
 5. Click "Sign out". A toast explains sign-out happens on the deployed site, and the app stays where it is.
-6. Stop the server, then reload the page. The "Skope couldn't load your account" message appears with a Reload button. Start the server and click Reload: the app loads.
+6. Stop the server, then reload the page. The "Daidal couldn't load your account" message appears with a Reload button. Start the server and click Reload: the app loads.
 7. Run the app's "reset prototype data" action. The app lands on the project browser, and the user menu still shows your name and email.
 
 - [ ] **Step 8: Commit**

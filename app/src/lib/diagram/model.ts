@@ -1,4 +1,4 @@
-import type { DocBoundary, DocEdge, DocNode, SkopeDoc } from '../types';
+import type { DocBoundary, DocEdge, DocNode, DaidalDoc } from '../types';
 import { isNodeIcon, TYPE_CATS, typeIcon, typeKey, type TypeCats } from './icons';
 import { c4Line, c4Role, kindOf, type C4Role, type Kind } from './kinds';
 
@@ -320,7 +320,7 @@ export function isColor(v: unknown): v is string {
 }
 
 /** [doc] as the canvas draws it, its types read against [cats] (a workspace's catalogue; the built-ins unless given). */
-export function toScene(doc: SkopeDoc, cats: TypeCats = TYPE_CATS): Scene {
+export function toScene(doc: DaidalDoc, cats: TypeCats = TYPE_CATS): Scene {
 	const kind = kindOf(doc.diagram?.kind);
 	const tags = Object.entries(doc.tags ?? {}).map(([key, t]) => ({
 		key,

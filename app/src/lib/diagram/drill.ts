@@ -1,8 +1,8 @@
-// "Zoom in → New diagram" (docs/superpowers/specs/2026-11-05-skope-kinds-c4-and-repo-aware-ai.md): the level below a
+// "Zoom in → New diagram" (docs/superpowers/specs/2026-11-05-daidal-kinds-c4-and-repo-aware-ai.md): the level below a
 // node, made from the diagram it sits in. The node becomes the new diagram's scope, a container with a ref back to
 // it; what it connects to comes along outside that container, each with a ref to its own node, so the new diagram
 // starts with the same neighbours and connections the level above shows.
-import type { DocEdge, DocNode, SkopeDoc } from '../types';
+import type { DocEdge, DocNode, DaidalDoc } from '../types';
 import { kindOf, type KindId } from './kinds';
 import { NODE_H, NODE_W } from './model';
 
@@ -54,7 +54,7 @@ const toScope = (e: DocEdge, nodeId: string): DocEdge => ({
  * container, and every node it connects to placed outside it, those it hears from on the left and those it calls on
  * the right, joined to the scope as they are joined to the node above.
  */
-export function childDoc(parent: SkopeDoc, parentId: string, nodeId: string, kind: KindId): SkopeDoc {
+export function childDoc(parent: DaidalDoc, parentId: string, nodeId: string, kind: KindId): DaidalDoc {
 	const byId = new Map((parent.nodes ?? []).map(n => [n.id, n]));
 	const node = byId.get(nodeId);
 	if (!node) throw new Error(`no node ${nodeId}`);
@@ -81,7 +81,7 @@ export function childDoc(parent: SkopeDoc, parentId: string, nodeId: string, kin
  * connects to, where they sit relative to it now, each with a ref back to its node here. The node links down to
  * [current], so the new diagram zooms back into this one.
  */
-export function parentDoc(current: SkopeDoc, currentId: string, nodeId: string, kind: KindId): SkopeDoc {
+export function parentDoc(current: DaidalDoc, currentId: string, nodeId: string, kind: KindId): DaidalDoc {
 	const byId = new Map((current.nodes ?? []).map(n => [n.id, n]));
 	const node = byId.get(nodeId);
 	if (!node) throw new Error(`no node ${nodeId}`);

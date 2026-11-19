@@ -1,12 +1,12 @@
 # Security and privacy
 
-How Skope decides who sees what, what it keeps about people, and the settings outside this repository that it
+How Daidal decides who sees what, what it keeps about people, and the settings outside this repository that it
 relies on. Reviewed 2026-11-03; update this page with any change to sign-in, tokens, headers or what is stored.
 
 ## Who can reach it
 
 1. **Cloudflare Access** stands in front of the whole site (`skope.khorum-oss.org`, and stage). Nobody reaches the
-   Worker without passing its policy; a request without a sign-in, or with only a Skope access token, gets Access's
+   Worker without passing its policy; a request without a sign-in, or with only a Daidal access token, gets Access's
    own 401 or login page. There is no `workers.dev` or preview address (`workers_dev` and `preview_urls` are off),
    so nothing gets round Access.
 2. **The Worker checks the Access sign-in itself** (`worker/src/auth.ts`): the `Cf-Access-Jwt-Assertion` JWT is
@@ -58,9 +58,9 @@ So that one person, or one runaway script, can't fill the database or make a sha
 | One document | 1 MB; an import file 10 MB; an MCP request about 1 MB and 20 messages |
 
 Import counts what a file brings against the same limits before writing anything. The end-to-end tests raise the per-person limits for their
-local server with the `SKOPE_LIMITS` variable (`playwright.config.ts`); never set it on stage or prod.
+local server with the `DAIDAL_LIMITS` variable (`playwright.config.ts`); never set it on stage or prod.
 
-## What Skope keeps about people
+## What Daidal keeps about people
 
 - Your email (from Access), your name and title if you set them, and your settings (appearance, tour progress).
 - Workspace membership; who owns each diagram; who took each snapshot. Only a workspace's owner sees its member
@@ -82,7 +82,7 @@ logs. Errors are logged without emails.
 
 Check these when setting up a site, and after any change in Cloudflare:
 
-- **Access application:** the policy allows only the people who should use Skope; no bypass rule; cookie
+- **Access application:** the policy allows only the people who should use Daidal; no bypass rule; cookie
   **SameSite** Lax (or Strict) and **HTTP Only** on.
 - **Managed OAuth** (for MCP): short access-token lifetime (5–15 minutes); allowed redirect URIs as narrow as you can
   (`https://claude.ai/*` for claude.ai connectors).

@@ -211,7 +211,7 @@
 		<section class="export" aria-label="Config">
 			<h3>Config</h3>
 			<button type="button" class="btn btn-secondary present" onclick={onconfig}>{mine ? 'Edit as YAML or JSON' : 'View as YAML or JSON'}</button>
-			<p class="note">The diagram as a .skope.yaml or .skope.json file{mine ? ', to edit, download, or replace from a file' : ', to copy or download'}.</p>
+			<p class="note">The diagram as a .daidal.yaml or .daidal.json file{mine ? ', to edit, download, or replace from a file' : ', to copy or download'}.</p>
 		</section>
 	{/if}
 

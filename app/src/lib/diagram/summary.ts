@@ -1,4 +1,4 @@
-import type { CardSummary, SkopeDoc } from '../types';
+import type { CardSummary, DaidalDoc } from '../types';
 import { toScene } from './model';
 
 const MAX_NAMES = 300;
@@ -12,7 +12,7 @@ const MAX_ZOOMS = 100;
  * its nodes zoom into (so a diagram can find the ones above it). The Worker
  * works it out on every save (worker/src/summary.ts).
  */
-export function cardSummary(doc: SkopeDoc): CardSummary {
+export function cardSummary(doc: DaidalDoc): CardSummary {
 	const scene = toScene(doc);
 	const box = (b: { x: number; y: number; w: number; h: number }) => [b.x, b.y, b.w, b.h].map(Math.round);
 	return {

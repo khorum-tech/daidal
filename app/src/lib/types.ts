@@ -73,18 +73,18 @@ export interface ListedDiagram extends DiagramSummary {
 }
 
 export interface Diagram extends DiagramSummary {
-	doc: SkopeDoc;
+	doc: DaidalDoc;
 }
 
 export interface Snapshot {
 	id: string;
 	label: string;
 	authorEmail: string;
-	doc: SkopeDoc;
+	doc: DaidalDoc;
 	createdAt: number;
 }
 
-// ---- the .skope.json document, version 1 (web/index.html buildConfig) ----
+// ---- the .daidal.json document, version 1 (web/index.html buildConfig) ----
 
 export interface DocTag {
 	label: string;
@@ -140,7 +140,7 @@ export interface DocBoundary {
 	ref?: string;
 }
 
-export interface SkopeDoc {
+export interface DaidalDoc {
 	version: 1;
 	diagram?: { id?: string; name?: string; kind?: string; view?: string };
 	tags?: Record<string, DocTag>;

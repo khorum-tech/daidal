@@ -1,4 +1,4 @@
-# The Skope MCP server
+# The Daidal MCP server
 
 > Connecting Claude or another assistant? The in-app docs page **Connecting AI** (`/app/docs/connecting-ai`) is the
 > user guide. This page covers how the server works and how to turn it on for a site.
@@ -8,9 +8,9 @@ way Storybild's is (its `docs/mcp.md`): MCP's Streamable HTTP, answering each re
 stream, no session), in `worker/src/mcp/`. A client signs in one of two ways:
 
 - **Through Cloudflare Access (online).** `/mcp` stays behind the site's Access application, like the rest of
-  Skope. With **Managed OAuth** turned on for that application, MCP clients (claude.ai, Claude Desktop, Claude
+  Daidal. With **Managed OAuth** turned on for that application, MCP clients (claude.ai, Claude Desktop, Claude
   Code) sign in the same way you do in a browser and act as you. Strangers are stopped at Cloudflare's edge.
-- **With a personal access token (locally, and scripts).** Make one in Skope under your initial → **AI access**.
+- **With a personal access token (locally, and scripts).** Make one in Daidal under your initial → **AI access**.
   **Read** tokens only look; **Read and write** tokens can also make and change diagrams. A token can be limited to
   some workspaces. Tokens are kept only as a hash (`access_tokens`, migration 0005; `worker/src/tokens.ts`).
 
@@ -43,8 +43,8 @@ Someone with the diagram open in the editor is told it changed somewhere else an
 **Online (stage or prod, once Managed OAuth is on; see below).** The address is `https://<site>/mcp`, which the AI
 access tab shows.
 
-- **Claude Code:** `claude mcp add --transport http skope https://<site>/mcp`, then `/mcp` in Claude Code and
-  authenticate `skope`: a browser opens on the Cloudflare Access sign-in.
+- **Claude Code:** `claude mcp add --transport http daidal https://<site>/mcp`, then `/mcp` in Claude Code and
+  authenticate `daidal`: a browser opens on the Cloudflare Access sign-in.
 - **claude.ai, Claude Desktop, Claude mobile:** add a custom connector with the same address and sign in when it
   asks.
 - Stage's data resets on every push to any PR.
@@ -53,10 +53,10 @@ access tab shows.
 that email, with no Access. Make a token under AI access there; it shows the command:
 
 ```sh
-claude mcp add --transport http skope http://localhost:8787/mcp --header "Authorization: Bearer skt_…"
+claude mcp add --transport http daidal http://localhost:8787/mcp --header "Authorization: Bearer skt_…"
 ```
 
-`claude mcp list` should then say `skope: … - ✓ Connected`.
+`claude mcp list` should then say `daidal: … - ✓ Connected`.
 
 ## Turning it on (Cloudflare dashboard, once per site)
 
@@ -82,13 +82,13 @@ curl -si -X POST https://<site>/mcp | head -5
 ```
 
 - Working: `401` with a `WWW-Authenticate: Bearer realm="OAuth", …, resource_metadata="https://<site>/.well-known/…"`
-  header. That 401 comes from Cloudflare Access, before the Worker: a request without a sign-in never reaches Skope.
-  (Locally, with no Access, the Worker answers `realm="skope"` itself.)
+  header. That 401 comes from Cloudflare Access, before the Worker: a request without a sign-in never reaches Daidal.
+  (Locally, with no Access, the Worker answers `realm="daidal"` itself.)
 - A `302` to `…cloudflareaccess.com/cdn-cgi/access/login/…` means Managed OAuth isn't in effect; Claude Code then
   reports "Unexpected content type: text/html".
 - `https://<site>/.well-known/oauth-authorization-server` returns JSON once it's on.
 
 ## Cost
 
-Skope makes no AI calls: the client's own model does the work, under the client's plan. The outline keeps that
+Daidal makes no AI calls: the client's own model does the work, under the client's plan. The outline keeps that
 model's context small; the whole config only comes when asked for.
