@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// Builds the publishable @khorum-oss/daidal-core into packages/core/dist (or the directory given as the first
-// argument): one ES module bundle with no dependencies, its type declarations, the README and licence, and a
+// Builds the publishable @khorum-oss/daidal-core into packages/core/dist: one ES module bundle with no dependencies, its type declarations, the README and licence, and a
 // package.json made for npm. `npm publish packages/core/dist` then publishes exactly that folder; the source
 // package.json stays private and keeps exporting TypeScript to the app and the Worker.
 //
@@ -11,7 +10,8 @@
 //   https://esm.sh/@khorum-oss/daidal-core@<version>
 import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
@@ -24,9 +24,20 @@ export const BUNDLE = "daidal-core.js";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const core = join(root, "packages/core");
 
-export async function buildCore(out = join(core, "dist")) {
+const DIST = join(core, "dist");
+
+/** The folder is emptied first, so it has to be core's own dist, or a folder in the system's temp directory (tests). */
+function safeOut(out) {
+  const dir = resolve(out);
+  const inside = (base) => { const rel = relative(resolve(base), dir); return rel !== "" && !rel.startsWith("..") && !rel.includes(`..${sep}`); };
+  if (dir !== DIST && !inside(tmpdir())) throw new Error(`Won't build into ${dir}: only packages/core/dist or a temp folder`);
+  return dir;
+}
+
+export async function buildCore(target = DIST) {
+  const out = safeOut(target);
   const source = JSON.parse(readFileSync(join(core, "package.json"), "utf8"));
-  if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(source.version)) throw new Error(`packages/core"s version is "${source.version}", not x.y.z`);
+  if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(source.version)) throw new Error(`packages/core's version is "${source.version}", not x.y.z`);
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
 
@@ -81,6 +92,6 @@ export async function buildCore(out = join(core, "dist")) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const { out, manifest } = await buildCore(process.argv[2] ? resolve(process.argv[2]) : undefined);
+  const { out, manifest } = await buildCore();
   console.log(`Built ${manifest.name}@${manifest.version} in ${out}`);
 }
