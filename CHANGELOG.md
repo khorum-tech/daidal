@@ -5,6 +5,8 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- `@khorum-oss/daidal-core` can be published to npm: `npm run build:core` builds a single ES module browser bundle
+  with its types, and the hand-run `publish-core` workflow publishes it (a dry run unless ticked).
 - Public source release under the Functional Source License (FSL-1.1-ALv2).
 - Root README, SECURITY, CONTRIBUTING, CODE_OF_CONDUCT and TRADEMARKS.
 - A Contributor License Agreement (`CLA.md`), signed with a comment on your first pull request.
