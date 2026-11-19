@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { bounds, isHidden, type Anchor, type Scene, type SceneBoundary, type SceneNode } from '../diagram/model';
-	import { contentsOf, MIN_BOX, MIN_NODE, type Picked } from '../diagram/edit';
-	import { edgePath, endPoints, snapAnchor, type Box } from '../diagram/geometry';
+	import { bounds, isHidden, type Anchor, type Scene, type SceneBoundary, type SceneNode } from '@khorum-oss/daidal-core/model';
+	import { contentsOf, MIN_BOX, MIN_NODE, type Picked } from '@khorum-oss/daidal-core/edit';
+	import { edgePath, endPoints, snapAnchor, type Box } from '@khorum-oss/daidal-core/geometry';
 	import { centreOn, clampView, fitView, panBy, toContent, zoomAt, type Point, type View } from '../diagram/zoom';
 	import { SNAP_PX, snapBox, type Guide } from '../diagram/snap';
 	import Icon from './Icon.svelte';

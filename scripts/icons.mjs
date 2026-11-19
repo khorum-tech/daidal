@@ -1,4 +1,4 @@
-// Builds app/src/lib/diagram/icon-library.json: the icons Skope can draw, from Phosphor (MIT, 256 × 256 grid,
+// Builds packages/core/src/icon-library.json: the icons Skope can draw, from Phosphor (MIT, 256 × 256 grid,
 // regular weight). To add an icon, put its Phosphor name in ICONS below and run `node scripts/icons.mjs`; browse
 // the names at https://phosphoricons.com. The icon is stored under the camelCase of that name (plugs-connected →
 // plugsConnected).
@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { icons as catalogue } from '@phosphor-icons/core';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = join(ROOT, 'app/src/lib/diagram/icon-library.json');
+const OUT = join(ROOT, 'packages/core/src/icon-library.json');
 const ASSETS = join(ROOT, 'node_modules/@phosphor-icons/core/assets/regular');
 
 /** Phosphor names to include, roughly by what they draw. */

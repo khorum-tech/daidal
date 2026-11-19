@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+import { searchForWorkspaceRoot } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import adapter from '@sveltejs/adapter-static';
@@ -36,7 +38,10 @@ export default defineConfig({
 	],
 	server: {
 		// `npm run dev` here talks to the Worker running under `wrangler dev` at the project root.
-		proxy: { '/api': 'http://localhost:8787' }
+		proxy: { '/api': 'http://localhost:8787' },
+		// The shared core (packages/core) sits outside app/, linked in through node_modules; the dev server and the
+		// browser tests serve its source from there.
+		fs: { allow: [searchForWorkspaceRoot(process.cwd()), fileURLToPath(new URL('../packages/core', import.meta.url))] }
 	},
 	test: {
 		expect: { requireAssertions: true },

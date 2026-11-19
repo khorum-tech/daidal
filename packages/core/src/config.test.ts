@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DaidalDoc } from '../types';
+import type { DaidalDoc } from './types';
 import { ConfigError, configText, langOf, readConfig } from './config';
 
 const current = (): DaidalDoc => ({

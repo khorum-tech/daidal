@@ -1,8 +1,8 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import NodeTip from './NodeTip.svelte';
-	import { toScene } from '../diagram/model';
-	import { SAMPLE } from '../fixtures/docs';
+	import { toScene } from '@khorum-oss/daidal-core/model';
+	import { SAMPLE } from '@khorum-oss/daidal-core/fixtures';
 
 	const scene = toScene(SAMPLE);
 	const tags = Object.fromEntries(scene.tags.map(t => [t.key, t]));

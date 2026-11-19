@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { SceneEdge, Side } from '../diagram/model';
-	import type { EdgeChange, EndSide } from '../diagram/edit';
+	import type { SceneEdge, Side } from '@khorum-oss/daidal-core/model';
+	import type { EdgeChange, EndSide } from '@khorum-oss/daidal-core/edit';
 	import Icon from './Icon.svelte';
 
 	/**

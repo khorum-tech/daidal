@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import BoxInspector from './BoxInspector.svelte';
-import type { BoundaryChange } from '../diagram/edit';
-import { toScene } from '../diagram/model';
+import type { BoundaryChange } from '@khorum-oss/daidal-core/edit';
+import { toScene } from '@khorum-oss/daidal-core/model';
 
 const box = toScene({ version: 1, boundaries: [{ id: 'zone', label: 'PROD', labelPosition: 'outside-tr', border: { width: 2, style: 'solid' }, layout: { x: 0, y: 0, w: 400, h: 220 } }] }).boundaries[0];
 

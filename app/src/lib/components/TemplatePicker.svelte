@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { SHEET_H, SHEET_W } from '../diagram/model';
-	import { cardSummary } from '../diagram/summary';
-	import { TEMPLATES } from '../diagram/templates';
+	import { SHEET_H, SHEET_W } from '@khorum-oss/daidal-core/model';
+	import { cardSummary } from '@khorum-oss/daidal-core/summary';
+	import { TEMPLATES } from '@khorum-oss/daidal-core/templates';
 
 	/**
 	 * The prototype's template gallery, as a choice in the new-diagram form: a blank canvas or one of the templates,

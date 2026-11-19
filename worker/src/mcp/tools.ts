@@ -4,7 +4,7 @@
  * check all apply exactly as they do to the app. Edits use the app's own pure edit functions, so a node an AI adds
  * is placed and named the way the editor would. Outputs are compact.
  */
-import { configText, ConfigError, readConfig } from "../../../app/src/lib/diagram/config";
+import { configText, ConfigError, readConfig } from "@khorum-oss/daidal-core/config";
 import {
   addBoundary,
   addEdge,
@@ -23,12 +23,12 @@ import {
   updateEdge,
   updateNode,
   updateView,
-} from "../../../app/src/lib/diagram/edit";
-import { catalogue, isNodeIcon, typeKey, type TypeCats } from "../../../app/src/lib/diagram/icons";
-import { KINDS, kindOf, type KindId } from "../../../app/src/lib/diagram/kinds";
-import { toScene } from "../../../app/src/lib/diagram/model";
-import { fromTemplate, TEMPLATES } from "../../../app/src/lib/diagram/templates";
-import type { CustomType, DocEdge, DocNode, DaidalDoc } from "../../../app/src/lib/types";
+} from "@khorum-oss/daidal-core/edit";
+import { catalogue, isNodeIcon, typeKey, type TypeCats } from "@khorum-oss/daidal-core/icons";
+import { KINDS, kindOf, type KindId } from "@khorum-oss/daidal-core/kinds";
+import { toScene } from "@khorum-oss/daidal-core/model";
+import { fromTemplate, TEMPLATES } from "@khorum-oss/daidal-core/templates";
+import type { CustomType, DocEdge, DocNode, DaidalDoc } from "@khorum-oss/daidal-core/types";
 
 /** A call to this Worker's API as the MCP client: the parsed JSON, or a thrown ToolError saying why not. */
 export type Api = (method: string, path: string, body?: unknown) => Promise<any>;

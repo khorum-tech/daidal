@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SAMPLE } from '../fixtures/docs';
+import { SAMPLE } from './fixtures';
 import { catalogue } from './icons';
 import { bounds, C4, C4_PERSON_H, c4Desc, c4Height, c4Top, docLinks, zoomsOf, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
 

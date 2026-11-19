@@ -1,4 +1,4 @@
-import type { DocBoundary, DocEdge, DocNode, DocTag, DaidalDoc } from '../types';
+import type { DocBoundary, DocEdge, DocNode, DocTag, DaidalDoc } from './types';
 import { NEW_TAG_GROUP, TAG_COLORS } from './edit';
 import { isColor, slug } from './model';
 import { parseYaml, yamlLines, YamlError } from './yaml';

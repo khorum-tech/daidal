@@ -1,7 +1,7 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import ConfigPanel from './ConfigPanel.svelte';
-	import { SAMPLE } from '../fixtures/docs';
+	import { SAMPLE } from '@khorum-oss/daidal-core/fixtures';
 
 	const { Story } = defineMeta({
 		title: 'Diagram/Config panel',

@@ -1,4 +1,4 @@
-import type { DaidalDoc } from '../types';
+import type { DaidalDoc } from './types';
 
 /** A small diagram that uses each thing the canvas draws: tags in two groups, views, a boundary, every edge option. */
 export const SAMPLE: DaidalDoc = {

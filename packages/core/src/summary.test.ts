@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SAMPLE } from '../fixtures/docs';
+import { SAMPLE } from './fixtures';
 import { NODE_H } from './model';
 import { cardSummary } from './summary';
 

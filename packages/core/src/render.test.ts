@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { esc, exportName, toSvg } from './render';
 import { tagsOn, toScene } from './model';
-import { SAMPLE } from '../fixtures/docs';
+import { SAMPLE } from './fixtures';
 
 const scene = toScene(SAMPLE);
 

@@ -1,8 +1,8 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import EdgeInspector from './EdgeInspector.svelte';
-	import { toScene } from '../diagram/model';
-	import { SAMPLE } from '../fixtures/docs';
+	import { toScene } from '@khorum-oss/daidal-core/model';
+	import { SAMPLE } from '@khorum-oss/daidal-core/fixtures';
 
 	const scene = toScene(SAMPLE);
 
