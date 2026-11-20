@@ -20,7 +20,8 @@ and IcePanel. Daidal's wedge against them:
 - a small, hand-writable format (YAML or JSON)
 - a renderer that looks current
 - clone / follow / snapshot between diagrams, which neither has
-- open source, self-hostable with one Docker Compose file
+- source-available (fair source, FSL-1.1-ALv2) and self-hostable with one Docker
+  Compose file
 
 Success means:
 
@@ -205,11 +206,18 @@ Contribute a Daidal companion service to Kroki once core is stable. That
 inherits Kroki's Confluence Data Center, GitLab and docs integrations in one
 move.
 
-## Open source and self-hosting
+## Fair source and self-hosting
 
-Open-sourcing core, the app and the Worker costs nothing strategically: the
-format and renderer are the moat, and open core plus a hosted instance is the
-model Mermaid and Structurizr both run on.
+Publishing the source of core, the app and the Worker costs nothing
+strategically: the format and renderer are the moat, and public source plus a
+hosted instance is the shape Mermaid and Structurizr both run on.
+
+All of it, core included, is under the Functional Source License with the
+Apache 2.0 future license (FSL-1.1-ALv2, see `LICENSE.md`). Anyone can read,
+use, change and self-host it; nobody can offer it as a competing hosted
+product. Each release becomes Apache-2.0 two years after it ships. FSL is not
+an OSI-approved license, so Daidal is fair source, or source-available, rather
+than open source, and the docs say so.
 
 Two changes make self-hosting a one-hour tutorial instead of a Cloudflare
 account:
