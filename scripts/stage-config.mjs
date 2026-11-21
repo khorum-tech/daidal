@@ -11,7 +11,10 @@
  */
 
 export const STAGE_NAME = "skope-stage";
-export const STAGE_HOST = "skope-stage.khorum-oss.org";
+// Every hostname stage answers on, the main one first. Wrangler treats `routes` as the Worker's whole set of custom
+// domains, so a name left out of this list is detached on the next stage deploy.
+export const STAGE_HOSTS = ["daidal-stage.khorum.org", "skope-stage.khorum-oss.org"];
+export const STAGE_HOST = STAGE_HOSTS[0];
 
 /**
  * Remove `//` and `/* *\/` comments and trailing commas from JSONC, leaving string contents alone
@@ -85,7 +88,7 @@ export function stageConfig(prod, env) {
     // Off on stage too: either would put the Worker on the internet without Access in front of it.
     workers_dev: false,
     preview_urls: false,
-    routes: [{ pattern: STAGE_HOST, custom_domain: true }],
+    routes: STAGE_HOSTS.map(pattern => ({ pattern, custom_domain: true })),
     d1_databases: [{ ...databases[0], database_name: STAGE_NAME, database_id: d1Id }],
     // Without the AUD: it goes up as a Worker secret (stageSecrets), because `wrangler deploy` prints every
     // variable's value in the deploy log, which anyone can read once the repository is public.
@@ -117,7 +120,7 @@ if (invokedDirectly) {
   try {
     writeFileSync("wrangler.stage.jsonc", stageConfigText(readFileSync("wrangler.jsonc", "utf8"), process.env));
     writeFileSync(STAGE_SECRETS_FILE, `${JSON.stringify(stageSecrets(process.env))}\n`, { mode: 0o600 });
-    console.log(`wrote wrangler.stage.jsonc and ${STAGE_SECRETS_FILE} (${STAGE_NAME} at ${STAGE_HOST})`);
+    console.log(`wrote wrangler.stage.jsonc and ${STAGE_SECRETS_FILE} (${STAGE_NAME} at ${STAGE_HOSTS.join(", ")})`);
   } catch (e) {
     console.error(e instanceof Error ? e.message : e);
     process.exit(1);
