@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import Inspector from './Inspector.svelte';
-import type { NodeChange } from '@khorum-oss/daidal-core/edit';
-import { toScene } from '@khorum-oss/daidal-core/model';
-import { SAMPLE } from '@khorum-oss/daidal-core/fixtures';
+import type { NodeChange } from '@khorum/daidal-core/edit';
+import { toScene } from '@khorum/daidal-core/model';
+import { SAMPLE } from '@khorum/daidal-core/fixtures';
 
 const scene = toScene(SAMPLE);
 const tags = Object.fromEntries(scene.tags.map(t => [t.key, t]));
@@ -155,7 +155,7 @@ describe('the inspector and new diagrams below a node', () => {
 	const plain = toScene({ version: 1, nodes: [{ id: 'api', name: 'API', type: 'service' }] }).nodes[0];
 
 	it('offers the next C4 level for a node that zooms into nothing, and shows a failure', async () => {
-		const { kindOf } = await import('@khorum-oss/daidal-core/kinds');
+		const { kindOf } = await import('@khorum/daidal-core/kinds');
 		let calls = 0;
 		await render(Inspector, {
 			node: plain,
@@ -174,7 +174,7 @@ describe('the inspector and new diagrams below a node', () => {
 	});
 
 	it('offers nothing below at the bottom of C4', async () => {
-		const { kindOf } = await import('@khorum-oss/daidal-core/kinds');
+		const { kindOf } = await import('@khorum/daidal-core/kinds');
 		await render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-code'), onzoomnew: async () => {} });
 		expect(page.getByRole('button', { name: /^New .* diagram$/ }).elements()).toHaveLength(0);
 	});
@@ -184,7 +184,7 @@ describe('the inspector and new diagrams above a node', () => {
 	const plain = toScene({ version: 1, nodes: [{ id: 'api', name: 'API', type: 'service' }] }).nodes[0];
 
 	it('offers the C4 level above below Context, and nothing above Context', async () => {
-		const { kindOf } = await import('@khorum-oss/daidal-core/kinds');
+		const { kindOf } = await import('@khorum/daidal-core/kinds');
 		let calls = 0;
 		await render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-component'), onzoomup: async () => void calls++ });
 		await page.getByRole('button', { name: 'New C4 Container diagram above' }).click();
@@ -192,7 +192,7 @@ describe('the inspector and new diagrams above a node', () => {
 	});
 
 	it('offers none in a C4 Context diagram', async () => {
-		const { kindOf } = await import('@khorum-oss/daidal-core/kinds');
+		const { kindOf } = await import('@khorum/daidal-core/kinds');
 		await render(Inspector, { node: plain, tags: {}, editable: true, diagrams: [], kind: kindOf('c4-context'), onzoomup: async () => {} });
 		expect(page.getByRole('button', { name: /diagram above$/ }).elements()).toHaveLength(0);
 	});

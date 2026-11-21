@@ -1,4 +1,4 @@
-import type { Box } from '@khorum-oss/daidal-core/geometry';
+import type { Box } from '@khorum/daidal-core/geometry';
 
 export interface Guide {
 	x1: number;

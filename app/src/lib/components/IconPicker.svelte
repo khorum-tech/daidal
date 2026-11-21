@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ICON_LIBRARY, searchIcons } from '@khorum-oss/daidal-core/icons';
+	import { ICON_LIBRARY, searchIcons } from '@khorum/daidal-core/icons';
 	import Icon from './Icon.svelte';
 
 	/**

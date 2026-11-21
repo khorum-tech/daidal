@@ -1,5 +1,5 @@
-import library from "@khorum-oss/daidal-core/icon-library.json";
-import { slug } from "@khorum-oss/daidal-core/model";
+import library from "@khorum/daidal-core/icon-library.json";
+import { slug } from "@khorum/daidal-core/model";
 import { HttpError, isPlainObject, json, noContent, readJson } from "./http";
 import { requireMember } from "./workspaces";
 
