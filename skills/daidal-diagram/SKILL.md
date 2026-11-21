@@ -10,7 +10,7 @@ them, containers that group them, and tags and views that colour and slice them.
 config. This skill writes that config and draws it in the chat with Daidal's own renderer, so what the person sees is
 the same picture the Daidal app would draw, and they can paste the config straight into Daidal.
 
-The renderer is `@khorum-oss/daidal-core`, version **0.1.0**: one dependency-free ES module that exports
+The renderer is `@khorum/daidal-core`, version **0.1.0**: one dependency-free ES module that exports
 `renderConfig(text, options)` and returns `{ svg, width, height, doc }`. It loads from jsDelivr (unpkg as the
 fallback), the npm CDNs an inline visual may load scripts from. Daidal is fair source (FSL-1.1-ALv2); call it that,
 or source-available, never open source.

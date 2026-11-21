@@ -5,7 +5,7 @@ and the references, assets and examples it points to.
 
 | Skill | What it does |
 |---|---|
-| [`daidal-diagram`](daidal-diagram/SKILL.md) | Draws a Daidal config inline in Claude, with the published core renderer (`@khorum-oss/daidal-core`) loaded from an npm CDN. |
+| [`daidal-diagram`](daidal-diagram/SKILL.md) | Draws a Daidal config inline in Claude, with the published core renderer (`@khorum/daidal-core`) loaded from an npm CDN. |
 
 ## Installing one
 
