@@ -105,8 +105,8 @@
 				<span class="links" title={linkTitle}><Icon name="globe" size={11} />{node.links.length}</span>
 			{/if}
 		</span>
-		<span class="name">{node.name}</span>
-		{#if node.sub.trim()}<span class="sub">{node.sub}</span>{/if}
+		<span class="name" title={node.name}>{node.name}</span>
+		{#if node.sub.trim()}<span class="sub" title={node.sub}>{node.sub}</span>{/if}
 	{/if}
 </button>
 
@@ -283,6 +283,11 @@
 		letter-spacing: 0.1em;
 		text-transform: uppercase;
 		color: var(--color-neutral-500);
+		/* One line, cut with an ellipsis, as the export draws it: a long type must not push the badges out. */
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.badges {
 		margin-left: auto;
@@ -318,6 +323,15 @@
 		font-size: 15px;
 		margin-top: 7px;
 		line-height: 1.2;
+	}
+	/* The name and the subtitle each keep to one line and end in an ellipsis when they don't fit, as in the export
+	   (render.ts fit()): a card has a fixed height, so wrapped text would spill out under it. The whole text is in
+	   the node's details, and under the pointer. */
+	.name,
+	.sub {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.sub {
 		font-size: 11.5px;

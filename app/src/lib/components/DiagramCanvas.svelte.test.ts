@@ -74,7 +74,7 @@ describe('the canvas', () => {
 	it('styles connections as the document says', async () => {
 		const { container } = await mount();
 		const sql = container.querySelector('path[data-edge="gw>db"]')!;
-		expect(sql.getAttribute('stroke-dasharray')).toBe('5.6 4.5');
+		expect(sql.getAttribute('stroke-dasharray')).toBe('7.8 6.3');
 		expect(sql.getAttribute('d')).toContain(' Q');
 		const traces = container.querySelector('path[data-edge="otel>gw"]')!;
 		expect(traces.getAttribute('marker-start')).toBe('url(#arrRevThin)');

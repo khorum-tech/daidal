@@ -1,0 +1,205 @@
+/* Colour palettes: alternatives to the default dark (Nocturne) and light (Paper) themes, picked in Profile and
+   appearance. Each keeps the logo's purple family for its accent and retints the ground and the neutral ramp.
+   Generated on the default ramps' own lightness steps (OKLCH), so contrast holds as it does for the defaults.
+   The list in appearance.svelte.ts names the same ids. */
+
+:root[data-theme='dark'][data-palette='midnight'] {
+	--color-bg: #0e1222;
+	--color-surface: #191e33;
+	--color-text: #e8eaf2;
+	--color-divider: color-mix(in srgb, #e8eaf2 16%, transparent);
+	--color-accent: #8a90ea;
+	--color-accent-2: #a5ace8;
+	--color-neutral-100: #f2f5ff;
+	--color-neutral-200: #e1e7fc;
+	--color-neutral-300: #cbd3ee;
+	--color-neutral-400: #adb6d4;
+	--color-neutral-500: #8e97b4;
+	--color-neutral-600: #717995;
+	--color-neutral-700: #565d73;
+	--color-neutral-800: #3d4252;
+	--color-neutral-900: #282b34;
+	--color-accent-100: #f3f5ff;
+	--color-accent-200: #e3e6ff;
+	--color-accent-300: #cbd1ff;
+	--color-accent-400: #a8afff;
+	--color-accent-500: #888ee7;
+	--color-accent-600: #6b6fc6;
+	--color-accent-700: #52559a;
+	--color-accent-800: #3a3c6e;
+	--color-accent-900: #262843;
+	--shadow-sm: 0 0 0 1px var(--color-neutral-800);
+	--shadow-md: 0 0 0 1px var(--color-neutral-700), 0 6px 18px rgba(0, 0, 0, 0.55);
+	--shadow-lg: 0 0 0 1px var(--color-neutral-500), 0 16px 40px rgba(0, 0, 0, 0.65);
+}
+:root[data-theme='dark'][data-palette='plum'] {
+	--color-bg: #1b1524;
+	--color-surface: #2a2135;
+	--color-text: #ece8f0;
+	--color-divider: color-mix(in srgb, #ece8f0 16%, transparent);
+	--color-accent: #ab88e2;
+	--color-accent-2: #bda7e4;
+	--color-neutral-100: #f7f3ff;
+	--color-neutral-200: #ebe4f8;
+	--color-neutral-300: #d8cfe9;
+	--color-neutral-400: #bcb1cf;
+	--color-neutral-500: #9d92b0;
+	--color-neutral-600: #7f7490;
+	--color-neutral-700: #61596f;
+	--color-neutral-800: #453f4f;
+	--color-neutral-900: #2d2932;
+	--color-accent-100: #f7f3ff;
+	--color-accent-200: #ece3fd;
+	--color-accent-300: #dbcafb;
+	--color-accent-400: #c4a5f9;
+	--color-accent-500: #a683dd;
+	--color-accent-600: #8865bc;
+	--color-accent-700: #694d92;
+	--color-accent-800: #4a3668;
+	--color-accent-900: #2f2540;
+	--shadow-sm: 0 0 0 1px var(--color-neutral-800);
+	--shadow-md: 0 0 0 1px var(--color-neutral-700), 0 6px 18px rgba(0, 0, 0, 0.55);
+	--shadow-lg: 0 0 0 1px var(--color-neutral-500), 0 16px 40px rgba(0, 0, 0, 0.65);
+}
+:root[data-theme='dark'][data-palette='graphite'] {
+	--color-bg: #17171a;
+	--color-surface: #242428;
+	--color-text: #e9e9ec;
+	--color-divider: color-mix(in srgb, #e9e9ec 16%, transparent);
+	--color-accent: #9d92d8;
+	--color-accent-2: #b4addd;
+	--color-neutral-100: #f5f5f8;
+	--color-neutral-200: #e7e7ec;
+	--color-neutral-300: #d3d3da;
+	--color-neutral-400: #b6b6bd;
+	--color-neutral-500: #97979f;
+	--color-neutral-600: #797980;
+	--color-neutral-700: #5d5d62;
+	--color-neutral-800: #424246;
+	--color-neutral-900: #2b2b2d;
+	--color-accent-100: #f5f4fd;
+	--color-accent-200: #e8e5fa;
+	--color-accent-300: #d3cff5;
+	--color-accent-400: #b7adef;
+	--color-accent-500: #988dd2;
+	--color-accent-600: #7a6fb2;
+	--color-accent-700: #5e558a;
+	--color-accent-800: #423c63;
+	--color-accent-900: #2b283d;
+	--shadow-sm: 0 0 0 1px var(--color-neutral-800);
+	--shadow-md: 0 0 0 1px var(--color-neutral-700), 0 6px 18px rgba(0, 0, 0, 0.55);
+	--shadow-lg: 0 0 0 1px var(--color-neutral-500), 0 16px 40px rgba(0, 0, 0, 0.65);
+}
+:root[data-theme='dark'][data-palette='ink'] {
+	--color-bg: #0b0b10;
+	--color-surface: #16161d;
+	--color-text: #ececf1;
+	--color-divider: color-mix(in srgb, #ececf1 16%, transparent);
+	--color-accent: #a497f0;
+	--color-accent-2: #bbb4f0;
+	--color-neutral-100: #f5f5fa;
+	--color-neutral-200: #e7e7ef;
+	--color-neutral-300: #d3d3de;
+	--color-neutral-400: #b6b6c2;
+	--color-neutral-500: #9797a3;
+	--color-neutral-600: #797985;
+	--color-neutral-700: #5d5d66;
+	--color-neutral-800: #424249;
+	--color-neutral-900: #2b2b2f;
+	--color-accent-100: #f5f4ff;
+	--color-accent-200: #e7e5fe;
+	--color-accent-300: #d2cefe;
+	--color-accent-400: #b6abfd;
+	--color-accent-500: #9789e1;
+	--color-accent-600: #7a6bc0;
+	--color-accent-700: #5d5295;
+	--color-accent-800: #423a6b;
+	--color-accent-900: #2b2742;
+	--shadow-sm: 0 0 0 1px var(--color-neutral-800);
+	--shadow-md: 0 0 0 1px var(--color-neutral-700), 0 6px 18px rgba(0, 0, 0, 0.55);
+	--shadow-lg: 0 0 0 1px var(--color-neutral-500), 0 16px 40px rgba(0, 0, 0, 0.65);
+}
+:root[data-theme='light'][data-palette='lilac'] {
+	--color-bg: #f0ecfa;
+	--color-surface: #fbf9ff;
+	--color-text: #251f33;
+	--color-divider: color-mix(in srgb, #251f33 17%, transparent);
+	--color-accent: #6d53b6;
+	--color-neutral-100: #211b2b;
+	--color-neutral-200: #312b3e;
+	--color-neutral-300: #453d55;
+	--color-neutral-400: #5c536f;
+	--color-neutral-500: #746b88;
+	--color-neutral-600: #877e9b;
+	--color-neutral-700: #c0bacf;
+	--color-neutral-800: #ded9ea;
+	--color-neutral-900: #efebf9;
+	--color-accent-100: #2c2545;
+	--color-accent-200: #453771;
+	--color-accent-300: #614d9d;
+	--color-accent-400: #7f66ca;
+	--color-accent-500: #9c84ec;
+	--color-accent-600: #baa8ff;
+	--color-accent-700: #d1c8fe;
+	--color-accent-800: #e8e4ff;
+	--color-accent-900: #f5f4ff;
+	--shadow-sm: 0 0 0 1px var(--color-neutral-800);
+	--shadow-md: 0 0 0 1px var(--color-neutral-800), 0 6px 18px color-mix(in srgb, #251f33 10%, transparent);
+	--shadow-lg: 0 0 0 1px var(--color-neutral-800), 0 16px 40px color-mix(in srgb, #251f33 18%, transparent);
+}
+:root[data-theme='light'][data-palette='sand'] {
+	--color-bg: #f5f1e9;
+	--color-surface: #fdfbf6;
+	--color-text: #2b2722;
+	--color-divider: color-mix(in srgb, #2b2722 17%, transparent);
+	--color-accent: #6b56ae;
+	--color-neutral-100: #231e14;
+	--color-neutral-200: #342e22;
+	--color-neutral-300: #484132;
+	--color-neutral-400: #605847;
+	--color-neutral-500: #79705e;
+	--color-neutral-600: #8c8371;
+	--color-neutral-700: #c3bdb0;
+	--color-neutral-800: #e1dcd2;
+	--color-neutral-900: #f2ede5;
+	--color-accent-100: #2c2642;
+	--color-accent-200: #44386c;
+	--color-accent-300: #605097;
+	--color-accent-400: #7d69c3;
+	--color-accent-500: #9a87e4;
+	--color-accent-600: #b9a9fe;
+	--color-accent-700: #d0c8fe;
+	--color-accent-800: #e8e4ff;
+	--color-accent-900: #f5f4ff;
+	--shadow-sm: 0 0 0 1px var(--color-neutral-800);
+	--shadow-md: 0 0 0 1px var(--color-neutral-800), 0 6px 18px color-mix(in srgb, #2b2722 10%, transparent);
+	--shadow-lg: 0 0 0 1px var(--color-neutral-800), 0 16px 40px color-mix(in srgb, #2b2722 18%, transparent);
+}
+:root[data-theme='light'][data-palette='mist'] {
+	--color-bg: #eaf0f6;
+	--color-surface: #f9fbfd;
+	--color-text: #1f2632;
+	--color-divider: color-mix(in srgb, #1f2632 17%, transparent);
+	--color-accent: #5b61b8;
+	--color-neutral-100: #12202d;
+	--color-neutral-200: #203040;
+	--color-neutral-300: #304457;
+	--color-neutral-400: #445b71;
+	--color-neutral-500: #5c748b;
+	--color-neutral-600: #6f879e;
+	--color-neutral-700: #afc0d0;
+	--color-neutral-800: #d1deeb;
+	--color-neutral-900: #e4effb;
+	--color-accent-100: #252844;
+	--color-accent-200: #383c70;
+	--color-accent-300: #50559c;
+	--color-accent-400: #6970c8;
+	--color-accent-500: #858eea;
+	--color-accent-600: #a6b0ff;
+	--color-accent-700: #c5ccfe;
+	--color-accent-800: #e2e7ff;
+	--color-accent-900: #f3f5ff;
+	--shadow-sm: 0 0 0 1px var(--color-neutral-800);
+	--shadow-md: 0 0 0 1px var(--color-neutral-800), 0 6px 18px color-mix(in srgb, #1f2632 10%, transparent);
+	--shadow-lg: 0 0 0 1px var(--color-neutral-800), 0 16px 40px color-mix(in srgb, #1f2632 18%, transparent);
+}

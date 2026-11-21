@@ -128,7 +128,7 @@
 			{#each WIDTHS as [label, w] (label)}
 				{#snippet t()}{label}{/snippet}
 				{@render choice(
-					every(e => Math.abs(e.width - w) < 0.3),
+					every(e => Math.abs(e.weight - w) < 0.3),
 					`${label} line`,
 					() => onedges?.({ width: w }, 'Change weight'),
 					t

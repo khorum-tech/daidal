@@ -13,7 +13,8 @@ test("the editor and its panels", async ({ page, request }) => {
   await shot(page, "editor");
 
   // Presenting.
-  await page.getByRole("button", { name: "Present", exact: true }).click();
+  await page.locator('[data-tour="diagram-menu"]').click();
+  await page.getByRole("dialog", { name: "Diagram" }).getByRole("button", { name: "Present" }).click();
   await expect(page.getByRole("region", { name: "Presenting" })).toBeVisible();
   await page.locator('[data-node="journal"]').hover();
   await expect(page.getByRole("tooltip", { name: "About Journal DB" })).toContainText("Append-only journal");

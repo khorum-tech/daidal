@@ -118,6 +118,7 @@
 					<button
 						type="button"
 						class="crumb-btn"
+						data-tour="diagram-menu"
 						aria-current="page"
 						aria-haspopup="dialog"
 						title={c.title}
@@ -177,7 +178,7 @@
 	{#if settingsOpen}
 		<ProfileSheet
 			{me}
-			settings={{ theme: appearance.theme, condition: appearance.condition, simulate: appearance.simulate, iconCards: appearance.iconCards }}
+			settings={{ theme: appearance.theme, darkPalette: appearance.darkPalette, lightPalette: appearance.lightPalette, condition: appearance.condition, simulate: appearance.simulate, iconCards: appearance.iconCards }}
 			light={appearance.light}
 			onchange={change => appearance.set(change)}
 			onsave={saveProfile}

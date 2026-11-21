@@ -85,7 +85,7 @@ function midOf(pts: { x: number; y: number }[]) {
 	return pts[0];
 }
 
-/** The marker id for an arrowhead, by line weight (the canvas defines all six). */
+/** The marker id for an arrowhead, by the document's line weight (the canvas defines all six). */
 function marker(base: 'arr' | 'arrRev', width: number): string {
 	return base + (width > 2 ? 'Bold' : width < 1.1 ? 'Thin' : '');
 }
@@ -141,8 +141,8 @@ export function edgePath(e: SceneEdge, a: Box, b: Box, defaultRoute: 'curved' | 
 		ly,
 		dash: e.style === 'dashed' ? `${R(w * 4)} ${R(w * 3.2)}` : e.style === 'dotted' ? `0.01 ${R(w * 2.4)}` : '',
 		cap: e.style === 'dotted' ? 'round' : 'butt',
-		markerEnd: hasEnd ? marker('arr', w) : null,
-		markerStart: hasStart ? marker('arrRev', w) : null
+		markerEnd: hasEnd ? marker('arr', e.weight) : null,
+		markerStart: hasStart ? marker('arrRev', e.weight) : null
 	};
 }
 

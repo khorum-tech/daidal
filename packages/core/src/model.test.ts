@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE } from './fixtures';
 import { catalogue } from './icons';
-import { bounds, C4, C4_PERSON_H, c4Desc, c4Height, c4Top, docLinks, zoomsOf, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
+import { bounds, EDGE_SCALE, C4, C4_PERSON_H, c4Desc, c4Height, c4Top, docLinks, zoomsOf, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
 
 describe('typeName', () => {
 	it("turns a slug back into the prototype's own type name", () => {
@@ -40,7 +40,7 @@ describe('toScene', () => {
 		expect(scene.nodes.find(n => n.id === 'db')!.h).toBe(100);
 		expect(scene.nodes.find(n => n.id === 'note')!.isText).toBe(true);
 		const edge = scene.edges[0];
-		expect(edge).toMatchObject({ style: 'solid', dir: 'forward', width: 1.4, route: null, showLabel: true, fromA: null });
+		expect(edge).toMatchObject({ style: 'solid', dir: 'forward', weight: 1.4, width: 1.4 * EDGE_SCALE, route: null, showLabel: true, fromA: null });
 		expect(scene.boundaries[0]).toMatchObject({ pos: 'outside-tr', bs: 'solid', bw: 2 });
 	});
 

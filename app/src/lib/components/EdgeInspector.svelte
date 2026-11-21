@@ -95,7 +95,7 @@
 		<h3>Weight</h3>
 		<div class="row">
 			{#each WIDTHS as [label, w] (label)}
-				{@render choice(Math.abs(edge.width - w) < 0.3, label, `${label} line`, () => onchange?.({ width: w }, 'Change weight'))}
+				{@render choice(Math.abs(edge.weight - w) < 0.3, label, `${label} line`, () => onchange?.({ width: w }, 'Change weight'))}
 			{/each}
 		</div>
 

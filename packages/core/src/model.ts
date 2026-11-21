@@ -10,6 +10,14 @@ import { c4Line, c4Role, kindOf, type C4Role, type Kind } from './kinds';
 /** The prototype's default card height and width. */
 export const NODE_H = 88;
 export const NODE_W = 190;
+/** A connection's weight when its document gives none: the inspector's Medium. */
+export const EDGE_WEIGHT = 1.4;
+/**
+ * How much heavier a connection is drawn than its weight says. Documents keep the weights they always had (0.9
+ * thin, 1.4 medium, 2.6 thick); the canvas and the export draw every one of them this much thicker, so old
+ * diagrams gain the heavier lines without being rewritten.
+ */
+export const EDGE_SCALE = 1.4;
 /** The prototype's canvas is a 1240 × 800 sheet; content may spill past it. */
 export const SHEET_W = 1240;
 export const SHEET_H = 800;
@@ -68,6 +76,9 @@ export interface SceneEdge {
 	showLabel: boolean;
 	style: 'solid' | 'dashed' | 'dotted';
 	dir: 'forward' | 'back' | 'both' | 'none';
+	/** The weight as the document has it: what the inspector's Thin, Medium and Thick compare against. */
+	weight: number;
+	/** The stroke as drawn: the weight times EDGE_SCALE. */
 	width: number;
 	route: 'curved' | 'straight' | 'angled' | null;
 	fromA: Anchor | null;
@@ -286,7 +297,8 @@ function edge(e: DocEdge, i: number): SceneEdge {
 		showLabel: e.showLabel !== false,
 		style: line === 'dashed' || line === 'dotted' ? line : 'solid',
 		dir: e.direction && ['forward', 'back', 'both', 'none'].includes(e.direction) ? e.direction : 'forward',
-		width: num(e.width, 1.4),
+		weight: num(e.width, EDGE_WEIGHT),
+		width: num(e.width, EDGE_WEIGHT) * EDGE_SCALE,
 		route: e.route && ['curved', 'straight', 'angled'].includes(e.route) ? e.route : null,
 		fromA: parseAnchor(e.anchors?.from),
 		toA: parseAnchor(e.anchors?.to)

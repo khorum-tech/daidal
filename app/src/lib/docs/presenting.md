@@ -8,7 +8,7 @@ order: 8
 
 ## Presenting
 
-**Present** (in the strip above the canvas, or the diagram's sheet) shows the canvas alone, full screen where the browser allows, read-only. Hover a node (tap, on a phone) for its notes, tags and connections, and switch views from the bar. **Icon-only cards** draws each node as its icon and name. Escape ends it.
+**Present** (press the diagram's name at the top to open its sheet) shows the canvas alone, full screen where the browser allows, read-only. Hover a node (tap, on a phone) for its notes, tags and connections, and switch views from the bar. **Icon-only cards** draws each node as its icon and name. Escape ends it.
 
 ![Presenting: the canvas alone, with a node's card showing its notes, tags and connections](/app/docs-images/presenting.png)
 
