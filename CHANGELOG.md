@@ -5,6 +5,8 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- An in-app docs page, **C4 and drill-down**: the four levels, linking them, moving between them, and what the
+  header shows.
 - `@khorum/daidal-core` can be published to npm: `npm run build:core` builds a single ES module browser bundle
   with its types, and the hand-run `publish-core` workflow publishes it as an npm trusted publisher, with no npm
   token (a dry run unless ticked).
