@@ -6,10 +6,10 @@
 	import NodeTip from '#lib/components/NodeTip.svelte';
 	import TourCallout from '#lib/components/TourCallout.svelte';
 	import { saveTour, TOUR, tourCounts, tourOf, type TourCounts, type TourState } from '#lib/tour.ts';
-	import { exportName, toSvg } from '@khorum-oss/daidal-core/render';
+	import { exportName, toSvg } from '@khorum/daidal-core/render';
 	import { download, svgToPng } from '#lib/download.ts';
 	import ConfigPanel from '#lib/components/ConfigPanel.svelte';
-	import type { ConfigLang } from '@khorum-oss/daidal-core/config';
+	import type { ConfigLang } from '@khorum/daidal-core/config';
 	import { createApi } from '#lib/api.ts';
 	import AppHeader from '#lib/components/AppHeader.svelte';
 	import DiagramCanvas from '#lib/components/DiagramCanvas.svelte';
@@ -67,13 +67,13 @@
 		type EdgeChange,
 		type NodeChange,
 		type Picked
-	} from '@khorum-oss/daidal-core/edit';
+	} from '@khorum/daidal-core/edit';
 	import { getClip, putClip } from '#lib/clipboard.ts';
 	import MultiInspector from '#lib/components/MultiInspector.svelte';
 	import { History } from '#lib/history.svelte.ts';
-	import { iconScene, tagsOn, toScene, type Anchor, type ZoomLink } from '@khorum-oss/daidal-core/model';
-	import { catalogue } from '@khorum-oss/daidal-core/icons';
-	import { kindOf, type Kind, type KindId } from '@khorum-oss/daidal-core/kinds';
+	import { iconScene, tagsOn, toScene, type Anchor, type ZoomLink } from '@khorum/daidal-core/model';
+	import { catalogue } from '@khorum/daidal-core/icons';
+	import { kindOf, type Kind, type KindId } from '@khorum/daidal-core/kinds';
 	import { childDoc, parentDoc } from '#lib/diagram/drill.ts';
 	import { appearance } from '#lib/appearance.svelte.ts';
 	import { distinguishable } from '#lib/diagram/colour.ts';

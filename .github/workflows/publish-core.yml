@@ -1,6 +1,6 @@
 name: publish-core
 
-# Publishes the shared core package (@khorum-oss/daidal-core, see scripts/build-core.mjs for the name) to npm, so
+# Publishes the shared core package (@khorum/daidal-core, see scripts/build-core.mjs for the name) to npm, so
 # integrations and npm CDNs (jsDelivr, unpkg, esm.sh) can load its browser bundle.
 #
 # Run by hand only, from main: Actions > publish-core > Run workflow. It is a dry run unless "Publish" is ticked: the

@@ -2,7 +2,7 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import FollowPanel from './FollowPanel.svelte';
 	import { pending } from '../diagram/review';
-	import { SAMPLE } from '@khorum-oss/daidal-core/fixtures';
+	import { SAMPLE } from '@khorum/daidal-core/fixtures';
 	import type { DaidalDoc } from '../types';
 
 	const before: DaidalDoc = { ...SAMPLE, nodes: SAMPLE.nodes!.slice(0, 3), edges: SAMPLE.edges!.slice(0, 1) };

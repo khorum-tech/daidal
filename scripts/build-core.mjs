@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// Builds the publishable @khorum-oss/daidal-core into packages/core/dist: one ES module bundle with no dependencies, its type declarations, the README and licence, and a
+// Builds the publishable @khorum/daidal-core into packages/core/dist: one ES module bundle with no dependencies, its type declarations, the README and licence, and a
 // package.json made for npm. `npm publish packages/core/dist` then publishes exactly that folder; the source
 // package.json stays private and keeps exporting TypeScript to the app and the Worker.
 //
 // The bundle is what npm CDNs serve to pages that can only load scripts from them (Claude's inline visuals among
 // them):
-//   https://cdn.jsdelivr.net/npm/@khorum-oss/daidal-core@<version>/daidal-core.js
-//   https://unpkg.com/@khorum-oss/daidal-core@<version>/daidal-core.js
-//   https://esm.sh/@khorum-oss/daidal-core@<version>
+//   https://cdn.jsdelivr.net/npm/@khorum/daidal-core@<version>/daidal-core.js
+//   https://unpkg.com/@khorum/daidal-core@<version>/daidal-core.js
+//   https://esm.sh/@khorum/daidal-core@<version>
 import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -15,8 +15,8 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
-/** The name it publishes under. The scope is still open: change it here, and only here, to publish as another. */
-export const PACKAGE_NAME = "@khorum-oss/daidal-core";
+/** The name it publishes under. Change it here, and only here, to publish as another. */
+export const PACKAGE_NAME = "@khorum/daidal-core";
 /** The licence it publishes under (an SPDX id). The full text, LICENSE.md at the repository root, ships with it. */
 export const LICENSE = "FSL-1.1-ALv2";
 export const BUNDLE = "daidal-core.js";
@@ -71,9 +71,9 @@ export async function buildCore(target = DIST) {
     description: source.description,
     license: LICENSE,
     author: "Violabs Software LLC",
-    homepage: "https://github.com/khorum-oss/daidal/tree/main/packages/core#readme",
-    repository: { type: "git", url: "git+https://github.com/khorum-oss/daidal.git", directory: "packages/core" },
-    bugs: "https://github.com/khorum-oss/daidal/issues",
+    homepage: "https://github.com/khorum-tech/daidal/tree/main/packages/core#readme",
+    repository: { type: "git", url: "git+https://github.com/khorum-tech/daidal.git", directory: "packages/core" },
+    bugs: "https://github.com/khorum-tech/daidal/issues",
     keywords: ["daidal", "diagram", "architecture", "svg", "c4"],
     type: "module",
     sideEffects: false,

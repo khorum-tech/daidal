@@ -1,8 +1,8 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import TagPanel from './TagPanel.svelte';
-	import { tagsOn, toScene } from '@khorum-oss/daidal-core/model';
-	import { SAMPLE } from '@khorum-oss/daidal-core/fixtures';
+	import { tagsOn, toScene } from '@khorum/daidal-core/model';
+	import { SAMPLE } from '@khorum/daidal-core/fixtures';
 
 	const scene = toScene(SAMPLE);
 

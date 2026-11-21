@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { colorGap, distinguishable, filterMatrix, simColor } from './colour';
-import { MORE_TAG_COLORS, TAG_COLORS } from '@khorum-oss/daidal-core/edit';
+import { MORE_TAG_COLORS, TAG_COLORS } from '@khorum/daidal-core/edit';
 
 describe('simColor', () => {
 	it('leaves a colour alone in full colour', () => {

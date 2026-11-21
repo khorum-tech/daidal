@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { SceneNode, SceneTag } from '@khorum-oss/daidal-core/model';
+	import type { SceneNode, SceneTag } from '@khorum/daidal-core/model';
 	import Icon from './Icon.svelte';
 
 	/**

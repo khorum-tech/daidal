@@ -32,7 +32,7 @@ describe('the type picker', () => {
 
 describe('the type picker and diagram kinds', () => {
 	it("offers the kind's common types first", async () => {
-		const { kindOf } = await import('@khorum-oss/daidal-core/kinds');
+		const { kindOf } = await import('@khorum/daidal-core/kinds');
 		await render(TypePicker, { kind: kindOf('c4-code'), onpick: () => {} });
 		await expect.element(page.getByText('Common in C4 Code')).toBeVisible();
 		const first = page.getByRole('button').elements().slice(0, 5).map(b => b.textContent?.trim());

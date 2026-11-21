@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { SceneTag } from '@khorum-oss/daidal-core/model';
+	import type { SceneTag } from '@khorum/daidal-core/model';
 	import { distinguishable, type Condition } from '../diagram/colour';
-	import { NEW_TAG_GROUP, PALETTES, paletteById, type PaletteId } from '@khorum-oss/daidal-core/edit';
+	import { NEW_TAG_GROUP, PALETTES, paletteById, type PaletteId } from '@khorum/daidal-core/edit';
 
 	/**
 	 * The prototype's "Manage tags": every tag on a row (colour, name, group, how many nodes carry it, delete), and a
