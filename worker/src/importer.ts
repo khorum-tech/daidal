@@ -1,7 +1,7 @@
 import { ensureUserStatements, personalWorkspaceId } from "./db";
 import { decidedText, docName, docText, nameOf } from "./docs";
 import { HttpError, isPlainObject, json, readJson } from "./http";
-import { slug } from "@khorum-oss/daidal-core/model";
+import { slug } from "@khorum/daidal-core/model";
 import { summaryText } from "./summary";
 import { customTypeOf, MAX_TYPES } from "./types";
 import { checkDiagramRoom, checkExportSize, checkWorkspaceRoom, historyFits } from "./limits";

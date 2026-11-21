@@ -1,0 +1,68 @@
+name: publish-core
+
+# Publishes the shared core package (@khorum/daidal-core, see scripts/build-core.mjs for the name) to npm, so
+# integrations and npm CDNs (jsDelivr, unpkg, esm.sh) can load its browser bundle.
+#
+# Run by hand only, from main: Actions > publish-core > Run workflow. It is a dry run unless "Publish" is ticked: the
+# dry run builds, tests and packs the package and shows what would go to npm, and publishes nothing. The version is
+# packages/core/package.json's; a version npm already has is refused. Nothing here deploys: prod deploys from main
+# (deploy.yml) whether or not the package is published.
+#
+# No npm token, by design. It signs in to npm as a trusted publisher: GitHub mints an OIDC token for this run, and npm
+# lets it publish because the package names this repository and this workflow file (publish-core.yml) as its trusted
+# publisher. npm only attaches a trusted publisher to a package it already has, so the very first record comes from a
+# laptop, once: scripts/bootstrap-core.sh, described under Publishing in packages/core/README.md.
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to npm (untick for a dry run)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency: publish-core
+    permissions:
+      contents: read
+      # The OIDC token npm trusted publishing signs in with, and provenance: the package says which run built it.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      # Node 22 ships npm 10, and trusted publishing wants npm 11.5.1 or later. Pinned exactly and installed without
+      # lifecycle scripts, since this job publishes. Re-resolve with `npm view npm versions` to update.
+      - name: Use an npm that can publish with OIDC
+        run: npm install -g --ignore-scripts npm@11.17.0
+      - run: npm ci --ignore-scripts
+      - run: npm run test:core
+      - run: npm run build:core
+      - run: node --test scripts/build-core.test.mjs
+      - id: package
+        name: Is this version new to npm?
+        run: |
+          name="$(node -p "require('./packages/core/dist/package.json').name")"
+          version="$(node -p "require('./packages/core/dist/package.json').version")"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if npm view "$name@$version" version > /dev/null 2>&1; then
+            echo "::error::npm already has $name@$version: move packages/core's version on first"
+            exit 1
+          fi
+      - name: What would be published
+        run: npm pack --dry-run ./packages/core/dist
+      - if: inputs.publish
+        name: Publish ${{ steps.package.outputs.name }}@${{ steps.package.outputs.version }}
+        # Authenticates with the OIDC token `id-token: write` above lets it mint; there is no npm secret to set.
+        run: npm publish ./packages/core/dist --provenance --access public

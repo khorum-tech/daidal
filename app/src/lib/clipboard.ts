@@ -1,4 +1,4 @@
-import type { Clip } from '@khorum-oss/daidal-core/edit';
+import type { Clip } from '@khorum/daidal-core/edit';
 
 /**
  * What ⌘C or ⌘X last copied, kept for this tab (sessionStorage) so it pastes into another diagram, or after a

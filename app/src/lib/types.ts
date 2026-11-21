@@ -1,6 +1,6 @@
 // Shapes the Worker's API returns (worker/src/*.ts). Field names follow the JSON, not the tables. The document
 // itself and the shapes shared with it live in the core package and are re-exported here.
-import type { CardSummary, CustomType, DaidalDoc } from '@khorum-oss/daidal-core/types';
+import type { CardSummary, CustomType, DaidalDoc } from '@khorum/daidal-core/types';
 
 export type {
 	CardSummary,
@@ -11,7 +11,7 @@ export type {
 	DocNode,
 	DocTag,
 	NodeLink
-} from '@khorum-oss/daidal-core/types';
+} from '@khorum/daidal-core/types';
 
 export interface Me {
 	email: string;

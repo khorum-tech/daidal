@@ -1,0 +1,7 @@
+{
+  // Type declarations for the published package (scripts/build-core.mjs): the source without its tests.
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": false, "declaration": true, "emitDeclarationOnly": true, "rootDir": "src" },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import TagManager from './TagManager.svelte';
-import { toScene } from '@khorum-oss/daidal-core/model';
-import { SAMPLE } from '@khorum-oss/daidal-core/fixtures';
+import { toScene } from '@khorum/daidal-core/model';
+import { SAMPLE } from '@khorum/daidal-core/fixtures';
 
 const scene = toScene(SAMPLE);
 

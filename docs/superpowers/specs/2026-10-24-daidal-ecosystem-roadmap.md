@@ -122,7 +122,7 @@ Then make `app/` and `worker/` depend on the package. The Svelte canvas keeps
 its HTML nodes for interaction but takes scene, geometry and catalogue from
 core, so the picture cannot drift between editor and renderer.
 
-Publish as `@khorum-oss/daidal-core` (or `daidal-core`), ESM, no dependencies
+Publish as `@khorum/daidal-core` (or `daidal-core`), ESM, no dependencies
 beyond `yaml`.
 
 ### Step 2: render endpoints on the Worker

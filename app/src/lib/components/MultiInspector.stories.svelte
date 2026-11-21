@@ -1,8 +1,8 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import MultiInspector from './MultiInspector.svelte';
-	import { toScene } from '@khorum-oss/daidal-core/model';
-	import { SAMPLE } from '@khorum-oss/daidal-core/fixtures';
+	import { toScene } from '@khorum/daidal-core/model';
+	import { SAMPLE } from '@khorum/daidal-core/fixtures';
 
 	const scene = toScene(SAMPLE);
 

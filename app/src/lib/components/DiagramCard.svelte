@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { kindOf } from '@khorum-oss/daidal-core/kinds';
+	import { kindOf } from '@khorum/daidal-core/kinds';
 	import type { ListedDiagram } from '../types';
-	import { SHEET_H, SHEET_W } from '@khorum-oss/daidal-core/model';
+	import { SHEET_H, SHEET_W } from '@khorum/daidal-core/model';
 	import { ago } from '../time';
 	import Icon from './Icon.svelte';
 
