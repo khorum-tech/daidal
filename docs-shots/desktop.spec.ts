@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { c4Backup } from "../stage/diagrams";
 import { importStageData } from "../e2e/support";
 import { shot } from "./support";
 
@@ -70,4 +71,24 @@ test("the editor and its panels", async ({ page, request }) => {
   const sheet = page.getByRole("dialog", { name: "Platform team" });
   await sheet.getByRole("region", { name: "Types" }).scrollIntoViewIfNeeded();
   await shot(page, "workspace-sheet", sheet);
+});
+
+test("a linked C4 set", async ({ page, request }) => {
+  const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+  expect(res.status()).toBe(201);
+  const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+  const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+  const id = (name: string) => list.find(d => d.name === name)!.id;
+
+  // A container, with what it zooms into and the level it could make above.
+  await page.goto(`/app/d/${id("ledger-containers")}`);
+  await page.getByRole("button", { name: "Service: Postings Service" }).click();
+  await expect(page.getByRole("region", { name: "Selected node" }).getByRole("heading", { name: "Zoom in" })).toBeVisible();
+  await shot(page, "c4-zoom");
+
+  // Two levels down: the header says which level this is, and shows the way back up.
+  await page.getByRole("button", { name: "Service: Postings Service" }).dblclick();
+  await expect(page).toHaveURL(new RegExp(`/app/d/${id("postings-components")}`));
+  await expect(page.getByTestId("kind-badge").last()).toHaveText("C4 Component");
+  await shot(page, "c4-levels");
 });
