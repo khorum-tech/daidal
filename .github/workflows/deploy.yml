@@ -106,7 +106,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
 
-  # Stage: one shared site, https://skope-stage.khorum-oss.org.
+  # Stage: one shared site, on the hostnames in scripts/stage-config.mjs.
   #
   # The line: the oldest open PR from this repository, opened by a code owner (.github/CODEOWNERS on main), that
   # isn't a draft has stage: its pushes re-deploy it and reset its data to the invented stage data
@@ -324,7 +324,7 @@ jobs:
                 description: "Stage held by hand", payload: {branch: $branch, by: $by}}' \
               | gh api "repos/$REPO/deployments" --input - --jq .id)"
             gh api "repos/$REPO/deployments/$id/statuses" -f state=success -f description="Held on $BRANCH" \
-              -f environment_url="https://skope-stage.khorum-oss.org" > /dev/null
+              -f environment_url="https://daidal-stage.khorum.org" > /dev/null
             echo "::notice title=Stage held::Stage stays on $BRANCH until a code owner runs this workflow with release ticked."
           fi
       # One comment per PR, kept up to date: live on stage, or why not.
@@ -347,7 +347,7 @@ jobs:
           THIS_PR: ${{ github.event.pull_request.number }}
         run: |
           marker='<!-- skope-stage -->'
-          live="https://skope-stage.khorum-oss.org (the app, with the stage data: https://skope-stage.khorum-oss.org/app/)"
+          live="https://daidal-stage.khorum.org (the app, with the stage data: https://daidal-stage.khorum.org/app/)"
           if [ "$DEPLOYED" = "true" ]; then
             # A branch put on stage by hand that has no open PR: nothing to tell.
             [ -n "$LIVE_PR" ] || exit 0
