@@ -3,8 +3,8 @@
 // it; what it connects to comes along outside that container, each with a ref to its own node, so the new diagram
 // starts with the same neighbours and connections the level above shows.
 import type { DocEdge, DocNode, DaidalDoc } from '../types';
-import { kindOf, type KindId } from '@khorum-oss/daidal-core/kinds';
-import { NODE_H, NODE_W } from '@khorum-oss/daidal-core/model';
+import { kindOf, type KindId } from '@khorum/daidal-core/kinds';
+import { NODE_H, NODE_W } from '@khorum/daidal-core/model';
 
 /** The scope container's id in a child diagram. */
 export const SCOPE = 'scope';

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import EdgeInspector from './EdgeInspector.svelte';
-import type { EdgeChange } from '@khorum-oss/daidal-core/edit';
-import { toScene } from '@khorum-oss/daidal-core/model';
+import type { EdgeChange } from '@khorum/daidal-core/edit';
+import { toScene } from '@khorum/daidal-core/model';
 import type { DaidalDoc } from '../types';
 
 const doc: DaidalDoc = {

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { SceneEdge, SceneNode, SceneTag } from '@khorum-oss/daidal-core/model';
-	import type { EdgeChange } from '@khorum-oss/daidal-core/edit';
+	import type { SceneEdge, SceneNode, SceneTag } from '@khorum/daidal-core/model';
+	import type { EdgeChange } from '@khorum/daidal-core/edit';
 	import Icon from './Icon.svelte';
 	import TypePicker from './TypePicker.svelte';
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ICON_PATHS } from '@khorum-oss/daidal-core/icons';
+	import { ICON_PATHS } from '@khorum/daidal-core/icons';
 
 	/** A Phosphor icon by name (see packages/core/src/icons.ts); an unknown name draws the cube, as the prototype does. */
 	let { name, size = 16, label }: { name: string; size?: number; label?: string } = $props();
