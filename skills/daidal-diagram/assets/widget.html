@@ -1,0 +1,67 @@
+<div class="daidal" data-view="" data-label="A Daidal diagram">
+  <div class="daidal-canvas"></div>
+  <p class="daidal-msg" hidden></p>
+  <pre class="daidal-src" hidden></pre>
+</div>
+<script type="text/plain" id="daidal-config">
+nodes:
+  - { id: web, name: Web app, type: web-app, x: 60, y: 80 }
+  - { id: db, name: Orders, type: database, x: 340, y: 80 }
+edges:
+  - { from: web, to: db, label: reads }
+</script>
+<style>
+  .daidal { margin: 0; }
+  .daidal-canvas { border-radius: 12px; overflow: hidden; line-height: 0; }
+  .daidal-canvas svg { display: block; width: 100%; height: auto; }
+  .daidal-msg { color: var(--text-secondary); font-size: 14px; margin: 8px 0; }
+  .daidal-src { background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 12px; overflow-x: auto; padding: 12px; margin: 0; }
+</style>
+<script type="module">
+  // Daidal's core renderer, pinned. The skill's tests keep this in step with packages/core's version.
+  const PACKAGE = '@khorum/daidal-core';
+  const VERSION = '0.1.0';
+  const SOURCES = [
+    `https://cdn.jsdelivr.net/npm/${PACKAGE}@${VERSION}/daidal-core.js`,
+    `https://unpkg.com/${PACKAGE}@${VERSION}/daidal-core.js`
+  ];
+
+  const root = document.querySelector('.daidal');
+  const canvas = root.querySelector('.daidal-canvas');
+  const msg = root.querySelector('.daidal-msg');
+  const pre = root.querySelector('.daidal-src');
+  const config = document.getElementById('daidal-config').textContent.replace(/^\n/, '');
+
+  function fail(text) {
+    msg.textContent = text;
+    msg.hidden = false;
+    pre.textContent = config;
+    pre.hidden = false;
+  }
+
+  // One CDN after the other, the next only when the one before failed; null when none can serve the package.
+  function load() {
+    return SOURCES.reduce((tried, url) => tried.catch(() => import(url)), Promise.reject(new Error('no CDN tried yet'))).catch(() => null);
+  }
+
+  const core = await load();
+  if (!core) {
+    fail(`Couldn't load Daidal's renderer (${PACKAGE}@${VERSION}) from the CDN, so here is the config as text.`);
+  } else {
+    try {
+      const view = root.dataset.view || undefined;
+      const { svg, width } = core.renderConfig(config, { view });
+      canvas.innerHTML = svg;
+      const el = canvas.querySelector('svg');
+      el.removeAttribute('width');
+      el.removeAttribute('height');
+      // The drawing itself is the image, so the label goes on the <svg>, where every screen reader looks for it.
+      el.setAttribute('role', 'img');
+      el.setAttribute('aria-label', root.dataset.label || 'A Daidal diagram');
+      canvas.style.maxWidth = `${width}px`;
+    } catch (e) {
+      const where = typeof e?.line === 'number' ? ` (line ${e.line})` : '';
+      fail(`Daidal couldn't draw this config${where}: ${e?.message ?? e}`);
+    }
+  }
+</script>

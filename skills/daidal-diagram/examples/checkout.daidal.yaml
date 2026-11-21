@@ -1,0 +1,26 @@
+# Checkout: a freeform Daidal diagram with a container, tags and a view
+diagram:
+  kind: freeform
+tags:
+  core: { label: Core, color: "#9184d9" }
+  data: { label: Data, color: "#4fb3a9" }
+  async: { label: Async, color: "#d9a35b" }
+views:
+  - { name: Data, tags: [data] }
+nodes:
+  - { id: shopper, name: Shopper, type: actor, x: 60, y: 80 }
+  - { id: web, name: Storefront, type: web-app, subtitle: SvelteKit, tags: [core], x: 340, y: 80 }
+  - { id: api, name: Orders API, type: service, subtitle: Node, tags: [core], x: 620, y: 80 }
+  - { id: db, name: Orders, type: database, subtitle: Postgres, tags: [data], x: 900, y: 80 }
+  - { id: pay, name: Payments, type: payment-provider, x: 620, y: 260 }
+  - { id: q, name: Order events, type: queue, tags: [async], x: 900, y: 260 }
+  - { id: ship, name: Fulfilment, type: worker, tags: [async], x: 1180, y: 260 }
+boundaries:
+  - { id: cloud, label: Our cloud, x: 310, y: 50, w: 1090, h: 348 }
+edges:
+  - { from: shopper, to: web, label: browses }
+  - { from: web, to: api, label: places order }
+  - { from: api, to: db, label: writes }
+  - { from: api, to: pay, label: charges }
+  - { from: api, to: q, label: publishes, line: dashed }
+  - { from: q, to: ship, label: consumes, line: dashed }
