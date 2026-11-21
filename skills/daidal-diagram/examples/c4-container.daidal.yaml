@@ -1,0 +1,16 @@
+# Internet banking: a C4 container diagram
+diagram:
+  kind: c4-container
+nodes:
+  - { id: customer, name: Customer, type: actor, notes: Holds an account and banks online., x: 60, y: 80 }
+  - { id: spa, name: Web app, type: web-app, subtitle: React, notes: Lets customers see balances and pay., x: 340, y: 80 }
+  - { id: api, name: API, type: service, subtitle: Kotlin, notes: Serves the web app over JSON., x: 620, y: 80 }
+  - { id: db, name: Database, type: database, subtitle: Postgres, notes: Accounts and payments., x: 620, y: 280 }
+  - { id: core, name: Core banking, type: external, notes: "The bank's system of record.", x: 900, y: 80 }
+boundaries:
+  - { id: system, label: Internet banking, x: 310, y: 50, w: 530, h: 400 }
+edges:
+  - { from: customer, to: spa, label: uses }
+  - { from: spa, to: api, label: calls }
+  - { from: api, to: db, label: reads and writes }
+  - { from: api, to: core, label: pays via }
