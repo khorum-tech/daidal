@@ -1,5 +1,6 @@
 // Types for scripts/stage-config.mjs, so the Worker tests can import it under `strict`.
 export declare const STAGE_NAME: string;
+export declare const STAGE_HOSTS: string[];
 export declare const STAGE_HOST: string;
 export declare const KNOWN_KEYS: Set<string>;
 export declare function parseJsonc(text: string): Record<string, any>;
