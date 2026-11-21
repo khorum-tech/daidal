@@ -1,4 +1,4 @@
-import { isColor } from "@khorum-oss/daidal-core/model";
+import { isColor } from "@khorum/daidal-core/model";
 import { HttpError, isPlainObject } from "./http";
 
 /**

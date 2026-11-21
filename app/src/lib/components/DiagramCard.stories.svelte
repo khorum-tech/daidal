@@ -2,8 +2,8 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import type { ComponentProps } from 'svelte';
 	import DiagramCard from './DiagramCard.svelte';
-	import { SAMPLE } from '@khorum-oss/daidal-core/fixtures';
-	import { cardSummary } from '@khorum-oss/daidal-core/summary';
+	import { SAMPLE } from '@khorum/daidal-core/fixtures';
+	import { cardSummary } from '@khorum/daidal-core/summary';
 	import type { ListedDiagram } from '../types';
 
 	const NOW = Date.parse('2026-10-24T12:00:00Z');

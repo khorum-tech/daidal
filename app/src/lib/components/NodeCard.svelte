@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { c4Desc, c4Kind, c4Name, noteLines, type SceneNode, type SceneTag } from '@khorum-oss/daidal-core/model';
-	import { FLAGS } from '@khorum-oss/daidal-core/icons';
+	import { c4Desc, c4Kind, c4Name, noteLines, type SceneNode, type SceneTag } from '@khorum/daidal-core/model';
+	import { FLAGS } from '@khorum/daidal-core/icons';
 	import Icon from './Icon.svelte';
 
 	/** One node on the canvas, read-only. Mirrors the prototype's card and text nodes (web/index.html). */

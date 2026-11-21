@@ -1,6 +1,6 @@
 import type { DocBoundary, DocEdge, DocNode, DocTag, DaidalDoc, Snapshot } from '../types';
-import { removeBoundary, removeNode } from '@khorum-oss/daidal-core/edit';
-import { toScene } from '@khorum-oss/daidal-core/model';
+import { removeBoundary, removeNode } from '@khorum/daidal-core/edit';
+import { toScene } from '@khorum/daidal-core/model';
 
 /**
  * Reviewing what a lead diagram changed, for a follower: the prototype's diffSnaps and applyOne (web/index.html)

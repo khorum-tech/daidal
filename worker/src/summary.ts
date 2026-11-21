@@ -1,5 +1,5 @@
-import { cardSummary } from "@khorum-oss/daidal-core/summary";
-import type { DaidalDoc } from "@khorum-oss/daidal-core/types";
+import { cardSummary } from "@khorum/daidal-core/summary";
+import type { DaidalDoc } from "@khorum/daidal-core/types";
 
 const EMPTY = { kind: "", nodes: 0, edges: 0, tags: [], names: [], boxes: [], frames: [], zooms: [] };
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { STAGE_HOST, STAGE_NAME, parseJsonc, stageConfig, stageConfigText, stageSecrets } from "../../scripts/stage-config.mjs";
+import { STAGE_HOST, STAGE_HOSTS, STAGE_NAME, parseJsonc, stageConfig, stageConfigText, stageSecrets } from "../../scripts/stage-config.mjs";
 
 // The shape of wrangler.jsonc, comments and all.
 const PROD = `{
@@ -39,7 +39,10 @@ describe("stage-config", () => {
     expect(stageConfig(prod, STAGE_ENV)).toEqual({
       ...prod,
       name: STAGE_NAME,
-      routes: [{ pattern: STAGE_HOST, custom_domain: true }],
+      routes: [
+        { pattern: "daidal-stage.khorum.org", custom_domain: true },
+        { pattern: "skope-stage.khorum-oss.org", custom_domain: true },
+      ],
       d1_databases: [{ binding: "DB", database_name: STAGE_NAME, database_id: "stage-db-id", migrations_dir: "migrations" }],
       // The AUD is not a variable (wrangler prints those in the deploy log): it goes up as a secret.
       vars: { ACCESS_TEAM_DOMAIN: "https://khorum.cloudflareaccess.com" },
@@ -48,7 +51,8 @@ describe("stage-config", () => {
     });
     expect(stageSecrets({ STAGE_ACCESS_AUD: " stage-aud " })).toEqual({ ACCESS_AUD: "stage-aud" });
     expect(JSON.stringify(stageConfig(prod, STAGE_ENV))).not.toContain("stage-aud");
-    expect(STAGE_HOST).toBe("skope-stage.khorum-oss.org");
+    expect(STAGE_HOST).toBe("daidal-stage.khorum.org");
+    expect(STAGE_HOSTS).toEqual(["daidal-stage.khorum.org", "skope-stage.khorum-oss.org"]);
   });
 
   it("never carries a prod name, hostname, database or AUD over, and keeps workers.dev and previews off", () => {

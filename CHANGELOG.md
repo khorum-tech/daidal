@@ -5,7 +5,7 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
-- `@khorum-oss/daidal-core` can be published to npm: `npm run build:core` builds a single ES module browser bundle
+- `@khorum/daidal-core` can be published to npm: `npm run build:core` builds a single ES module browser bundle
   with its types, and the hand-run `publish-core` workflow publishes it (a dry run unless ticked).
 - A Claude skill, `skills/daidal-diagram`, that draws a Daidal config inline in Claude with the core bundle from an
   npm CDN, and shows a diagram from your workspace through the Daidal connector. It works once the bundle is published.
@@ -16,7 +16,7 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 - A product tour and a C4 walk-through on the README, recorded from scripts (`docs/demo.md`).
 - Versioned releases: `npm run release` moves the version on and files these notes; merging that tags the release
   on GitHub (`docs/releasing.md`).
-- A shared core package (`packages/core`, `@khorum-oss/daidal-core`): the document types, the scene model, the SVG
+- A shared core package (`packages/core`, `@khorum/daidal-core`): the document types, the scene model, the SVG
   renderer, config reading and document edits, with no DOM and no dependencies. The editor and the Worker both use
   it, so later integrations draw the same picture.
 

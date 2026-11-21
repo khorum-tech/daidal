@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import type { Settings } from '../appearance.svelte';
 	import { CONDITIONS, distinguishable, simColor } from '../diagram/colour';
-	import { PALETTES } from '@khorum-oss/daidal-core/edit';
+	import { PALETTES } from '@khorum/daidal-core/edit';
 	import type { Me } from '../types';
 
 	/**

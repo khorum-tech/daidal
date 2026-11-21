@@ -58,7 +58,7 @@ describe('a page', () => {
 
 describe('the config page’s example', () => {
 	it('is a config Daidal reads', async () => {
-		const { readConfig } = await import('@khorum-oss/daidal-core/config');
+		const { readConfig } = await import('@khorum/daidal-core/config');
 		const yaml = /```yaml\n([\s\S]*?)```/.exec(pageOf('config')!.body)![1];
 		const { doc } = readConfig(yaml, { version: 1 }, 'replace');
 		expect(doc.nodes!.map(n => n.id)).toEqual(['web', 'api', 'db']);

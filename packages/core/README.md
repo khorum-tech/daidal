@@ -1,4 +1,4 @@
-# @khorum-oss/daidal-core
+# @khorum/daidal-core
 
 The part of Daidal every client shares: the `.daidal.json` document types, the scene a document turns into
 (`model`), edge routing (`geometry`), the node type and icon catalogue (`icons`, `kinds`), the SVG renderer
@@ -9,9 +9,9 @@ later integrations (inline render in Claude, editor plugins, Confluence, a stati
 Import a module by its path:
 
 ```ts
-import { toScene } from '@khorum-oss/daidal-core/model';
-import { toSvg } from '@khorum-oss/daidal-core/render';
-import type { DaidalDoc } from '@khorum-oss/daidal-core/types';
+import { toScene } from '@khorum/daidal-core/model';
+import { toSvg } from '@khorum/daidal-core/render';
+import type { DaidalDoc } from '@khorum/daidal-core/types';
 ```
 
 Inside this repository the package ships its TypeScript source; the app's Vite build and the Worker's Wrangler
@@ -25,7 +25,7 @@ licence (FSL-1.1-ALv2). It loads from an npm CDN, so a page that can only fetch 
 
 ```html
 <script type="module">
-  import { renderConfig } from 'https://cdn.jsdelivr.net/npm/@khorum-oss/daidal-core@0.1.0/daidal-core.js';
+  import { renderConfig } from 'https://cdn.jsdelivr.net/npm/@khorum/daidal-core@0.1.0/daidal-core.js';
   const { svg } = renderConfig(`
 nodes:
   - { id: web, name: Web app, type: service }
