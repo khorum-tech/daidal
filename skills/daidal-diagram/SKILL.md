@@ -26,7 +26,7 @@ or source-available, never open source.
    colon in it: Daidal's YAML reader trips on both (the reference says how).
 3. **Fill in the widget.** Copy [assets/widget.html](assets/widget.html) exactly, then change only three things:
    - the config, between the `<script type="text/plain" id="daidal-config">` tags;
-   - the `aria-label`, to a short description of the diagram;
+   - `data-label`, to a short description of the diagram (screen readers read it out as the picture's name);
    - `data-view`, to a view's name if you want one shown (leave it empty for everything).
 
    Don't change the version, the CDN addresses, the styles or the script. The config must never contain `</`,
