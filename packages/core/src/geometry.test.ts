@@ -63,7 +63,7 @@ describe('edgePath', () => {
 		expect(p.d.startsWith('M25,53 ')).toBe(true);
 	});
 
-	it('dashes, dots and picks the arrowhead from the document's weight, whatever width it draws at', () => {
+	it('dashes, dots and picks the arrowhead from the document weight, whatever width it draws at', () => {
 		expect(edgePath(edge({ style: 'dashed' }), a, b).dash).toBe('5.6 4.5');
 		expect(edgePath(edge({ style: 'dotted', weight: 0.9, width: 1 }), a, b)).toMatchObject({ dash: '0.01 2.4', cap: 'round', markerEnd: 'arrThin' });
 		expect(edgePath(edge({ weight: 2.6, width: 3.64 }), a, b).markerEnd).toBe('arrBold');
