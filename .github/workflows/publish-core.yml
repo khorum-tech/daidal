@@ -8,9 +8,10 @@ name: publish-core
 # packages/core/package.json's; a version npm already has is refused. Nothing here deploys: prod deploys from main
 # (deploy.yml) whether or not the package is published.
 #
-# One-time setup (docs in packages/core/README.md):
-#   1. The npm scope has to exist and belong to you on npmjs.com.
-#   2. An npm granular access token that can publish to that scope, saved as the repository secret NPM_TOKEN.
+# No npm token, by design. It signs in to npm as a trusted publisher: GitHub mints an OIDC token for this run, and npm
+# lets it publish because the package names this repository and this workflow file (publish-core.yml) as its trusted
+# publisher. npm only attaches a trusted publisher to a package it already has, so the very first record comes from a
+# laptop, once: scripts/bootstrap-core.sh, described under Publishing in packages/core/README.md.
 on:
   workflow_dispatch:
     inputs:
@@ -29,7 +30,7 @@ jobs:
     concurrency: publish-core
     permissions:
       contents: read
-      # npm provenance: the published package says which workflow run built it.
+      # The OIDC token npm trusted publishing signs in with, and provenance: the package says which run built it.
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,6 +41,10 @@ jobs:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
+      # Node 22 ships npm 10, and trusted publishing wants npm 11.5.1 or later. Pinned exactly and installed without
+      # lifecycle scripts, since this job publishes. Re-resolve with `npm view npm versions` to update.
+      - name: Use an npm that can publish with OIDC
+        run: npm install -g --ignore-scripts npm@11.17.0
       - run: npm ci --ignore-scripts
       - run: npm run test:core
       - run: npm run build:core
@@ -59,6 +64,5 @@ jobs:
         run: npm pack --dry-run ./packages/core/dist
       - if: inputs.publish
         name: Publish ${{ steps.package.outputs.name }}@${{ steps.package.outputs.version }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Authenticates with the OIDC token `id-token: write` above lets it mint; there is no npm secret to set.
         run: npm publish ./packages/core/dist --provenance --access public
