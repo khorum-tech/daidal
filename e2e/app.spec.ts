@@ -1612,9 +1612,14 @@ test.describe("the app at /app", () => {
     const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
     const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
     await page.goto(`/app/d/${list.find(d => d.name === "balance-code")!.id}`);
+    // At this width the details open as a sheet from the node menu's Edit.
     await page.getByRole("button", { name: "Class: BalanceChecker" }).click();
-    const fn = page.getByRole("region", { name: "Selected node" }).getByRole("group", { name: "Function check" });
+    await page.getByTestId("node-menu").getByRole("button", { name: /^Edit/ }).click();
+    const sheet = page.getByRole("dialog", { name: "Node details" });
+    const fn = sheet.getByRole("group", { name: "Function check" });
+    await fn.scrollIntoViewIfNeeded();
     await expect(fn).toBeVisible();
+    expect(await sheet.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     expect(await fn.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     const box = (await fn.boundingBox())!;
     for (const field of await fn.locator("input, textarea").all()) {
