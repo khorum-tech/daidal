@@ -6,7 +6,7 @@ const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
 
 /** The core files a pull request touched that end up in the published package: not its tests or test fixtures. */
 export function shippedCoreFiles(paths) {
-  return paths.filter(p => p.startsWith("packages/core/src/") && !/\.test\.ts$/.test(p) && !p.endsWith("/fixtures.ts"));
+  return paths.filter(p => p.startsWith("packages/core/src/") && !p.endsWith(".test.ts") && !p.endsWith("/fixtures.ts"));
 }
 
 /** -1, 0 or 1 as [a] is older than, the same as or newer than [b] (both x.y.z). */
@@ -17,7 +17,8 @@ export function compareVersions(a, b) {
     return m.slice(1).map(Number);
   });
   const i = x.findIndex((n, k) => n !== y[k]);
-  return i < 0 ? 0 : x[i] < y[i] ? -1 : 1;
+  if (i < 0) return 0;
+  return x[i] < y[i] ? -1 : 1;
 }
 
 /**

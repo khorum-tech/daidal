@@ -1,5 +1,7 @@
 // On a pull request: fails when it changes what @khorum/daidal-core ships without moving packages/core's version
-// past the one on npm (see core-version-lib.mjs). Usage: node scripts/core-version-check.mjs <base commit>
+// past the one on npm (see core-version-lib.mjs). It compares HEAD with FETCH_HEAD, so fetch the base branch first:
+//   git fetch --depth=1 origin refs/heads/main && node scripts/core-version-check.mjs
+// It takes no arguments, so nothing from outside reaches the commands it runs.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -8,14 +10,10 @@ import { PACKAGE_NAME } from "./build-core.mjs";
 import { coreVersionProblem, shippedCoreFiles } from "./core-version-lib.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const base = process.argv[2];
-if (!base) {
-  console.error("usage: node scripts/core-version-check.mjs <base commit>");
-  process.exit(2);
-}
+const BASE = "FETCH_HEAD";
 
 const run = (cmd, args) => execFileSync(cmd, args, { cwd: root, encoding: "utf8" }).trim();
-const changed = shippedCoreFiles(run("git", ["diff", "--name-only", base, "HEAD", "--", "packages/core/src"]).split("\n").filter(Boolean));
+const changed = shippedCoreFiles(run("git", ["diff", "--name-only", BASE, "HEAD", "--", "packages/core/src"]).split("\n").filter(Boolean));
 const local = JSON.parse(readFileSync(join(root, "packages/core/package.json"), "utf8")).version;
 
 let published = null;

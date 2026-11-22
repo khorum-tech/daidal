@@ -63,7 +63,7 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: |
           git fetch --depth=1 --no-tags origin "refs/heads/$BASE_REF"
-          node scripts/core-version-check.mjs FETCH_HEAD
+          node scripts/core-version-check.mjs
       - run: npm run build
       - run: npm run typecheck
       # One Chromium serves the app's component tests and the end-to-end tests (both pin the same Playwright). Through
