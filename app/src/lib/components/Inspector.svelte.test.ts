@@ -244,7 +244,7 @@ describe("the inspector and a code block's functions", () => {
 		});
 		expect(new Set(changes.map(c => c.group))).toEqual(new Set(['chk:functions']));
 		expect(calls).toEqual([]);
-		await page.getByLabelText('Name').click();
+		await page.getByLabelText('Name', { exact: true }).click();
 		expect(calls).toEqual(['end']);
 	});
 
