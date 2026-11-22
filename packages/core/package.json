@@ -1,6 +1,6 @@
 {
   "name": "@khorum/daidal-core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "The Daidal document, its scene model and the SVG renderer: no DOM, no framework, no dependencies.",
   "license": "FSL-1.1-ALv2",

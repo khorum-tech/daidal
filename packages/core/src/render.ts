@@ -1,6 +1,7 @@
 import { edgePath, type Box } from './geometry';
 import { ICON_PATHS } from './icons';
 import { signatureParts } from './code';
+import { keyLabel, tableRows, tableWidths, TABLE, toKey } from './table';
 import { borderWidth, bounds, C4, CODE, codeSections, fitMono, c4Desc, c4Kind, c4Name, c4Text, c4Top, isHidden, MARKER, NOTE, noteLines, wrapText, type Scene, type SceneNode } from './model';
 
 /**
@@ -206,6 +207,49 @@ function codeMarkup(n: SceneNode, dash: string, icon: string, tag: string | unde
 	return out.join('');
 }
 
+/**
+ * A table block: the type row, the table's name in monospace and its subtitle, then a rule and a row for each column:
+ * its key's badge, its name, and its data type at the right, quieter. Rows past the first get a faint rule above.
+ */
+function tableMarkup(n: SceneNode, dash: string, icon: string, tag: string | undefined): string {
+	const x = n.x + TABLE.padX;
+	const w = n.w - 2 * TABLE.padX;
+	let y = n.y + 1 + TABLE.padY + TABLE.head + TABLE.nameTop;
+	const mono = ` font-family="${MONO}"`;
+	const out = [
+		`<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="10" fill="${C.surface}" stroke="${C.border}"${dash}/>`,
+		`<path transform="translate(${x} ${n.y + 11}) scale(${15 / 256})" d="${icon}" fill="${C.accent}"/>`,
+		`<text x="${n.x + 36}" y="${n.y + 19}" dominant-baseline="middle" font-size="9.5" letter-spacing="0.95" fill="${C.muted}">${esc(fit(n.type.toUpperCase(), n.w - 70, 9.5))}</text>`,
+		tag ? `<circle cx="${n.x + n.w - 16}" cy="${n.y + 18}" r="3.5" fill="${esc(tag)}"/>` : '',
+		`<text x="${x}" y="${y + TABLE.nameLine / 2}" dominant-baseline="middle" xml:space="preserve"${mono} font-size="${TABLE.nameSize}" font-weight="600" fill="${C.text}">${esc(fitMono(n.name, w, TABLE.nameSize))}</text>`
+	];
+	y += TABLE.nameLine;
+	if (n.sub.trim()) {
+		y += TABLE.subTop;
+		out.push(`<text x="${x}" y="${y + TABLE.subLine / 2}" dominant-baseline="middle" font-size="11.5" fill="${C.muted}">${esc(fit(n.sub, w, 11.5))}</text>`);
+		y += TABLE.subLine;
+	}
+	const { shown, more } = tableRows(n.columns);
+	const widths = tableWidths(n.columns, n.w);
+	y += TABLE.ruleTop;
+	const rows = [...shown.map(c => ({ c, more: 0 })), ...(more ? [{ c: null, more }] : [])];
+	rows.forEach((r, i) => {
+		out.push(`<line x1="${n.x}" y1="${y + 0.5}" x2="${n.x + n.w}" y2="${y + 0.5}" stroke="${C.border}"${i ? ' stroke-opacity="0.55"' : ''}/>`);
+		const mid = y + TABLE.row / 2 + 0.5;
+		if (r.c) {
+			const key = keyLabel(r.c.key);
+			if (key) out.push(`<text x="${x}" y="${mid}" dominant-baseline="middle" font-size="${TABLE.keySize}" font-weight="700" letter-spacing="0.4" fill="${toKey(r.c.key) === 'pk' ? C.accent : C.muted}">${key}</text>`);
+			const weight = toKey(r.c.key) === 'pk' ? ' font-weight="600"' : '';
+			out.push(`<text x="${x + widths.key}" y="${mid}" dominant-baseline="middle" xml:space="preserve"${mono} font-size="${TABLE.size}"${weight} fill="${C.text}">${esc(fitMono(r.c.name, widths.name, TABLE.size))}</text>`);
+			if (r.c.type && widths.type) out.push(`<text x="${n.x + n.w - TABLE.padX}" y="${mid}" text-anchor="end" dominant-baseline="middle" xml:space="preserve"${mono} font-size="${TABLE.size}" fill="${C.muted}">${esc(fitMono(r.c.type, widths.type, TABLE.size))}</text>`);
+		} else {
+			out.push(`<text x="${x}" y="${mid}" dominant-baseline="middle" font-size="11" fill="${C.muted}">+${r.more} more</text>`);
+		}
+		y += TABLE.row;
+	});
+	return out.join('');
+}
+
 function nodeMarkup(scene: Scene, shown: (id: string) => number | null): string {
 	const tagColor = new Map(scene.tags.map(t => [t.key, t.color]));
 	return scene.nodes
@@ -220,6 +264,7 @@ function nodeMarkup(scene: Scene, shown: (id: string) => number | null): string 
 			if (n.isNote) return [g(noteMarkup(n, dash))];
 			if (n.c4) return [g(c4Markup(n, dash, n.tags[0] ? tagColor.get(n.tags[0]) : undefined))];
 			const icon = ICON_PATHS[n.icon] ?? ICON_PATHS.cube;
+			if (n.table) return [g(tableMarkup(n, dash, icon, n.tags[0] ? tagColor.get(n.tags[0]) : undefined))];
 			if (n.code) return [g(codeMarkup(n, dash, icon, n.tags[0] ? tagColor.get(n.tags[0]) : undefined))];
 			const dot = n.tags[0] && tagColor.get(n.tags[0]) ? `<circle cx="${n.x + n.w - 16}" cy="${n.y + 18}" r="3.5" fill="${esc(tagColor.get(n.tags[0])!)}"/>` : '';
 			const sub = n.sub.trim() ? `<text x="${n.x + 13}" y="${n.y + 66}" font-size="11.5" fill="${C.muted}">${esc(fit(n.sub, n.w - 26, 11.5))}</text>` : '';

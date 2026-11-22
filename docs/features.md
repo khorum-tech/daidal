@@ -61,6 +61,15 @@ tablet, plus a button that moves functions written as text into rows. `language`
 (`code.ts` `signatureParts`: Java and C# put types first, Kotlin starts with `fun`, Go with `func`, and so on); with
 none they read `check(batch: Batch) → Verdict`.
 
+**Table blocks** (`packages/core/src/table.ts` `TABLE`, `tableRows`, `tableHeight`, `tableWidths`): a node of type
+Table with `columns` draws as a table card: its name in monospace, its subtitle, then a row per column with its key
+badge (PK, FK, UQ), its name and, right-aligned, its data type; past ten columns the last row counts the rest. The
+canvas card (`NodeCard.svelte`) and the export (`render.ts` `tableMarkup`) share the layout. The inspector edits
+columns as cards (`ColumnsEditor.svelte`: name, key, data type with suggestions from `DATA_TYPES`), stacked to fit a
+phone or a tablet. Columns are `{ id, name, type, key }`; configs may give a column as a line (`parseColumn`). The
+editor and the MCP tools give each column an id (`withColumnIds`) that stays through renames, for relationships
+between tables later. A Table with members and no columns stays a code block and offers to convert them.
+
 **Profile** and **Appearance** (in the menu under your name) save your name and title to your account, and set how this
 browser shows Daidal (`src/lib/appearance.svelte.ts`, kept in the browser like the prototype's): a dark, light or
 system theme, each with a choice of colours that keep the logo's purple (`src/lib/styles/palettes.css`); a colour-vision condition, which strikes the colours that collide under it from the tag colour pickers

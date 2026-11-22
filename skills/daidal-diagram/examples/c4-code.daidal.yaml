@@ -1,4 +1,4 @@
-# Ledger postings: a C4 code diagram, with code blocks
+# Ledger postings: a C4 code diagram, with code blocks and a table
 diagram:
   kind: c4-code
 nodes:
@@ -29,5 +29,18 @@ nodes:
     x: 460
     y: 80
     w: 300
+  - id: batches
+    name: posting_batches
+    type: table
+    subtitle: One row per batch
+    columns:
+      - "PK id: uuid"
+      - { name: ledger_id, type: uuid, key: fk }
+      - { name: reference, type: varchar(64), key: unique }
+      - "posted_at: timestamptz"
+    x: 460
+    y: 300
+    w: 300
 edges:
   - { from: checker, to: batch, label: reads }
+  - { from: batch, to: batches, label: stored in }

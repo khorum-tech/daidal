@@ -555,11 +555,29 @@
 					"name": "orders",
 					"type": "table",
 					"subtitle": "One row per order.",
-					"members": [
-						"id: uuid",
-						"customer_id: uuid",
-						"status: text",
-						"placed_at: timestamptz"
+					"columns": [
+						{
+							"id": "c1",
+							"name": "id",
+							"type": "uuid",
+							"key": "pk"
+						},
+						{
+							"id": "c2",
+							"name": "customer_id",
+							"type": "uuid",
+							"key": "fk"
+						},
+						{
+							"id": "c3",
+							"name": "status",
+							"type": "text"
+						},
+						{
+							"id": "c4",
+							"name": "placed_at",
+							"type": "timestamptz"
+						}
 					],
 					"tags": [
 						"external"
@@ -567,7 +585,7 @@
 					"layout": {
 						"x": 700,
 						"y": 100,
-						"w": 200
+						"w": 220
 					}
 				},
 				{

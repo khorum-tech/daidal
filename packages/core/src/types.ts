@@ -45,8 +45,8 @@ export interface DocNode {
 	layout?: { x: number; y: number; w?: number; h?: number };
 	notes?: string;
 	/**
-	 * What it holds or exposes besides its functions, one per line of its card: a class's fields, a file's exports,
-	 * a table's columns. With `functions` or `path`, this makes the card a code block.
+	 * What it holds or exposes besides its functions, one per line of its card: a class's fields, a file's exports.
+	 * With `functions` or `path`, this makes the card a code block. (A table's columns have their own `columns`.)
 	 */
 	members?: string[];
 	/** What it can be asked to do: a class's methods, a module's functions. Each makes a line of its code block. */
@@ -58,6 +58,11 @@ export interface DocNode {
 	language?: string;
 	/** Where it lives: a file path, or a link to the source. */
 	path?: string;
+	/**
+	 * A database table's columns, in order: each with its name, its data type and its key. On a Table, this makes the
+	 * card a table block. Tables don't point at each other yet; see DocColumn.
+	 */
+	columns?: DocColumn[];
 	/** Web pages ({ url }) and diagrams to zoom into ({ diagram, view? }), in one list. */
 	links?: NodeLink[];
 	/** "<diagram id>#<node id>": this node is the same thing as that node in another diagram. */
@@ -76,6 +81,21 @@ export interface DocFunction {
 export interface DocParam {
 	name: string;
 	type?: string;
+}
+
+/** What kind of key a column is: its table's primary key, a foreign key to another table, or unique. */
+export type ColumnKey = 'pk' | 'fk' | 'unique';
+
+/**
+ * One of a table's columns: its name, its data type in the database's own words (uuid, varchar(255), timestamptz…) and
+ * its key, if it is one. Its id stays the same when it is renamed, so a relationship between tables can point at it
+ * once diagrams draw them (an ERD); nothing points at a column yet.
+ */
+export interface DocColumn {
+	id?: string;
+	name: string;
+	type?: string;
+	key?: ColumnKey;
 }
 
 /** A node's link: a web page by its url, or another diagram in the workspace (and one of its views) to zoom into. */

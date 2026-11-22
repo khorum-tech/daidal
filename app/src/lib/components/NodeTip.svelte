@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { SceneNode, SceneTag } from '@khorum/daidal-core/model';
 	import { signatureParts } from '@khorum/daidal-core/code';
+	import { keyLabel } from '@khorum/daidal-core/table';
 	import Icon from './Icon.svelte';
 
 	/**
@@ -46,6 +47,14 @@
 	{#if node.members.length}
 		<ul class="code members">
 			{#each node.members as m, i (i)}<li>{m}</li>{/each}
+		</ul>
+	{/if}
+	{#if node.columns.length}
+		<ul class="code columns" aria-label="Columns">
+			{#each node.columns as c, i (c.id ?? i)}
+				{@const key = keyLabel(c.key)}
+				<li>{#if key}<span class="col-key">{key}</span>{/if}<span class="fn-name">{c.name}</span>{#if c.type}<span class="col-type">{c.type}</span>{/if}</li>
+			{/each}
 		</ul>
 	{/if}
 	{#if node.functions.length}
@@ -161,6 +170,22 @@
 	}
 	.fn-name {
 		color: var(--color-text);
+	}
+	.columns li {
+		display: flex;
+		gap: 6px;
+	}
+	.col-key {
+		flex: none;
+		width: 18px;
+		font-size: 9px;
+		font-weight: 700;
+		color: var(--color-accent-300);
+		align-self: center;
+	}
+	.col-type {
+		margin-left: auto;
+		padding-left: 8px;
 	}
 	.fn-note {
 		display: block;

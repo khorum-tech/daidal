@@ -2,6 +2,7 @@
 	import { c4Desc, c4Kind, c4Name, CODE, codeSections, noteLines, wrapText, type SceneNode, type SceneTag } from '@khorum/daidal-core/model';
 	import { FLAGS } from '@khorum/daidal-core/icons';
 	import { signatureParts } from '@khorum/daidal-core/code';
+	import { COLUMN_KEYS, TABLE, tableRows, tableWidths, toKey } from '@khorum/daidal-core/table';
 	import Icon from './Icon.svelte';
 
 	/** One node on the canvas, read-only. Mirrors the prototype's card and text nodes (web/index.html). */
@@ -48,6 +49,9 @@
 		})
 	);
 	const parts = $derived(codeSections(node.members, sigs.map(s => s.full)));
+	const rowsOfTable = $derived(node.table ? tableRows(node.columns) : { shown: [], more: 0 });
+	const tableW = $derived(node.table ? tableWidths(node.columns, node.w) : { key: 0, name: 0, type: 0 });
+	const keyOf = (k: unknown) => COLUMN_KEYS.find(c => c.id === toKey(k));
 	const linkTitle = $derived(node.links.map(l => l.label || hostOf(l.url)).join(' · '));
 
 	// A card's name and subtitle wrap as they always have and use the room its height gives them, down to its
@@ -75,6 +79,7 @@
 	class:dragging
 	class:connecting
 	class:code={node.code && !iconOnly}
+	class:table={node.table && !iconOnly}
 	class:icon-only={iconOnly && !node.isText && !node.isNote}
 	data-node={node.id}
 	style:left="{node.x}px"
@@ -126,7 +131,23 @@
 				<span class="links" title={linkTitle}><Icon name="globe" size={11} />{node.links.length}</span>
 			{/if}
 		</span>
-		{#if node.code}
+		{#if node.table}
+			<!-- A table block: the table's name in monospace and its purpose, then a row for each column: its key, its
+			     name, and its data type at the right. Sizes and widths come from table.ts, as the export's do. -->
+			<span class="code-name" title={node.name}>{node.name}</span>
+			{#if node.sub.trim()}<span class="code-sub" title={node.sub}>{node.sub}</span>{/if}
+			<span class="columns" role="table" aria-label="Columns of {node.name}" style:--row="{TABLE.row}px" style:--key="{tableW.key}px" style:--type="{tableW.type}px" style:--gap="{tableW.type ? TABLE.gap : 0}px">
+				{#each rowsOfTable.shown as c, i (c.id ?? i)}
+					{@const key = keyOf(c.key)}
+					<span class="col" role="row" class:pk={key?.id === 'pk'} title="{key ? `${key.title}: ` : ''}{c.name}{c.type ? `: ${c.type}` : ''}">
+						{#if tableW.key}<span class="col-key" role="cell">{key?.label ?? ''}</span>{/if}
+						<span class="col-name" role="cell">{c.name}</span>
+						{#if tableW.type}<span class="col-type" role="cell">{c.type ?? ''}</span>{/if}
+					</span>
+				{/each}
+				{#if rowsOfTable.more}<span class="col more" role="row"><span role="cell">+{rowsOfTable.more} more</span></span>{/if}
+			</span>
+		{:else if node.code}
 			<!-- A code block: the name in monospace, its purpose and path, then what it exposes, a line each. -->
 			<span class="code-name" title={node.name}>{node.name}</span>
 			{#if node.sub.trim()}<span class="code-sub" title={node.sub}>{node.sub}</span>{/if}
@@ -433,6 +454,59 @@
 		line-height: var(--line);
 	}
 	.fn-rest {
+		color: var(--color-neutral-500);
+	}
+	/* A table block's rows. Sizes and column widths are table.ts TABLE's and tableWidths', which the export uses too. */
+	.columns {
+		display: flex;
+		flex-direction: column;
+		flex: none;
+		margin: 8px -13px 0;
+	}
+	.col {
+		display: grid;
+		grid-template-columns: var(--key) minmax(0, 1fr) var(--type);
+		column-gap: var(--gap);
+		align-items: center;
+		height: var(--row);
+		padding: 0 13px;
+		border-top: 1px solid color-mix(in srgb, var(--color-neutral-800) 55%, transparent);
+		box-sizing: border-box;
+		font-size: 11.5px;
+	}
+	.col:first-child {
+		border-top-color: var(--color-neutral-800);
+	}
+	.col-name,
+	.col-type {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	/* The grid has no key column when no column has a key, so the name is always the second track's content. */
+	.col:not(:has(.col-key)) {
+		grid-template-columns: minmax(0, 1fr) var(--type);
+	}
+	.col-type {
+		text-align: right;
+		color: var(--color-neutral-500);
+	}
+	.col-key {
+		font-size: 8.5px;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		color: var(--color-neutral-500);
+	}
+	.col.pk .col-key {
+		color: var(--color-accent);
+	}
+	.col.pk .col-name {
+		font-weight: 600;
+	}
+	.col.more {
+		display: flex;
+		font-size: 11px;
 		color: var(--color-neutral-500);
 	}
 	.more {

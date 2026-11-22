@@ -1545,10 +1545,9 @@ test.describe("the app at /app", () => {
     const code = list.find(d => d.name === "balance-code")!.id;
     await page.goto(`/app/d/${code}`);
 
-    // The members, a line each, with the ones past the limit counted; the card holds them all.
+    // A table draws as a table block, a row per column; the card holds them all.
     const table = page.getByRole("button", { name: "Table: posting_batches" });
-    await expect(table.locator(".member")).toHaveCount(5);
-    await expect(table).toContainText("+3 more");
+    await expect(table.locator(".col")).toHaveCount(8);
     const fits = (card: typeof table) => card.evaluate(el => el.scrollHeight <= el.clientHeight + 1);
     expect(await fits(table)).toBe(true);
 
@@ -1627,6 +1626,48 @@ test.describe("the app at /app", () => {
       expect(f.x).toBeGreaterThanOrEqual(box.x - 1);
       expect(f.x + f.width).toBeLessThanOrEqual(box.x + box.width + 1);
     }
+  });
+
+  test("draws a table's columns as rows, edits them from their own fields, and fits them on a tablet held upright", async ({ page, request }) => {
+    // An 11-inch iPad held upright.
+    await page.setViewportSize({ width: 820, height: 1180 });
+    const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+    const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+    const code = list.find(d => d.name === "balance-code")!.id;
+    await page.goto(`/app/d/${code}`);
+
+    const table = page.getByRole("button", { name: "Table: posting_batches" });
+    await expect(table.locator(".col").first()).toContainText("PK");
+    await expect(table.locator(".col-name")).toHaveText(["id", "submitted_by", "currency", "debits", "credits", "status", "checked_at", "posted_at"]);
+    await expect(table.locator(".col-type").first()).toHaveText("uuid");
+    const before = (await table.boundingBox())!.height;
+
+    // At this width the details open as a sheet from the node menu's Edit.
+    await table.click();
+    await page.getByTestId("node-menu").getByRole("button", { name: /^Edit/ }).click();
+    const sheet = page.getByRole("dialog", { name: "Node details" });
+    await sheet.getByRole("button", { name: "+ Add column" }).click();
+    await sheet.getByLabel("Column name").last().fill("ledger_id");
+    await sheet.getByLabel("Key of ledger_id").selectOption("fk");
+    await sheet.getByLabel("Data type of ledger_id").fill("uuid");
+    await expect(table.locator(".col-name").last()).toHaveText("ledger_id");
+    expect((await table.boundingBox())!.height).toBeGreaterThan(before);
+
+    // Every column's fields stay inside the sheet: nothing to scroll sideways.
+    const col = sheet.getByRole("group", { name: "Column ledger_id" });
+    await col.scrollIntoViewIfNeeded();
+    expect(await sheet.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    const box = (await col.boundingBox())!;
+    for (const field of await col.locator("input, select, button").all()) {
+      const f = (await field.boundingBox())!;
+      expect(f.x).toBeGreaterThanOrEqual(box.x - 1);
+      expect(f.x + f.width).toBeLessThanOrEqual(box.x + box.width + 1);
+    }
+
+    await expect(page.getByTestId("save-status")).toContainText("Saved");
+    const doc = (await (await request.get(`/api/diagrams/${code}`)).json()).doc as { nodes: { id: string; columns?: unknown[] }[] };
+    expect(doc.nodes.find(n => n.id === "batch")!.columns!.at(-1)).toEqual({ id: "c9", name: "ledger_id", type: "uuid", key: "fk" });
   });
 
   test("makes the C4 level above a node as a new diagram, which zooms back down", async ({ page, request }) => {

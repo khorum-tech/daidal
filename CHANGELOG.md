@@ -5,6 +5,16 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- **Table blocks for database tables.** A node of type Table with columns draws as a table card: its name, then a
+  row per column with a key badge (PK, FK or UQ), the column's name and its data type at the right, so every table
+  in a workspace reads the same way. Past ten columns the last row counts the rest. The details panel edits columns
+  as cards (name, key, data type with the usual types offered as you type), stacked so they fit a phone or a tablet
+  held upright. Documents keep them as `columns: [{ id, name, type, key }]`; a config may also give a column as a line
+  (`"PK id: uuid"`). Each column keeps an id through renames, ready for relationships between tables later. A Table
+  that lists its columns as members still draws as before and offers to turn them into columns. The SVG and PNG
+  exports, config export, MCP tools (`add_node`, `update_node`, `get_diagram`), backups, hover card, change review,
+  the C4 Code template, the Claude skill and the stage data carry them. `@khorum/daidal-core` moves to 0.3.0 to
+  carry them and the skill pins 0.3.0; publish 0.3.0 (0.2.0 too, if it never went out) before handing out the skill.
 - **Functions on code blocks.** A code block's functions have their own fields: a name, parameters on one line
   (`batch: Batch, strict: Boolean`), what it returns and a note, added with **+ Add function**. The card draws them as
   signatures (`check(batch: Batch): Verdict`) under their own rule, below the members, the two sharing its six lines.

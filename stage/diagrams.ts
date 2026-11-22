@@ -134,6 +134,40 @@ const scratch = diagramDoc("scratch", "scratch-token-refresh", "freeform", "All"
   edges: [],
 });
 
+// ---- orders-schema: database tables as table blocks, each column with its key, name and data type ----
+
+const col = (id: string, name: string, type: string, key?: "pk" | "fk" | "unique") => ({ id, name, type, ...(key ? { key } : {}) });
+
+const ordersSchema = diagramDoc("orders-schema", "orders-schema", "freeform", "All", {
+  tags: { data: tag("Data", P[2], "Layer") },
+  views: [{ name: "All", tags: ["data"] }],
+  nodes: [
+    node("customers", "customers", "table", 80, 100, ["data"], {
+      layout: { x: 80, y: 100, w: 270 },
+      subtitle: "Everyone who has ordered.",
+      columns: [col("c1", "id", "uuid", "pk"), col("c2", "email", "varchar(255)", "unique"), col("c3", "name", "text"), col("c4", "created_at", "timestamptz")],
+    }),
+    node("orders", "orders", "table", 460, 100, ["data"], {
+      layout: { x: 460, y: 100, w: 290 },
+      subtitle: "One row per order.",
+      columns: [
+        col("c1", "id", "uuid", "pk"),
+        col("c2", "customer_id", "uuid", "fk"),
+        col("c3", "status", "varchar(20)"),
+        col("c4", "total", "decimal(12,2)"),
+        col("c5", "currency", "char(3)"),
+        col("c6", "placed_at", "timestamptz"),
+      ],
+    }),
+    node("items", "order_items", "table", 860, 100, ["data"], {
+      layout: { x: 860, y: 100, w: 270 },
+      subtitle: "What each order holds.",
+      columns: [col("c1", "id", "bigint", "pk"), col("c2", "order_id", "uuid", "fk"), col("c3", "sku", "varchar(64)"), col("c4", "quantity", "int"), col("c5", "unit_price", "decimal(12,2)")],
+    }),
+  ],
+  edges: [edge("orders", "customers", "customer_id"), edge("items", "orders", "order_id")],
+});
+
 const payTags = { client: tag("Client", P[0], "Layer"), core: tag("Core", P[1], "Layer"), partner: tag("Partner", P[4], "Concern") };
 
 const paymentFlow = (version: number) =>
@@ -188,6 +222,7 @@ export function ownerBackup() {
             ],
           },
           { id: "scratch", doc: scratch, updated: day("10-21") },
+          { id: "orders-schema", doc: ordersSchema, updated: day("11-22") },
         ],
       },
       {
@@ -288,7 +323,7 @@ const postingsComponents = c4("postings-components", "postings-components", "c4-
   boundaries: [{ id: "scope", label: "Postings Service", layout: { x: 300, y: 80, w: 610, h: 380 }, ref: "ledger-containers#postings" }],
 });
 
-// The Code level: code blocks, each a class, function or table with what it holds (members), what it does (functions) and where it lives (path).
+// The Code level: code blocks, each a class or function with what it holds (members), what it does (functions) and where it lives (path), and a table block with its columns.
 const balanceCode = c4("balance-code", "balance-code", "c4-code", {
   nodes: [
     node("checker", "BalanceChecker", "class", 340, 120, ["internal"], {
@@ -305,7 +340,16 @@ const balanceCode = c4("balance-code", "balance-code", "c4-code", {
     node("batch", "posting_batches", "table", 690, 340, ["internal"], {
       layout: { x: 690, y: 340, w: 250 },
       subtitle: "One row per submitted batch.",
-      members: ["id: uuid", "submitted_by: text", "currency: char(3)", "debits: numeric", "credits: numeric", "status: text", "checked_at: timestamptz", "posted_at: timestamptz"],
+      columns: [
+        col("c1", "id", "uuid", "pk"),
+        col("c2", "submitted_by", "text"),
+        col("c3", "currency", "char(3)"),
+        col("c4", "debits", "numeric"),
+        col("c5", "credits", "numeric"),
+        col("c6", "status", "text"),
+        col("c7", "checked_at", "timestamptz"),
+        col("c8", "posted_at", "timestamptz"),
+      ],
     }),
   ],
   edges: [edge("checker", "sum", "calls"), edge("checker", "verdict", "returns"), edge("checker", "batch", "reads")],
