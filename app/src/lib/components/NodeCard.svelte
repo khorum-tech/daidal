@@ -40,6 +40,11 @@
 			return u;
 		}
 	};
+	// What a card spends before its subtitle (border, padding, the type row, the name and the gaps), and a subtitle
+	// line's height: the lines of subtitle that fit in the card.
+	const SUB_TOP = 66;
+	const SUB_LINE = 16;
+	const subLines = $derived(Math.max(1, Math.floor((node.h - SUB_TOP) / SUB_LINE)));
 	const linkTitle = $derived(node.links.map(l => l.label || hostOf(l.url)).join(' · '));
 </script>
 
@@ -106,7 +111,7 @@
 			{/if}
 		</span>
 		<span class="name" title={node.name}>{node.name}</span>
-		{#if node.sub.trim()}<span class="sub" title={node.sub}>{node.sub}</span>{/if}
+		{#if node.sub.trim()}<span class="sub" title={node.sub} style:--sub-lines={subLines}>{node.sub}</span>{/if}
 	{/if}
 </button>
 
@@ -324,19 +329,27 @@
 		margin-top: 7px;
 		line-height: 1.2;
 	}
-	/* The name and the subtitle each keep to one line and end in an ellipsis when they don't fit, as in the export
-	   (render.ts fit()): a card has a fixed height, so wrapped text would spill out under it. The whole text is in
-	   the node's details, and under the pointer. */
-	.name,
-	.sub {
+	/* A card has a fixed height, so text that doesn't fit must end inside it. The name keeps to one line. The
+	   subtitle wraps over as many lines as the card's height leaves (subLines), so a taller card shows more, and
+	   ends in an ellipsis. The whole text is in the node's details, and under the pointer. */
+	.name {
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+		flex: none;
 	}
 	.sub {
 		font-size: 11.5px;
+		line-height: 16px;
 		color: var(--color-neutral-500);
 		margin-top: 3px;
+		flex: none;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: var(--sub-lines, 1);
+		line-clamp: var(--sub-lines, 1);
+		overflow: hidden;
+		overflow-wrap: anywhere;
 	}
 	.node.icon-only {
 		align-items: center;

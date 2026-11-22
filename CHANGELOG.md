@@ -37,5 +37,5 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   `skope` for now.
 
 ### Fixed
-- A node card keeps a long type, name or subtitle on one line with an ellipsis (hover shows it in full) instead of
-  spilling out of the card.
+- A node card no longer lets long text spill out of it: the type and the name keep to one line, and the subtitle
+  wraps over as many lines as the card's height leaves, then ends in an ellipsis (hover shows it in full).
