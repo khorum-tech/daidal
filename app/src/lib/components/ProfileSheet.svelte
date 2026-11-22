@@ -1,13 +1,13 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import type { Settings } from '../appearance.svelte';
+	import { DARK_PALETTES, LIGHT_PALETTES, type Palette, type Settings } from '../appearance.svelte';
 	import { CONDITIONS, distinguishable, simColor } from '../diagram/colour';
 	import { PALETTES } from '@khorum/daidal-core/edit';
 	import type { Me } from '../types';
 
 	/**
 	 * The prototype's profile and appearance settings, as two tabs. The profile (name and title) is saved to the
-	 * account; appearance is how this browser shows Daidal: the theme, a colour-vision condition (which strikes the
+	 * account; appearance is how this browser shows Daidal: the theme and its colours, a colour-vision condition (which strikes the
 	 * colours that collide under it from the tag pickers, and can be simulated) and icon-only cards when presenting.
 	 */
 	let {
@@ -170,6 +170,28 @@
 			</p>
 		</section>
 
+		{#snippet swatches(label: string, list: readonly Palette[], current: string, pick: (id: string) => void)}
+			<div class="grounds" role="radiogroup" aria-label={label}>
+				{#each list as p (p.id)}
+					<button type="button" role="radio" class="ground" aria-checked={current === p.id} onclick={() => pick(p.id)}>
+						<span class="chip" aria-hidden="true" style:background={p.swatch[0]}>
+							<span class="panel" style:background={p.swatch[1]}></span>
+							<span class="mark" style:background={p.swatch[2]}></span>
+						</span>
+						{p.label}
+					</button>
+				{/each}
+			</div>
+		{/snippet}
+		<section class="section" aria-label="Colours">
+			<h3>Colours</h3>
+			<span class="sub-label">Dark</span>
+			{@render swatches('Dark colours', DARK_PALETTES, settings.darkPalette, id => onchange({ darkPalette: id as Settings['darkPalette'], ...(light ? { theme: 'dark' } : {}) }))}
+			<span class="sub-label">Light</span>
+			{@render swatches('Light colours', LIGHT_PALETTES, settings.lightPalette, id => onchange({ lightPalette: id as Settings['lightPalette'], ...(light ? {} : { theme: 'light' }) }))}
+			<p class="note">Each theme keeps its own colours. Picking one from the other theme switches to that theme.</p>
+		</section>
+
 		<section class="section" aria-label="Colour vision">
 			<h3>Colour vision</h3>
 			<div class="choices wrap" role="radiogroup" aria-label="Colour vision">
@@ -240,6 +262,56 @@
 	.choices {
 		display: flex;
 		gap: 6px;
+	}
+	.grounds {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.ground {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		font: inherit;
+		font-size: 12.5px;
+		padding: 5px 11px 5px 5px;
+		border-radius: 8px;
+		border: 1px solid var(--color-divider);
+		background: transparent;
+		color: var(--color-neutral-400);
+		cursor: pointer;
+	}
+	.ground[aria-checked='true'] {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+		background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+	}
+	.chip {
+		position: relative;
+		width: 34px;
+		height: 22px;
+		border-radius: 5px;
+		border: 1px solid var(--color-divider);
+		overflow: hidden;
+		flex: none;
+	}
+	.chip .panel {
+		position: absolute;
+		inset: 5px 5px 0 12px;
+		border-top-left-radius: 3px;
+		border-top-right-radius: 3px;
+	}
+	.chip .mark {
+		position: absolute;
+		left: 4px;
+		top: 4px;
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+	}
+	.sub-label {
+		font-size: 11.5px;
+		color: var(--color-neutral-500);
 	}
 	.choices.wrap {
 		flex-wrap: wrap;

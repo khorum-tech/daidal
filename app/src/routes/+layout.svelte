@@ -6,6 +6,7 @@
 	import '@fontsource/inter/700.css';
 	import '#lib/styles/nocturne.css';
 	import '#lib/styles/app.css';
+	import '#lib/styles/palettes.css';
 	import { appearance } from '#lib/appearance.svelte.ts';
 	import { CVD_MATRICES, filterMatrix } from '#lib/diagram/colour.ts';
 
@@ -17,6 +18,7 @@
 	$effect(() => {
 		const root = document.documentElement;
 		root.dataset.theme = appearance.light ? 'light' : 'dark';
+		root.dataset.palette = appearance.palette;
 		if (appearance.simulating) root.dataset.cvd = appearance.simulating;
 		else delete root.dataset.cvd;
 	});

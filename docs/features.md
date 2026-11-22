@@ -38,8 +38,8 @@ A **follower** reviews its lead's updates: each snapshot the lead took since the
 changed (nodes, connections and containers added, removed or updated), and each change can be accepted (an
 undoable edit, bringing in a node a connection needs) or skipped, or a whole snapshot at once; a verdict can be taken
 back. **Mark everything reviewed** syncs to the lead's latest snapshot, the switch pauses following, and **Unlink**
-stops it. The updates sit beside the canvas, and lead the History sheet on a phone. **Presenting** (Present in the strip, or in the
-diagram's sheet) shows the canvas alone, full screen where the browser allows and read-only, with a node's notes, tags
+stops it. The updates sit beside the canvas, and lead the History sheet on a phone. **Presenting** (Present in the diagram's sheet, which
+the diagram's name at the top opens) shows the canvas alone, full screen where the browser allows and read-only, with a node's notes, tags
 and connections on hover (on a tap, on a phone) and the views to switch; Escape ends it. The diagram's sheet copies a
 **link** to it, which can open on the view on now (`?view=Name`), and its owner can **lock editing on this device**
 (kept in the browser: picking and views still work). A **view** can be locked too, in the document: it can still be
@@ -50,9 +50,15 @@ document as YAML or JSON, written and read as the prototype does (`packages/core
 drops or opens a `.daidal.yaml` / `.daidal.json` file, and applies it, replacing the diagram or merging it in (nodes by
 id), as one undo step. A config that can't be read says why, with the line, and changes nothing. Anyone can copy or
 download it.
+**Code blocks** (`packages/core/src/model.ts` `CODE`, `codeHeight`): a node with `members` or a `path` draws as a
+compartment card: its name in monospace, its subtitle, its path cut from the start, then its members a line each
+under a rule, six at most with a count of the rest. The height comes from the content, the same in the canvas card
+(`NodeCard.svelte`) and the export (`render.ts` `codeMarkup`). The inspector offers both fields in a C4 Code
+diagram and on any node that already has them.
+
 **Profile** and **Appearance** (in the menu under your name) save your name and title to your account, and set how this
 browser shows Daidal (`src/lib/appearance.svelte.ts`, kept in the browser like the prototype's): a dark, light or
-system theme; a colour-vision condition, which strikes the colours that collide under it from the tag colour pickers
+system theme, each with a choice of colours that keep the logo's purple (`src/lib/styles/palettes.css`); a colour-vision condition, which strikes the colours that collide under it from the tag colour pickers
 and can be simulated over the whole app (an SVG colour matrix, `src/lib/diagram/colour.ts`); and **icon-only cards**
 when presenting (also a switch in the presenting bar), each node drawn as its icon and name.
 

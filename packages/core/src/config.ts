@@ -104,6 +104,13 @@ function node(raw: unknown, i: number): DocNode {
 	const tags = strings(n.tags);
 	if (tags.length) out.tags = tags;
 	else delete out.tags;
+	if (n.members != null) {
+		// One name a line: a list, or a single name on its own.
+		const members = (Array.isArray(n.members) ? n.members : [n.members]).map(asText).map(m => m.trim()).filter(Boolean);
+		if (members.length) out.members = members;
+		else delete out.members;
+	}
+	if (n.path != null) out.path = asText(n.path);
 	return out;
 }
 

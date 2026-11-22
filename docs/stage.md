@@ -137,7 +137,7 @@ The stage data is there so every feature has something to show:
 |---|---|
 | Profiles | The owner (Rowan Ellery) and two invented teammates, all with names and titles |
 | Workspaces | The owner's personal workspace, a team they run with both teammates, and a workspace Priya shares with them |
-| Diagram kinds | C4, infra and freeform |
+| Diagram kinds | C4 (Context down to Code, whose nodes are code blocks with members and a path), infra and freeform |
 | Document options | Subtitles, flags, notes, links, sized nodes; labelled, dashed, dotted, two-way, routed, anchored, thin and hidden-label edges; nested and styled boundaries, and an edge that ends on a boundary |
 | History | Diagrams with one to three snapshots, and a working copy with an edit not yet snapshotted |
 | Follow | A follower in another workspace with upstream changes waiting and one change already skipped; a paused follower that is up to date |

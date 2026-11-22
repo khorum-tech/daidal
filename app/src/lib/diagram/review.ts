@@ -54,6 +54,8 @@ function nodeEdit(o: DocNode, n: DocNode, os: SceneNode, ns: SceneNode) {
 		['type', os.type !== ns.type, `type → ${ns.type}`],
 		['flags', sorted(o.flags) !== sorted(n.flags), `flags → ${(n.flags ?? []).join(', ') || 'none'}`],
 		['notes', os.desc !== ns.desc, 'notes'],
+		['members', os.members.join('\n') !== ns.members.join('\n'), 'members'],
+		['path', os.path !== ns.path, `path → ${ns.path || '—'}`],
 		['links', !same(o.links, n.links), 'links']
 	];
 	const hits = tests.filter(([, differs]) => differs);

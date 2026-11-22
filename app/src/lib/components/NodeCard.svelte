@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { c4Desc, c4Kind, c4Name, noteLines, type SceneNode, type SceneTag } from '@khorum/daidal-core/model';
+	import { c4Desc, c4Kind, c4Name, CODE, codeLines, noteLines, type SceneNode, type SceneTag } from '@khorum/daidal-core/model';
 	import { FLAGS } from '@khorum/daidal-core/icons';
 	import Icon from './Icon.svelte';
 
@@ -40,6 +40,12 @@
 			return u;
 		}
 	};
+	// What a card spends before its subtitle (border, padding, the type row, the name and the gaps), and a subtitle
+	// line's height: the lines of subtitle that fit in the card.
+	const SUB_TOP = 66;
+	const SUB_LINE = 16;
+	const subLines = $derived(Math.max(1, Math.floor((node.h - SUB_TOP) / SUB_LINE)));
+	const lines = $derived(codeLines(node.members));
 	const linkTitle = $derived(node.links.map(l => l.label || hostOf(l.url)).join(' · '));
 </script>
 
@@ -54,6 +60,7 @@
 	class:selected
 	class:dragging
 	class:connecting
+	class:code={node.code && !iconOnly}
 	class:icon-only={iconOnly && !node.isText && !node.isNote}
 	data-node={node.id}
 	style:left="{node.x}px"
@@ -105,8 +112,21 @@
 				<span class="links" title={linkTitle}><Icon name="globe" size={11} />{node.links.length}</span>
 			{/if}
 		</span>
-		<span class="name">{node.name}</span>
-		{#if node.sub.trim()}<span class="sub">{node.sub}</span>{/if}
+		{#if node.code}
+			<!-- A code block: the name in monospace, its purpose and path, then what it exposes, a line each. -->
+			<span class="code-name" title={node.name}>{node.name}</span>
+			{#if node.sub.trim()}<span class="code-sub" title={node.sub}>{node.sub}</span>{/if}
+			{#if node.path}<span class="code-path" title={node.path}><bdi>{node.path}</bdi></span>{/if}
+			{#if lines.shown.length}
+				<span class="members" style:--line="{CODE.line}px">
+					{#each lines.shown as m, i (i)}<span class="member" title={m}>{m}</span>{/each}
+					{#if lines.more}<span class="more">+{lines.more} more</span>{/if}
+				</span>
+			{/if}
+		{:else}
+			<span class="name" title={node.name}>{node.name}</span>
+			{#if node.sub.trim()}<span class="sub" title={node.sub} style:--sub-lines={subLines}>{node.sub}</span>{/if}
+		{/if}
 	{/if}
 </button>
 
@@ -283,6 +303,11 @@
 		letter-spacing: 0.1em;
 		text-transform: uppercase;
 		color: var(--color-neutral-500);
+		/* One line, cut with an ellipsis, as the export draws it: a long type must not push the badges out. */
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.badges {
 		margin-left: auto;
@@ -319,10 +344,79 @@
 		margin-top: 7px;
 		line-height: 1.2;
 	}
+	/* A card has a fixed height, so text that doesn't fit must end inside it. The name keeps to one line. The
+	   subtitle wraps over as many lines as the card's height leaves (subLines), so a taller card shows more, and
+	   ends in an ellipsis. The whole text is in the node's details, and under the pointer. */
+	.name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		flex: none;
+	}
 	.sub {
 		font-size: 11.5px;
+		line-height: 16px;
 		color: var(--color-neutral-500);
 		margin-top: 3px;
+		flex: none;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: var(--sub-lines, 1);
+		line-clamp: var(--sub-lines, 1);
+		overflow: hidden;
+		overflow-wrap: anywhere;
+	}
+	/* A code block. The sizes are model.ts CODE's, which also sets the card's height and the export's lines. */
+	.code-name,
+	.code-path,
+	.member {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		flex: none;
+	}
+	.code-name {
+		font-size: 13.5px;
+		font-weight: 600;
+		line-height: 18px;
+		margin-top: 7px;
+	}
+	.code-sub {
+		font-size: 11.5px;
+		line-height: 16px;
+		margin-top: 2px;
+		color: var(--color-neutral-500);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		flex: none;
+	}
+	.code-path {
+		font-size: 10.5px;
+		line-height: 14px;
+		margin-top: 1px;
+		color: var(--color-neutral-600);
+		/* Cut from the start: the file's name, at the end, is what tells paths apart. */
+		direction: rtl;
+		text-align: left;
+	}
+	.members {
+		display: flex;
+		flex-direction: column;
+		flex: none;
+		margin: 8px -13px 0;
+		padding: 6px 13px 0;
+		border-top: 1px solid var(--color-neutral-800);
+	}
+	.member,
+	.more {
+		font-size: 11.5px;
+		line-height: var(--line);
+	}
+	.more {
+		font-size: 11px;
+		color: var(--color-neutral-500);
 	}
 	.node.icon-only {
 		align-items: center;

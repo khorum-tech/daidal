@@ -1252,9 +1252,6 @@
 	{:else if follow.kind === 'gone'}
 		<span class="follow gone" data-testid="follow">No longer following: its lead was deleted or you left its workspace</span>
 	{/if}
-	{#if !narrow}
-		<button type="button" class="link present-link" data-tour="present" onclick={present}>Present</button>
-	{/if}
 </div>
 
 {#if replayed}
@@ -1726,9 +1723,6 @@
 		border-color: var(--color-accent-700);
 		background: color-mix(in srgb, var(--color-accent) 14%, transparent);
 		color: var(--color-accent);
-	}
-	.present-link {
-		flex: none;
 	}
 	.tip-at {
 		position: absolute;

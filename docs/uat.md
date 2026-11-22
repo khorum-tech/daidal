@@ -199,7 +199,9 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 
 | ID | Do | Expect | On | Result |
 |----|----|--------|----|--------|
-| PRES-1 | **Present** in the strip | Full screen (desktop), read-only, only the canvas and a bar with the name, the view and Exit | D P | |
+| CODE-1 | Ledger C4 → postings-components → double-click **Balance Checker** | A C4 Code diagram of code blocks: monospace names, a purpose line, a path, members under a rule; `posting_batches` ends in **+3 more**; nothing spills | D P | |
+| CODE-2 | Select **BalanceChecker**, add a line to **Members**, clear **Path** | The block grows by a line and the path row goes; undo brings both back | D P | |
+| PRES-1 | The diagram's name at the top, then **Present** | Full screen (desktop), read-only, only the canvas and a bar with the name, the view and Exit | D P | |
 | PRES-2 | Hover a node (on the phone, tap it) | Its card shows (docked at the bottom on the phone) | D P | |
 | PRES-3 | Switch the view from the bar | The canvas follows | D P | |
 | PRES-4 | Click the grid button in the bar | Every node becomes its icon and name, in the same places; clicking again brings back the cards | D P | |
@@ -224,6 +226,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 |----|----|--------|----|--------|
 | APP-1 | Your name (or initial) in the header, **Profile**: change name and title, **Save profile** | "Saved", and the header shows the new name after it | D P | |
 | APP-2 | **Appearance**, **Light**, then **Match system** | The whole app turns light (sheets included); Match system follows the device | D P | |
+| APP-2b | **Appearance**, **Colours**: pick each dark and each light one | The ground, panels and accent change at once and stay purple-accented; text stays readable; the choice survives a reload | D P | |
 | APP-3 | Pick **Deuteranopia** | The note says how many colours are left; struck swatches fade; **Manage tags** offers fewer colours, with a note | D P | |
 | APP-4 | Tick **Simulate it** | The whole app, sheets included, shows as that condition sees it | D P | |
 | APP-5 | Reload | Theme and simulation are kept | D P | |

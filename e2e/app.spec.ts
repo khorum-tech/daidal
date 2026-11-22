@@ -36,6 +36,12 @@ interface SavedEdge {
 
 /** Wait for the page to finish saving, then read the diagram back from the API. */
 /** Drag with the mouse from the middle of [from] to the middle of [to] (or a point). */
+/** Starts presenting: the diagram's name in the header opens its sheet, which has Present. */
+async function present(page: Page) {
+  await page.locator('[data-tour="diagram-menu"]').click();
+  await page.getByRole("dialog", { name: "Diagram" }).getByRole("button", { name: "Present" }).click();
+}
+
 async function drag(page: Page, from: string, to: string | { x: number; y: number }) {
   const a = (await page.locator(from).boundingBox())!;
   const b = typeof to === "string" ? (await page.locator(to).boundingBox())! : { ...to, width: 0, height: 0 };
@@ -224,7 +230,7 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("heading").first()).toBeVisible();
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
     await expect(page.getByTestId("save-status")).toContainText("Saved");
-    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await present(page);
     await page.keyboard.press("Escape");
     await page.goto("/app/docs/getting-started");
     await expect(page.getByRole("heading", { name: "Getting started", level: 1 })).toBeVisible();
@@ -308,7 +314,7 @@ test.describe("the app at /app", () => {
     await expect(tour("Undo anything")).toBeVisible();
     await tour("Undo anything").getByRole("button", { name: "Next" }).click();
 
-    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await present(page);
     await expect(tour("That’s the basics")).toBeVisible();
     await tour("That’s the basics").getByRole("button", { name: "Finish" }).click();
     await expect(page.getByRole("dialog", { name: "That’s the basics" })).toHaveCount(0);
@@ -1240,7 +1246,7 @@ test.describe("the app at /app", () => {
   test("presents a diagram: the canvas alone, a node's detail on hover, views to switch, and Escape to come back", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
-    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await present(page);
     const bar = page.getByRole("region", { name: "Presenting" });
     await expect(bar).toContainText("ledger-platform");
     await expect(page.getByTestId("save-status")).toHaveCount(0);
@@ -1478,6 +1484,38 @@ test.describe("the app at /app", () => {
     expect(console_.links).toEqual([{ diagram: made }]);
   });
 
+  test("draws a C4 Code node with members and a path as a code block, edited from its details", async ({ page, request }) => {
+    const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+    const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+    const code = list.find(d => d.name === "balance-code")!.id;
+    await page.goto(`/app/d/${code}`);
+
+    // The members, a line each, with the ones past the limit counted; the card holds them all.
+    const table = page.getByRole("button", { name: "Table: posting_batches" });
+    await expect(table.locator(".member")).toHaveCount(5);
+    await expect(table).toContainText("+3 more");
+    const fits = (card: typeof table) => card.evaluate(el => el.scrollHeight <= el.clientHeight + 1);
+    expect(await fits(table)).toBe(true);
+
+    const checker = page.getByRole("button", { name: "Class: BalanceChecker" });
+    await expect(checker.locator(".code-path")).toHaveText("postings/src/balance/BalanceChecker.kt");
+    await checker.click();
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    const before = (await checker.boundingBox())!.height;
+    await inspector.getByLabel("Members").fill("check(batch): Verdict\nexplain(batch): List<Imbalance>\nreset()");
+    await expect(checker.locator(".member")).toHaveText(["check(batch): Verdict", "explain(batch): List<Imbalance>", "reset()"]);
+    expect((await checker.boundingBox())!.height).toBeGreaterThan(before);
+    expect(await fits(checker)).toBe(true);
+    await inspector.getByLabel("Path").fill("");
+    await expect(checker.locator(".code-path")).toHaveCount(0);
+    await expect(page.getByTestId("save-status")).toContainText("Saved");
+    const doc = (await (await request.get(`/api/diagrams/${code}`)).json()).doc as { nodes: { id: string; members?: string[]; path?: string }[] };
+    const saved = doc.nodes.find(n => n.id === "checker")!;
+    expect(saved.members).toEqual(["check(batch): Verdict", "explain(batch): List<Imbalance>", "reset()"]);
+    expect(saved).not.toHaveProperty("path");
+  });
+
   test("makes the C4 level above a node as a new diagram, which zooms back down", async ({ page, request }) => {
     const res = await request.post("/api/workspaces/import", { data: c4Backup() });
     const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
@@ -1623,6 +1661,17 @@ test.describe("the app at /app", () => {
     await sheet.getByRole("radio", { name: "Light" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(242, 243, 249)");
+    // Each theme has its own colours.
+    await sheet.getByRole("radiogroup", { name: "Light colours" }).getByRole("radio", { name: "Sand" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-palette", "sand");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(240, 232, 216)");
+    // Picking one of the other theme's colours switches to that theme, so the pick shows.
+    await sheet.getByRole("radiogroup", { name: "Dark colours" }).getByRole("radio", { name: "Plum" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator("html")).toHaveAttribute("data-palette", "plum");
+    await expect(sheet.getByRole("radio", { name: "Dark", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(35, 17, 44)");
+    await sheet.getByRole("radio", { name: "Light", exact: true }).click();
 
     const simulate = sheet.getByRole("checkbox", { name: /Simulate it/ });
     await expect(simulate).toBeDisabled();
@@ -1649,7 +1698,7 @@ test.describe("the app at /app", () => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
     const journal = page.locator('[data-node="journal"]');
-    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await present(page);
     const bar = page.getByRole("region", { name: "Presenting" });
     const icons = bar.getByRole("button", { name: "Icon-only cards" });
     await expect(icons).toHaveAttribute("aria-pressed", "false");
@@ -1666,7 +1715,7 @@ test.describe("the app at /app", () => {
     // Editing keeps full cards; presenting again remembers the choice.
     await page.keyboard.press("Escape");
     await expect(journal).not.toHaveClass(/icon-only/);
-    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await present(page);
     await expect(journal).toHaveClass(/icon-only/);
   });
 

@@ -73,6 +73,8 @@ boundaries:
 | `type` | A type, written slugged: `web-app`, `api-gateway`, `ai-agent`, or one of your workspace's |
 | `icon` | An icon from the library, in place of the type's |
 | `subtitle`, `notes` | Text |
+| `members` | A list of what it exposes, one a line on its card: a class's methods, a file's exports, a table's columns. Makes the card a code block |
+| `path` | Where it lives: a file path, or a link to the source. Also makes the card a code block |
 | `flags` | Any of `db`, `cache`, `mq` |
 | `tags` | Tag keys |
 | `links` | A list of `{ label, url }` |

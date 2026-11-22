@@ -119,8 +119,14 @@
 	}
 	const href = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
-	function typed(field: 'name' | 'subtitle' | 'notes', label: string) {
+	function typed(field: 'name' | 'subtitle' | 'notes' | 'path', label: string) {
 		return (e: Event) => onchange?.({ [field]: (e.currentTarget as HTMLInputElement).value }, label, `${node.id}:${field}`);
+	}
+	const codeFields = $derived(!node.c4 && !node.isNote && !node.isText && (kind.id === 'c4-code' || node.code));
+	/** The members box: a name a line. */
+	function membersTyped(e: Event) {
+		const members = (e.currentTarget as HTMLTextAreaElement).value.split('\n').map(m => m.trim()).filter(Boolean);
+		onchange?.({ members }, 'Edit members', `${node.id}:members`);
 	}
 	function nameDone(e: FocusEvent) {
 		// A node keeps a name: left blank, it takes its type's.
@@ -214,6 +220,18 @@
 	{/if}
 {/snippet}
 
+{#snippet code()}
+	{#if node.path}
+		<p class="path">{#if /^https?:\/\//i.test(node.path)}<a href={node.path} target="_blank" rel="noopener noreferrer">{node.path}</a>{:else}{node.path}{/if}</p>
+	{/if}
+	{#if node.members.length}
+		<h3>Members</h3>
+		<ul class="member-list">
+			{#each node.members as m, i (i)}<li>{m}</li>{/each}
+		</ul>
+	{/if}
+{/snippet}
+
 <section class="inspector" class:editable aria-label="Selected node">
 	{#if editable}
 		<label class="sr" for="node-name">Name</label>
@@ -222,6 +240,13 @@
 		<input id="node-sub" class="input" value={node.sub} placeholder="Subtitle: owner, replicas, region…" oninput={typed('subtitle', 'Edit subtitle')} onblur={() => onfieldend?.()} />
 		<label class="sr" for="node-notes">Notes</label>
 		<textarea id="node-notes" class="input notes" rows="3" value={node.desc} placeholder="What this does, and anything worth knowing." oninput={typed('notes', 'Edit notes')} onblur={() => onfieldend?.()}></textarea>
+		{#if codeFields}
+			<!-- A code block's own fields: offered in a C4 Code diagram, and wherever a node already has them. -->
+			<label class="sr" for="node-members">Members</label>
+			<textarea id="node-members" class="input members" rows="4" value={node.members.join('\n')} placeholder="What it exposes, one a line: parse(), Config, id: uuid…" oninput={membersTyped} onblur={() => onfieldend?.()}></textarea>
+			<label class="sr" for="node-path">Path</label>
+			<input id="node-path" class="input mono" value={node.path} placeholder="Where it lives: src/lib/parser.ts, or a link" oninput={typed('path', 'Edit path')} onblur={() => onfieldend?.()} />
+		{/if}
 
 		<h3>Type</h3>
 		<button type="button" class="type-btn" aria-expanded={picking} onclick={() => (picking = !picking)}>
@@ -352,6 +377,7 @@
 			</ul>
 		{/if}
 		{#if node.desc}<p class="desc">{node.desc}</p>{/if}
+		{@render code()}
 		{@render zoomIn()}
 		{@render links()}
 		{@render edges()}
@@ -556,6 +582,31 @@
 		font-family: var(--font-heading);
 		font-size: 16px;
 		font-weight: 500;
+	}
+	.editable .members,
+	.editable .mono,
+	.path,
+	.member-list {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 12px;
+	}
+	.editable .members {
+		min-height: 76px;
+		line-height: 1.5;
+		white-space: pre;
+		overflow-x: auto;
+	}
+	.path {
+		margin: 8px 0 0;
+		color: var(--color-neutral-500);
+		overflow-wrap: anywhere;
+	}
+	.member-list {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		line-height: 1.6;
+		overflow-wrap: anywhere;
 	}
 	.editable .notes {
 		min-height: 64px;
