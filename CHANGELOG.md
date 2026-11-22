@@ -50,6 +50,7 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   it, so later integrations draw the same picture.
 
 ### Changed
+- Stage deploys every push to a code owner's PR, drafts included, so it shows the last PR pushed; there is no line to wait in. A hold by hand is off by default and ends by itself after 12 hours or when its branch merges, and a push that doesn't deploy says why on the run and the PR. The PR's stage comment names the version the account menu shows.
 - Connections draw heavier: every weight scales up by 1.4 (Medium goes from 1.4 to about 2), dashes and arrowheads with it. Container borders scale the same way and draw in a stronger colour, so they read on the light theme too.
   Saved weights don't change.
 - The header drops the **Preview** tag, leaving the breadcrumbs and the account menu.

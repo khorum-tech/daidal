@@ -4,8 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    # Not closed: a merge or close never deploys anything to stage. The next PR in line takes stage on its own next
-    # push, or a code owner puts it there by hand.
+    # Not closed: a merge or close never deploys anything to stage. Stage shows the last PR pushed until another is.
     types: [opened, synchronize, reopened, ready_for_review]
   # Put a branch on stage by hand: Actions → deploy → Run workflow, from main. Only code owners (.github/CODEOWNERS)
   # get past the stage job's check. See the stage job and docs/stage.md.
@@ -16,15 +15,15 @@ on:
         type: string
         required: false
       hold:
-        description: "Hold stage on this branch: no PR push moves it until released"
+        description: "Hold stage on this branch for up to 12 hours: no PR push moves it until then, its merge, or a release"
         type: boolean
-        default: true
+        default: false
       reset_data:
         description: "Reset stage's data to the stage data (untick to keep stage's data; migrations still run)"
         type: boolean
         default: true
       release:
-        description: "Release the hold instead: the PR first in line deploys (branch is ignored)"
+        description: "Release the hold instead: the open PR pushed most recently deploys (branch is ignored)"
         type: boolean
         default: false
 
@@ -124,15 +123,16 @@ jobs:
 
   # Stage: one shared site, on the hostnames in scripts/stage-config.mjs.
   #
-  # The line: the oldest open PR from this repository, opened by a code owner (.github/CODEOWNERS on main), that
-  # isn't a draft has stage: its pushes re-deploy it and reset its data to the invented stage data
-  # (stage/diagrams.ts). A newer PR waits, and says so on itself; a merge or close deploys nothing: stage keeps
-  # what it shows until the next PR in line pushes (or a code owner deploys by hand). A PR from anyone else never deploys by itself; a code owner can put it there by hand.
+  # Every push to a PR from this repository opened by a code owner (.github/CODEOWNERS on main), draft or not,
+  # deploys it to stage once its tests pass, and resets stage's data to the invented stage data (stage/diagrams.ts):
+  # the last PR pushed is what stage shows. A merge or close deploys nothing. A PR from anyone else never deploys by
+  # itself; a code owner can put it there by hand. Whenever a push doesn't deploy, the run says why as a warning,
+  # in its summary and on the PR.
   #
   # By hand: Actions → deploy → Run workflow (from main), naming a branch. Tests run on that branch, then it goes on
-  # stage whatever the line says. With "hold" ticked (the default) the line stops: no PR push moves stage
-  # until a code owner runs it again with "release" (or deploys another branch). The hold is kept as a GitHub
-  # deployment on the `stage-hold` environment.
+  # stage. With "hold" ticked, PR pushes leave stage alone until the hold ends: after 12 hours, when the held
+  # branch is merged or deleted, when a code owner runs it again with "release", or when another branch is deployed
+  # by hand. The hold is kept as a GitHub deployment on the `stage-hold` environment.
   #
   # Fork PRs never get stage: GitHub gives them no secrets, and this job never runs their code with the Cloudflare
   # token (never switch to pull_request_target). One-time setup: docs/stage.md.
@@ -181,8 +181,8 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "::notice title=Stage not set up yet::Missing from the stage environment and repository settings:$missing. STAGE_D1_ID, STAGE_ACCESS_AUD and STAGE_CLOUDFLARE_ACCOUNT_ID may be secrets or variables; the rest are secrets (docs/stage.md)."
           fi
-      # What goes on stage, if anything: by hand, the named branch (or, on a release, the PR first in line); from a
-      # PR, the line decides, unless stage is held.
+      # What goes on stage, if anything: by hand, the named branch (or, on a release, the open PR pushed most
+      # recently); from a PR, the PR itself, unless stage is held or its author isn't a code owner.
       - if: steps.setup.outputs.ready == 'true'
         id: line
         name: Decide what goes on stage
@@ -197,7 +197,6 @@ jobs:
           # whoever pushes it.
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.head_ref }}
-          IS_DRAFT: ${{ github.event.pull_request.draft }}
           INPUT_BRANCH: ${{ inputs.branch }}
           INPUT_RELEASE: ${{ inputs.release }}
           TESTED_SHA: ${{ needs.test.outputs.sha }}
@@ -209,26 +208,40 @@ jobs:
             | sed 's/#.*//' | grep -o '@[A-Za-z0-9_./-]*' | grep -v / | cut -c2- | tr 'A-Z' 'a-z' | sort -u || true)"
           is_owner() { [ -n "$1" ] && printf '%s\n' "$owners" | grep -qxF "$(printf '%s' "$1" | tr 'A-Z' 'a-z')"; }
 
-          # The hold: the latest deployment on `stage-hold`, if its latest status is success.
+          # The hold: the latest deployment on `stage-hold`, if its latest status is success. A hold can't get stuck:
+          # it ends by itself after 12 hours, or once its branch is merged into main or deleted.
           hold_id=""; hold_branch=""
-          latest="$(gh api "repos/$REPO/deployments?environment=stage-hold&per_page=1" --jq '.[0] | "\(.id) \(.payload.branch // "")"' 2>/dev/null || true)"
-          if [ -n "$latest" ] && [ "$latest" != "null " ]; then
-            read -r id branch_held <<< "$latest"
+          latest="$(gh api "repos/$REPO/deployments?environment=stage-hold&per_page=1" --jq '.[0] | "\(.id) \(.created_at) \(.payload.branch // "")"' 2>/dev/null || true)"
+          if [ -n "$latest" ] && [ "${latest%% *}" != "null" ]; then
+            read -r id held_at branch_held <<< "$latest"
             state="$(gh api "repos/$REPO/deployments/$id/statuses?per_page=1" --jq '.[0].state // ""' || true)"
-            if [ "$state" = "success" ]; then hold_id="$id"; hold_branch="$branch_held"; fi
+            if [ "$state" = "success" ]; then
+              ended=""
+              age=$(( $(date +%s) - $(date -d "$held_at" +%s) ))
+              if [ "$age" -gt $((12 * 3600)) ]; then
+                ended="it was set over 12 hours ago"
+              elif [ -z "$branch_held" ] || ! gh api "repos/$REPO/branches/$branch_held" > /dev/null 2>&1; then
+                ended="its branch is gone"
+              elif [ "$(gh api "repos/$REPO/compare/main...$branch_held" --jq .ahead_by 2>/dev/null || echo 1)" = "0" ]; then
+                ended="its branch is merged into main"
+              fi
+              if [ -n "$ended" ]; then
+                gh api "repos/$REPO/deployments/$id/statuses" -f state=inactive -f description="Ended: $ended" > /dev/null
+                echo "::notice title=Stage hold ended::The hold on $branch_held ended because $ended."
+              else
+                hold_id="$id"; hold_branch="$branch_held"
+              fi
+            fi
           fi
           out "hold_id=$hold_id"
 
-          # "number sha branch" for each open PR in line, oldest first: from this repository, not a draft, opened by
-          # a code owner. (Bots are never code owners: their runs get no secrets, so they would hold the line.)
-          line=""
+          # On a release: the open PR from this repository by a code owner, draft or not, pushed most recently.
+          # (Bots are never code owners: their runs get no secrets.)
+          latest_pr=""
           while read -r n sha ref login; do
-            [ -n "$n" ] && is_owner "$login" && line="$line$n $sha $ref"$'\n'
-          done < <(gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
-            --jq ".[] | select(.draft | not) | select(.head.repo.full_name == \"$REPO\") | \"\(.number) \(.head.sha) \(.head.ref) \(.user.login)\"")
-          line="$(printf '%s' "$line" | grep -v "^${PR:-none} " | sort -n || true)"
-          first="$(printf '%s\n' "$line" | head -n 1)"
-          first_pr="${first%% *}"
+            if [ -n "$n" ] && is_owner "$login"; then latest_pr="$n $sha $ref"; break; fi
+          done < <(gh api "repos/$REPO/pulls?state=open&sort=updated&direction=desc&per_page=100" \
+            --jq ".[] | select(.head.repo.full_name == \"$REPO\") | \"\(.number) \(.head.sha) \(.head.ref) \(.user.login)\"")
 
           if [ "$EVENT" = "workflow_dispatch" ]; then
             if ! is_owner "$ACTOR"; then
@@ -237,34 +250,30 @@ jobs:
             fi
             out "manual=true"
             if [ "$INPUT_RELEASE" = "true" ]; then
-              # Release: the line takes over again; the PR first in line deploys now.
+              # Release: PR pushes deploy again, and the open PR pushed most recently goes on stage now.
               out "release=true"
-              if [ -n "$first" ]; then
-                read -r pr sha branch <<< "$first"
+              if [ -n "$latest_pr" ]; then
+                read -r pr sha branch <<< "$latest_pr"
                 out "deploy=true"
               else
                 out "deploy=false"
+                echo "::notice title=Stage released::No open PR to put on stage; the next PR push deploys."
               fi
             else
               [ -n "$INPUT_BRANCH" ] || { echo "::error::Name a branch to deploy (or tick release)."; exit 1; }
               branch="$INPUT_BRANCH"; sha="$TESTED_SHA"
               pr="$(gh api "repos/$REPO/pulls?state=open&head=${REPO%%/*}:$branch" --jq '.[0].number // empty' || true)"
               out "deploy=true"
-              if [ -n "$first_pr" ] && [ "$first_pr" != "$pr" ]; then out "first=$first_pr"; fi
             fi
           elif [ -n "$hold_id" ]; then
-            # Held by hand: no PR moves stage.
+            # Held by hand: no PR moves stage until the hold ends.
             out "deploy=false"
             out "held=$hold_branch"
+            echo "::warning title=Stage not deployed::Stage is held by hand on $hold_branch. It ends after 12 hours, when that branch merges, or on a release (Actions → deploy → Run workflow, tick release)."
           elif ! is_owner "$PR_AUTHOR"; then
             out "deploy=false"
             out "not_owner=true"
-          elif [ -n "$first" ] && [ "$first_pr" -lt "$PR" ]; then
-            out "deploy=false"
-            out "first=$first_pr"
-          elif [ "$IS_DRAFT" = "true" ]; then
-            out "deploy=false"
-            out "draft=true"
+            echo "::warning title=Stage not deployed::Only PRs opened by a code owner (.github/CODEOWNERS) deploy to stage by themselves."
           else
             pr="$PR"; sha="$HEAD_SHA"; branch="$HEAD_REF"
             out "deploy=true"
@@ -316,7 +325,13 @@ jobs:
         # The Access AUD goes up as a Worker secret (see the prod deploy above). The DAIDAL_* names stamp the build
         # as a snapshot of this branch (scripts/build-info.mjs), shown in the header's stage badge and at /version:
         # the checkout here is a bare commit, so git alone can't name the branch.
-        run: ./node_modules/.bin/wrangler deploy -c wrangler.stage.jsonc --secrets-file wrangler.stage.secrets.json
+        id: stage_deploy
+        run: |
+          ./node_modules/.bin/wrangler deploy -c wrangler.stage.jsonc --secrets-file wrangler.stage.secrets.json
+          # The version the app now names in its account menu, from the same stamp the build used.
+          version="$(node scripts/build-info.mjs | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Stage is live: \`$version\`" >> "$GITHUB_STEP_SUMMARY"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.STAGE_CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.STAGE_CLOUDFLARE_ACCOUNT_ID || vars.STAGE_CLOUDFLARE_ACCOUNT_ID }}
@@ -359,8 +374,7 @@ jobs:
           LIVE_PR: ${{ steps.line.outputs.pr }}
           LIVE_SHA: ${{ steps.line.outputs.sha }}
           LIVE_BRANCH: ${{ steps.line.outputs.branch }}
-          FIRST: ${{ steps.line.outputs.first }}
-          DRAFT: ${{ steps.line.outputs.draft }}
+          LIVE_VERSION: ${{ steps.stage_deploy.outputs.version }}
           HELD: ${{ steps.line.outputs.held }}
           NOT_OWNER: ${{ steps.line.outputs.not_owner }}
           MANUAL: ${{ steps.line.outputs.manual }}
@@ -376,31 +390,27 @@ jobs:
             target="$LIVE_PR"
             if [ "$MANUAL" = "true" ] && [ "$RELEASE" != "true" ]; then
               if [ "$HOLD" = "true" ]; then
-                tail="Stage is **held** here by hand: no PR moves it until a code owner releases it (Actions → deploy → Run workflow, tick release)."
+                tail="Stage is **held** here by hand: PR pushes leave it alone for up to 12 hours, until this branch merges, or until a code owner releases it (Actions → deploy → Run workflow, tick release)."
               else
-                tail="Put here by hand.${FIRST:+ The next push to #$FIRST, first in line, takes stage back.}"
+                tail="Put here by hand. The next push to any PR takes stage."
               fi
             else
-              tail="This PR has stage until it is merged or closed; newer PRs wait their turn. Stage data is invented and **resets on every push** to this PR, so nothing entered there is kept."
+              tail="Stage shows the last PR pushed: a push to another PR takes it, and the next push here brings it back. Stage data is invented and **resets on every deploy**, so nothing entered there is kept."
             fi
             body="$marker
           **Stage:** \`$LIVE_BRANCH\` at \`${LIVE_SHA:0:7}\` is live at $live
+          ${LIVE_VERSION:+
+          The account menu shows version \`$LIVE_VERSION\`.}
 
           $tail"
           else
             target="$THIS_PR"
             if [ -n "$HELD" ]; then
               body="$marker
-          **Stage:** not deployed: stage is held by hand on \`$HELD\`. It deploys again from the line once a code owner releases it."
+          **Stage:** not deployed: stage is held by hand on \`$HELD\`. The hold ends after 12 hours, when that branch merges, or when a code owner releases it (Actions → deploy → Run workflow, tick release); the next push here then deploys."
             elif [ "$NOT_OWNER" = "true" ]; then
               body="$marker
           **Stage:** not deployed: only PRs opened by a code owner (.github/CODEOWNERS) deploy to stage by themselves. A code owner can put this branch there by hand (Actions → deploy → Run workflow)."
-            elif [ "$DRAFT" = "true" ]; then
-              body="$marker
-          **Stage:** not deployed: this PR is a draft. Mark it ready for review to take its place in line for stage."
-            else
-              body="$marker
-          **Stage:** waiting. Stage shows #$FIRST, the oldest open PR; once #$FIRST is merged or closed, this one deploys there on its next push (or a code owner can put it there by hand)."
             fi
           fi
           id="$(gh api --paginate "repos/$REPO/issues/$target/comments" --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id" | head -n 1)"
