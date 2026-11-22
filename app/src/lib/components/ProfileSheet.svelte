@@ -186,10 +186,10 @@
 		<section class="section" aria-label="Colours">
 			<h3>Colours</h3>
 			<span class="sub-label">Dark</span>
-			{@render swatches('Dark colours', DARK_PALETTES, settings.darkPalette, id => onchange({ darkPalette: id as Settings['darkPalette'] }))}
+			{@render swatches('Dark colours', DARK_PALETTES, settings.darkPalette, id => onchange({ darkPalette: id as Settings['darkPalette'], ...(light ? { theme: 'dark' } : {}) }))}
 			<span class="sub-label">Light</span>
-			{@render swatches('Light colours', LIGHT_PALETTES, settings.lightPalette, id => onchange({ lightPalette: id as Settings['lightPalette'] }))}
-			<p class="note">Each theme keeps its own colours. The {light ? 'light' : 'dark'} ones show now.</p>
+			{@render swatches('Light colours', LIGHT_PALETTES, settings.lightPalette, id => onchange({ lightPalette: id as Settings['lightPalette'], ...(light ? {} : { theme: 'light' }) }))}
+			<p class="note">Each theme keeps its own colours. Picking one from the other theme switches to that theme.</p>
 		</section>
 
 		<section class="section" aria-label="Colour vision">

@@ -6,7 +6,8 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 
 ### Added
 - **Colours** in Appearance: five dark palettes (Nocturne, Midnight, Plum, Graphite, Ink) and four light ones
-  (Paper, Lilac, Sand, Mist). Each theme keeps its own, and every accent stays in the logo's purple family.
+  (Paper, Lilac, Sand, Mist). Each theme keeps its own, picking one
+  switches to its theme, and every accent stays in the logo's purple family.
 - An in-app docs page, **C4 and drill-down**: the four levels, linking them, moving between them, and what the
   header shows.
 - `@khorum/daidal-core` can be published to npm: `npm run build:core` builds a single ES module browser bundle
@@ -26,7 +27,7 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   it, so later integrations draw the same picture.
 
 ### Changed
-- Connections draw heavier: every weight scales up by 1.4 (Medium goes from 1.4 to about 2), dashes with it.
+- Connections draw heavier: every weight scales up by 1.4 (Medium goes from 1.4 to about 2), dashes and arrowheads with it. Container borders scale the same way and draw in a stronger colour, so they read on the light theme too.
   Saved weights don't change.
 - **Present** moved out of the strip above the canvas; it stays in the diagram's sheet (press the diagram's name).
 - The product is now called **Daidal** (formerly Skope), everywhere a person reads it: the app, its docs, error
@@ -37,5 +38,5 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   `skope` for now.
 
 ### Fixed
-- A node card keeps a long type, name or subtitle on one line with an ellipsis (hover shows it in full) instead of
-  spilling out of the card.
+- A node card no longer lets long text spill out of it: the type keeps to one line, and the name and subtitle wrap
+  over as many lines as the card's height leaves, then end in an ellipsis (hover shows it in full).

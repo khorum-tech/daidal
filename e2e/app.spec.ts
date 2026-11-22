@@ -1629,15 +1629,16 @@ test.describe("the app at /app", () => {
     await sheet.getByRole("radio", { name: "Light" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(242, 243, 249)");
-    // Each theme has its own colours: the light one changes now, the dark one waits for the dark theme.
+    // Each theme has its own colours.
     await sheet.getByRole("radiogroup", { name: "Light colours" }).getByRole("radio", { name: "Sand" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-palette", "sand");
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(245, 241, 233)");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(240, 232, 216)");
+    // Picking one of the other theme's colours switches to that theme, so the pick shows.
     await sheet.getByRole("radiogroup", { name: "Dark colours" }).getByRole("radio", { name: "Plum" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-palette", "sand");
-    await sheet.getByRole("radio", { name: "Dark", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(page.locator("html")).toHaveAttribute("data-palette", "plum");
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(27, 21, 36)");
+    await expect(sheet.getByRole("radio", { name: "Dark", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(35, 17, 44)");
     await sheet.getByRole("radio", { name: "Light", exact: true }).click();
 
     const simulate = sheet.getByRole("checkbox", { name: /Simulate it/ });
