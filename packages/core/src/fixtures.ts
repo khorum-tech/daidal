@@ -29,3 +29,42 @@ export const SAMPLE: DaidalDoc = {
 	],
 	boundaries: [{ id: 'zone', label: 'Prod', layout: { x: 300, y: 100, w: 560, h: 220 }, labelPosition: 'outside-tr', border: { style: 'solid', width: 2 } }]
 };
+
+/** [T] with every optional field made required, all the way down: a value of it sets each field the format has. */
+export type Full<T> = T extends (infer U)[] ? Full<U>[] : T extends object ? { [K in keyof T]-?: Full<T[K]> } : T;
+
+/**
+ * A diagram that sets every field of the document format, with a code block whose members and functions are all
+ * filled in. Typed as Full<DaidalDoc>, so a field added to DocNode, DocFunction, DocEdge or any other part of the
+ * format fails the typecheck until it is given a value here, and then the contract tests (contract.test.ts) check
+ * that the config export, the config reader and the SVG renderer all handle it.
+ */
+export const EVERY_FIELD: Full<DaidalDoc> = {
+	version: 1,
+	diagram: { id: 'postings', name: 'Postings', kind: 'c4-code', view: 'Core' },
+	tags: { core: { label: 'Core', color: '#b5abfc', group: 'Layer' } },
+	views: [{ name: 'Core', tags: ['core'], locked: true }],
+	nodes: [
+		{
+			id: 'checker',
+			name: 'BalanceChecker',
+			type: 'class',
+			icon: 'archive',
+			subtitle: 'Says whether a batch balances',
+			flags: ['db'],
+			tags: ['core'],
+			layout: { x: 60, y: 80, w: 420, h: 88 },
+			notes: 'Runs before every posting.',
+			members: ['rules: List<Rule>', 'clock: Clock'],
+			functions: [
+				{ name: 'check', params: [{ name: 'batch', type: 'Batch' }], returns: 'Verdict', notes: 'Balanced or not, per currency.' },
+				{ name: 'explain', params: [{ name: 'batch', type: 'Map<K, V>' }], returns: 'List<Imbalance>', notes: 'Why not.' }
+			],
+			path: 'postings/src/balance/BalanceChecker.kt',
+			links: [{ label: 'Source', url: 'example.com/checker', diagram: 'ledger', view: 'Core' }],
+			ref: 'ledger#checker'
+		}
+	],
+	edges: [{ from: 'checker', to: 'zone', label: 'lives in', showLabel: true, line: 'dashed', direction: 'forward', width: 2, route: 'angled', anchors: { from: 'right:0.5', to: 'left:0.5' } }],
+	boundaries: [{ id: 'zone', label: 'Postings', border: { width: 2, style: 'dotted' }, moveContents: true, layout: { x: 20, y: 20, w: 600, h: 300 }, labelPosition: 'inside-tl', ref: 'ledger#postings' }]
+};

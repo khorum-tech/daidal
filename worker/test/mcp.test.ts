@@ -4,6 +4,9 @@ import { handleRequest } from "../src/app";
 import { ToolError, TOOLS } from "../src/mcp/tools";
 import { api, doc, type Signer } from "./helpers";
 import { makeSigner } from "./tokens";
+import { readConfig } from "@khorum/daidal-core/config";
+import { EVERY_FIELD } from "@khorum/daidal-core/fixtures";
+import type { DocNode } from "@khorum/daidal-core/types";
 
 let signer: Signer;
 let call: ReturnType<typeof api>;
@@ -150,6 +153,43 @@ describe("the MCP server", () => {
     expect(yaml).toContain("functions:\n      - name: explain\n        params:\n          - name: batch\n            type: Batch\n        returns: \"List<Imbalance>\"\n        notes: Which currencies are out.");
     await tool("update_node", { diagram: d, node: "BalanceChecker", functions: [] });
     expect((await tool("get_diagram", { diagram: d })).nodes[0]).not.toHaveProperty("functions");
+  });
+
+  // What get_diagram's outline lists of each node field: its key there, or why only the YAML carries it. A field added
+  // to DocNode fails the typecheck here until it has a line (see packages/core/src/contract.test.ts for the rest).
+  const OUTLINE: { [K in keyof DocNode]-?: string | { yamlOnly: string } } = {
+    id: "id",
+    name: "name",
+    type: "type",
+    icon: "icon",
+    subtitle: "subtitle",
+    flags: { yamlOnly: "a drawing detail" },
+    tags: "tags",
+    layout: "x",
+    notes: { yamlOnly: "long text, kept out of the outline" },
+    members: "members",
+    functions: "functions",
+    path: "path",
+    links: "zoomsInto",
+    ref: { yamlOnly: "ties the node to another diagram" },
+  };
+
+  it("carries every field of the format through get_diagram, as the outline says and in full as YAML", async () => {
+    const email = "mcp-contract@example.com";
+    const { body: d } = await call.post(email, "/api/diagrams", { workspace: personal(email), doc: EVERY_FIELD });
+    const { tool } = await client(email, "read");
+    const node = (await tool("get_diagram", { diagram: d.id })).nodes[0];
+    for (const [field, key] of Object.entries(OUTLINE)) if (typeof key === "string") expect(node, `outline lists ${field} as ${key}`).toHaveProperty(key);
+    const yaml = (await tool("get_diagram", { diagram: d.id, format: "yaml" })).config as string;
+    expect(readConfig(yaml, EVERY_FIELD, "replace").doc).toEqual(EVERY_FIELD);
+  });
+
+  it("keeps every field of the format through a backup and its import", async () => {
+    const email = "mcp-contract-backup@example.com";
+    await call.post(email, "/api/diagrams", { workspace: personal(email), doc: EVERY_FIELD });
+    const { body } = await call.get(email, "/api/me/export");
+    const saved = body.backup.workspaces.flatMap((w: { diagrams: { doc: unknown }[] }) => w.diagrams.map(x => x.doc));
+    expect(saved).toEqual([EVERY_FIELD]);
   });
 
   it("applies a config by merge or replace, says what it did, and explains a config it can't read", async () => {

@@ -13,7 +13,13 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   for what a block holds (fields, columns, exports). A box that lists functions as text in its members, subtitle or
   notes offers to move them into fields. The MCP tools (`add_node`, `update_node`, `get_diagram`), the SVG and PNG
   exports, the hover card, change review, the C4 Code template and the stage data carry them. Older diagrams load
-  as they were.
+  as they were. `@khorum/daidal-core` moves to 0.2.0 to carry them, and the Claude skill pins 0.2.0 and documents
+  `functions`; publish 0.2.0 before handing out the updated skill.
+- **Core and exports stay in step with the document format.** A contract test sets every field of the format and
+  checks that the config export reads back unchanged, that the SVG shows what a field-by-field ledger says it shows,
+  and that the npm bundle draws an exported config exactly as the app does; the MCP outline and backups get the same
+  check. A field added to the format fails the typecheck until the ledgers say what each output does with it. CI
+  refuses a pull request that changes what core ships without moving core's version past npm's.
 - **Code blocks.** A node with `members` (what a class, file or table exposes, a line each) or a `path` (where it
   lives) draws as a code block: the name in monospace, the subtitle as one line of purpose, the path, then the
   members under a rule. The block grows to fit, and shows six lines or five and a count of the rest. The node's

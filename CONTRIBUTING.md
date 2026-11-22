@@ -35,6 +35,14 @@ npx wrangler dev --var DEV_USER_EMAIL:you@example.com   # http://localhost:8787,
 - Describe what changed and why in the description, in plain language. Link the spec section if there is one.
 - Keep the document format compatible. Anything that changes `DaidalDoc` needs a note in the roadmap spec and a
   reader that still accepts the previous shape.
+- A change to the document format reaches every output in the same pull request: the canvas, the core renderer
+  (`packages/core`, which the SVG and PNG exports, the npm package and the Claude skill all draw with), the config
+  export and reader, the MCP tools and backups. Give the new field a value in `EVERY_FIELD`
+  (`packages/core/src/fixtures.ts`) and a line in the ledgers in `packages/core/src/contract.test.ts` and
+  `worker/test/mcp.test.ts`; the typecheck fails until you do.
+- A change to what `packages/core/src` ships moves `packages/core/package.json`'s version past the one on npm, with
+  the pins that follow it (the script tests say where). CI checks this; publishing stays a separate, hand-run step
+  after the merge ([`packages/core/README.md`](packages/core/README.md#publishing)).
 - Follow the code around you: TypeScript, no default exports, comments that say why rather than what.
 
 ## Reporting bugs
