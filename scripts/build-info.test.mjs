@@ -68,6 +68,23 @@ test("in Actions without the workflow's names, a PR's own branch and git's commi
   assert.equal(info.channel, "local");
 });
 
+test("stage by hand from main's older workflow: the branch asked for, and the stage job as the channel", () => {
+  const info = buildInfo({
+    env: { GITHUB_ACTIONS: "true", GITHUB_JOB: "stage", GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_REF_TYPE: "branch", GITHUB_REF_NAME: "main" },
+    event: { inputs: { branch: "bundle/cards-code-blocks-version" } },
+    git: { branch: "", commit: SHA },
+    release: "0.0.0",
+  });
+  assert.equal(info.branch, "bundle/cards-code-blocks-version");
+  assert.equal(info.snapshot, true);
+  assert.equal(info.channel, "stage");
+  assert.equal(info.commit, SHA);
+  // Any other job, the tests included, stays local.
+  assert.equal(buildInfo({ env: { GITHUB_ACTIONS: "true", GITHUB_JOB: "test" } }).channel, "local");
+  // A hand-started run with no branch (a release) falls back as before.
+  assert.equal(buildInfo({ env: { GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_REF_TYPE: "branch", GITHUB_REF_NAME: "main" }, event: { inputs: {} } }).branch, "main");
+});
+
 test("locally: git's branch and commit; with no git at all, still a version", () => {
   assert.equal(buildInfo({ git: { branch: "main", commit: SHA }, release: "1.0.0" }).version, "1.0.0+1a2b3c4");
   const bare = buildInfo({ release: "1.0.0" });

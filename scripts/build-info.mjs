@@ -43,14 +43,22 @@ const commitOf = value => (/^[0-9a-f]{7,40}$/i.test(String(value ?? "").trim()) 
  * The build's description. [env] is the process environment; [git] answers `branch` and `commit` (or empty when
  * there is no repository); [release] is package.json's version; [now] the build time.
  */
-export function buildInfo({ env = {}, git = {}, release = "0.0.0", now = new Date() } = {}) {
-  // A PR's own branch first (GITHUB_REF_NAME there is "123/merge"), then the pushed branch.
-  const fromActions = env.GITHUB_HEAD_REF || (env.GITHUB_REF_TYPE === "branch" ? env.GITHUB_REF_NAME : "");
+export function buildInfo({ env = {}, git = {}, event = {}, release = "0.0.0", now = new Date() } = {}) {
+  // Started by hand (Actions → deploy → Run workflow), the branch is the one asked for, not main that the workflow
+  // runs from. Then a PR's own branch (GITHUB_REF_NAME there is "123/merge"), then the pushed branch.
+  const dispatched = env.GITHUB_EVENT_NAME === "workflow_dispatch" ? String(event?.inputs?.branch ?? "") : "";
+  const fromActions = dispatched || env.GITHUB_HEAD_REF || (env.GITHUB_REF_TYPE === "branch" ? env.GITHUB_REF_NAME : "");
   const branch = String(env.DAIDAL_BRANCH || fromActions || git.branch || "").trim() || "local";
   // git's HEAD before GITHUB_SHA: on a pull request GitHub's sha is a merge commit nobody pushed.
   const commit = commitOf(env.DAIDAL_COMMIT) || commitOf(git.commit) || commitOf(env.GITHUB_SHA);
   const shortCommit = commit.slice(0, 7);
-  const channel = ["prod", "stage"].includes(env.DAIDAL_CHANNEL) ? env.DAIDAL_CHANNEL : "local";
+  // The deploy workflow names the channel. A stage deploy started by hand runs main's copy of the workflow, which
+  // may be older than this build and not name it, so the stage job itself also counts as stage.
+  const channel = ["prod", "stage"].includes(env.DAIDAL_CHANNEL)
+    ? env.DAIDAL_CHANNEL
+    : env.GITHUB_ACTIONS === "true" && env.GITHUB_JOB === "stage"
+      ? "stage"
+      : "local";
   const pr = /^\d+$/.test(String(env.DAIDAL_PR ?? "")) ? Number(env.DAIDAL_PR) : null;
   return {
     name: "daidal",
@@ -80,11 +88,21 @@ export async function readGit() {
   return { branch: branch === "HEAD" ? "" : branch, commit: run(["rev-parse", "HEAD"]) };
 }
 
-/** This build's description, read from the environment, git and package.json. */
+/** The Actions event that started this run (GITHUB_EVENT_PATH), or {} outside Actions or when it can't be read. */
+function readEvent(readFileSync, path) {
+  if (!path) return {};
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/** This build's description, read from the environment, the Actions event, git and package.json. */
 export async function currentBuildInfo() {
   const { readFileSync } = await import("node:fs");
   const release = JSON.parse(readFileSync("package.json", "utf8")).version ?? "0.0.0";
-  return buildInfo({ env: process.env, git: await readGit(), release });
+  return buildInfo({ env: process.env, git: await readGit(), event: readEvent(readFileSync, process.env.GITHUB_EVENT_PATH), release });
 }
 
 const invokedDirectly = typeof process !== "undefined" && process.argv?.[1] && import.meta.url === (await import("node:url")).pathToFileURL(process.argv[1]).href;
