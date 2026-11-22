@@ -31,6 +31,9 @@ notes, then GitHub's list of the pull requests merged since the last tag.
 Which number: **patch** for fixes, **minor** for new things that break nothing, **major** for a change that breaks
 saved diagrams, the config format, the API or self-hosted setups. Before 1.0.0, minor may break.
 
+Prod shows the version it runs in the account menu and at `/version`, as the release and its commit
+(`0.1.0+1a2b3c4`). Stage shows a snapshot named after its branch ([stage.md](stage.md#which-branch-is-on-stage)).
+
 ## If it goes wrong
 
 - **The workflow failed after the merge.** Fix the cause, then *Actions → release → Run workflow* on `main`. It

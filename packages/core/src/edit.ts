@@ -101,7 +101,7 @@ export function resizeNode(doc: DaidalDoc, id: string, w: number, h: number): Da
 }
 
 /** What the inspector edits on a node. Empty text fields leave the document. */
-export type NodeChange = Partial<Pick<DocNode, 'name' | 'subtitle' | 'notes' | 'flags' | 'tags' | 'links'>> & {
+export type NodeChange = Partial<Pick<DocNode, 'name' | 'subtitle' | 'notes' | 'members' | 'path' | 'flags' | 'tags' | 'links'>> & {
 	/** A display name, e.g. "Web App"; stored slugged. */
 	type?: string;
 	/** An icon from the library in place of the type's; null goes back to the type's. */
@@ -117,8 +117,8 @@ export function updateNode(doc: DaidalDoc, id: string, change: NodeChange): Daid
 			const next: DocNode = { ...n, ...rest, ...(change.type === undefined ? {} : { type: slug(change.type) }) };
 			if (icon === null) delete next.icon;
 			else if (icon !== undefined) next.icon = icon;
-			for (const key of ['subtitle', 'notes'] as const) if (next[key] === '') delete next[key];
-			for (const key of ['flags', 'tags', 'links'] as const) if (next[key]?.length === 0) delete next[key];
+			for (const key of ['subtitle', 'notes', 'path'] as const) if (next[key] === '') delete next[key];
+			for (const key of ['flags', 'tags', 'links', 'members'] as const) if (next[key]?.length === 0) delete next[key];
 			return next;
 		})
 	};

@@ -137,7 +137,7 @@ The stage data is there so every feature has something to show:
 |---|---|
 | Profiles | The owner (Rowan Ellery) and two invented teammates, all with names and titles |
 | Workspaces | The owner's personal workspace, a team they run with both teammates, and a workspace Priya shares with them |
-| Diagram kinds | C4, infra and freeform |
+| Diagram kinds | C4 (Context down to Code, whose nodes are code blocks with members and a path), infra and freeform |
 | Document options | Subtitles, flags, notes, links, sized nodes; labelled, dashed, dotted, two-way, routed, anchored, thin and hidden-label edges; nested and styled boundaries, and an edge that ends on a boundary |
 | History | Diagrams with one to three snapshots, and a working copy with an edit not yet snapshotted |
 | Follow | A follower in another workspace with upstream changes waiting and one change already skipped; a paused follower that is up to date |
@@ -149,6 +149,22 @@ table above.
 
 **When a feature adds a table or something to a diagram, extend `stage/diagrams.ts` (and `APP_TABLES` in
 `stage/seed.ts`, children first) so stage shows it.** Keep names original and addresses on `example.com`.
+
+## Which branch is on stage
+
+Every build says what it is (`scripts/build-info.mjs`). The account menu ends with the version on every site: on
+stage the branch and commit that's live, on prod the release and its commit. Hover it for the full version, the PR and
+the build time.
+
+- `/version` (and `/version.json`) answers with the build as JSON, never cached: `version`, `branch`, `commit`,
+  `pr`, `channel` (`prod`, `stage` or `local`) and `builtAt`. Every static file also carries an `x-daidal-version`
+  header. Both sit behind Access like the rest of the site, so check them signed in.
+- A build of `main` is the release: `0.4.0+1a2b3c4`. Anything else is a snapshot named after its branch:
+  `0.4.0-SNAPSHOT+fix-card-text.1a2b3c4` (the branch with anything but letters, digits and hyphens made a hyphen).
+- The deploy jobs pass the branch, commit, PR and channel in as `DAIDAL_*` variables; stage checks out a bare commit,
+  so git alone can't name the branch. A local build asks git and reads as `local`.
+  A stage deploy started by hand runs main's copy of the workflow; when that doesn't pass them, the build takes the
+  branch from the run's inputs and counts the stage job as `stage`.
 
 ## Testing on stage
 

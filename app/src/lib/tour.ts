@@ -107,9 +107,9 @@ export const TOUR: TourStep[] = [
 	{
 		id: 'present',
 		title: 'Present it',
-		body: 'Press **Present** to show the diagram full screen, read-only. Hover a node for its notes; Escape comes back.',
+		body: 'Press the diagram’s name at the top, then **Present**, to show it full screen, read-only. Hover a node for its notes; Escape comes back.',
 		phoneBody: 'Open the diagram’s name at the top, then **Present**. Tap a node for its notes; the × comes back.',
-		targets: ['[data-tour="present"]'],
+		targets: ['[data-tour="diagram-menu"]'],
 		done: now => now.presenting
 	},
 	{

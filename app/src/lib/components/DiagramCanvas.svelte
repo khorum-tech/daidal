@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { bounds, isHidden, type Anchor, type Scene, type SceneBoundary, type SceneNode } from '@khorum/daidal-core/model';
+	import { borderWidth, bounds, isHidden, MARKER, type Anchor, type Scene, type SceneBoundary, type SceneNode } from '@khorum/daidal-core/model';
 	import { contentsOf, MIN_BOX, MIN_NODE, type Picked } from '@khorum/daidal-core/edit';
 	import { edgePath, endPoints, snapAnchor, type Box } from '@khorum/daidal-core/geometry';
 	import { centreOn, clampView, fitView, panBy, toContent, zoomAt, type Point, type View } from '../diagram/zoom';
@@ -701,7 +701,7 @@
 				style:top="{b.y}px"
 				style:width="{b.w}px"
 				style:height="{b.h}px"
-				style:border="{b.bw}px {b.bs} {selectedBox === b.id ? 'var(--color-accent)' : 'var(--color-neutral-800)'}"
+				style:border="{borderWidth(b.bw)}px {b.bs} {selectedBox === b.id ? 'var(--color-accent)' : 'var(--box-line)'}"
 			>
 				<!-- The border takes taps along each side; the inside lets them through to the canvas. -->
 				{#each ['t', 'r', 'b', 'l'] as side (side)}
@@ -728,10 +728,10 @@
 		>
 			<defs>
 				{#each [['arrThin', 1.1, '#75798c'], ['arr', 1.4, '#75798c'], ['arrBold', 1.9, '#8c90a3']] as [id, w, c] (id)}
-					<marker id={String(id)} viewBox="0 0 7 6" markerWidth="9" markerHeight="8" refX="5.9" refY="3" markerUnits="userSpaceOnUse" orient="auto">
+					<marker id={String(id)} viewBox="0 0 7 6" markerWidth={MARKER.w} markerHeight={MARKER.h} refX="5.9" refY="3" markerUnits="userSpaceOnUse" orient="auto">
 						<path d="M0.6,0.5L5.9,3L0.6,5.5" fill="none" stroke={String(c)} stroke-width={Number(w)} stroke-linecap="round" stroke-linejoin="round" />
 					</marker>
-					<marker id={String(id).replace('arr', 'arrRev')} viewBox="0 0 7 6" markerWidth="9" markerHeight="8" refX="1.1" refY="3" markerUnits="userSpaceOnUse" orient="auto">
+					<marker id={String(id).replace('arr', 'arrRev')} viewBox="0 0 7 6" markerWidth={MARKER.w} markerHeight={MARKER.h} refX="1.1" refY="3" markerUnits="userSpaceOnUse" orient="auto">
 						<path d="M6.4,0.5L1.1,3L6.4,5.5" fill="none" stroke={String(c)} stroke-width={Number(w)} stroke-linecap="round" stroke-linejoin="round" />
 					</marker>
 				{/each}
@@ -920,11 +920,16 @@
 		top: 0;
 		transform-origin: 0 0;
 	}
+	/* A container's border, a step stronger than the faintest line so it reads on both themes. */
 	.boundary {
+		--box-line: var(--color-neutral-700);
 		position: absolute;
 		box-sizing: border-box;
 		border-radius: 12px;
 		pointer-events: none;
+	}
+	:global(:root[data-theme='light']) .boundary {
+		--box-line: var(--color-neutral-600);
 	}
 	.b-hit {
 		position: absolute;

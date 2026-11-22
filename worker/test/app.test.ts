@@ -56,7 +56,12 @@ describe("handleRequest", () => {
 describe("serving the app", () => {
   // A stand-in for the assets binding: these paths exist, everything else is a 404. Like the real one, it serves a
   // folder's index.html at the folder's own path.
-  const files: Record<string, string> = { "/prototype/": "prototype", "/app/": "the app", "/app/_app/x.js": "js" };
+  const files: Record<string, string> = {
+    "/prototype/": "prototype",
+    "/app/": "the app",
+    "/app/_app/x.js": "js",
+    "/version.json": '{"version":"0.0.0-SNAPSHOT+feat-x.1a2b3c4"}',
+  };
   const assets = {
     fetch: async (input: Request | string) => {
       const path = new URL(typeof input === "string" ? input : input.url).pathname;
@@ -84,6 +89,14 @@ describe("serving the app", () => {
       expect(res.status, path).toBe(302);
       expect(res.headers.get("location"), path).toBe(`https://skope.khorum-oss.org${to}`);
     }
+  });
+
+  it("answers /version with version.json, never cached", async () => {
+    const res = await get("/version");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ version: "0.0.0-SNAPSHOT+feat-x.1a2b3c4" });
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
   });
 
   it("serves the prototype under /prototype, and nothing else outside the app", async () => {

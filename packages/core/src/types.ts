@@ -44,6 +44,13 @@ export interface DocNode {
 	tags?: string[];
 	layout?: { x: number; y: number; w?: number; h?: number };
 	notes?: string;
+	/**
+	 * What it exposes, one per line of its card: a class's methods, a file's exports, a table's columns. With `path`,
+	 * this makes the card a code block.
+	 */
+	members?: string[];
+	/** Where it lives: a file path, or a link to the source. */
+	path?: string;
 	/** Web pages ({ url }) and diagrams to zoom into ({ diagram, view? }), in one list. */
 	links?: NodeLink[];
 	/** "<diagram id>#<node id>": this node is the same thing as that node in another diagram. */

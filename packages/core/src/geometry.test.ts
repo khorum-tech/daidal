@@ -12,6 +12,7 @@ const edge = (over: Partial<SceneEdge> = {}): SceneEdge => ({
 	showLabel: true,
 	style: 'solid',
 	dir: 'forward',
+	weight: 1.4,
 	width: 1.4,
 	route: null,
 	fromA: null,
@@ -62,10 +63,11 @@ describe('edgePath', () => {
 		expect(p.d.startsWith('M25,53 ')).toBe(true);
 	});
 
-	it('dashes, dots and picks the arrowhead weight from the line width', () => {
+	it('dashes, dots and picks the arrowhead from the document weight, whatever width it draws at', () => {
 		expect(edgePath(edge({ style: 'dashed' }), a, b).dash).toBe('5.6 4.5');
-		expect(edgePath(edge({ style: 'dotted', width: 1 }), a, b)).toMatchObject({ dash: '0.01 2.4', cap: 'round', markerEnd: 'arrThin' });
-		expect(edgePath(edge({ width: 2.5 }), a, b).markerEnd).toBe('arrBold');
+		expect(edgePath(edge({ style: 'dotted', weight: 0.9, width: 1 }), a, b)).toMatchObject({ dash: '0.01 2.4', cap: 'round', markerEnd: 'arrThin' });
+		expect(edgePath(edge({ weight: 2.6, width: 3.64 }), a, b).markerEnd).toBe('arrBold');
+		expect(edgePath(edge({ weight: 1.4, width: 1.96 }), a, b).markerEnd).toBe('arr');
 		expect(edgePath(edge({ dir: 'both' }), a, b)).toMatchObject({ markerEnd: 'arr', markerStart: 'arrRev' });
 		expect(edgePath(edge({ dir: 'none' }), a, b)).toMatchObject({ markerEnd: null, markerStart: null });
 	});

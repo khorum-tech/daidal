@@ -92,12 +92,18 @@ function diagramRoute(request: Request, db: D1Database, email: string, url: URL,
 }
 
 /**
- * Static files come first; a request reaches the Worker only when no file matches. The site root goes to the app.
- * Under /app that is one of the SvelteKit app's routes, so it gets the app's page, unless it looks like a file (an
+ * Static files come first; a request reaches the Worker only when no file matches. The site root goes to the app,
+ * and /version to version.json, what build is live (scripts/build-info.mjs), never cached. Under /app that is one of the SvelteKit app's routes, so it gets the app's page, unless it looks like a file (an
  * extension, or the app's `_app/` build folder), which stays a 404. Anything else is a 404.
  */
 async function siteFile(request: Request, env: Env, url: URL): Promise<Response> {
   if (url.pathname === "/" || url.pathname === "/index.html") return Response.redirect(new URL(`/app/${url.search}`, url).href, 302);
+  if (url.pathname === "/version") {
+    const build = await env.ASSETS.fetch(new Request(new URL("/version.json", url), request));
+    const out = new Response(build.body, build);
+    out.headers.set("cache-control", "no-store");
+    return out;
+  }
   const file = await env.ASSETS.fetch(request);
   if (file.status !== 404 || !(url.pathname === "/app" || url.pathname.startsWith("/app/"))) return file;
   const last = url.pathname.split("/").pop() ?? "";

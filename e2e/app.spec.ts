@@ -36,6 +36,12 @@ interface SavedEdge {
 
 /** Wait for the page to finish saving, then read the diagram back from the API. */
 /** Drag with the mouse from the middle of [from] to the middle of [to] (or a point). */
+/** Starts presenting: the diagram's name in the header opens its sheet, which has Present. */
+async function present(page: Page) {
+  await page.locator('[data-tour="diagram-menu"]').click();
+  await page.getByRole("dialog", { name: "Diagram" }).getByRole("button", { name: "Present" }).click();
+}
+
 async function drag(page: Page, from: string, to: string | { x: number; y: number }) {
   const a = (await page.locator(from).boundingBox())!;
   const b = typeof to === "string" ? (await page.locator(to).boundingBox())! : { ...to, width: 0, height: 0 };
@@ -204,6 +210,22 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("menuitem", { name: /prototype/i })).toHaveCount(0);
   });
 
+  test("says which build is live: /version, and the account menu", async ({ page, request }) => {
+    const res = await request.get("/version");
+    expect(res.status()).toBe(200);
+    expect(res.headers()["cache-control"]).toBe("no-store");
+    const build = await res.json();
+    // A test build is a local one, a snapshot unless it's main, named after its branch and commit.
+    expect(build.channel).toBe("local");
+    expect(build.version.startsWith(build.release)).toBe(true);
+    expect(build.version.includes("-SNAPSHOT")).toBe(build.branch !== "main");
+
+    await page.goto("/app/");
+    await page.locator("header .who").click();
+    // The open dropdown's copy: the phone sheet keeps its own, closed, in the page.
+    await expect(page.getByRole("menu").getByTestId("build-version")).toHaveText(new RegExp(`^Version ${build.release.replaceAll(".", "\\.")}`));
+  });
+
   test("sends the security headers, and the app runs under its Content-Security-Policy", async ({ page, request }) => {
     // A static file, an app route the Worker answers with the app's page, and the API.
     for (const path of ["/app/", "/app/d/anything", "/api/me"]) {
@@ -224,7 +246,7 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("heading").first()).toBeVisible();
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
     await expect(page.getByTestId("save-status")).toContainText("Saved");
-    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await present(page);
     await page.keyboard.press("Escape");
     await page.goto("/app/docs/getting-started");
     await expect(page.getByRole("heading", { name: "Getting started", level: 1 })).toBeVisible();
@@ -308,7 +330,7 @@ test.describe("the app at /app", () => {
     await expect(tour("Undo anything")).toBeVisible();
     await tour("Undo anything").getByRole("button", { name: "Next" }).click();
 
-    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await present(page);
     await expect(tour("That’s the basics")).toBeVisible();
     await tour("That’s the basics").getByRole("button", { name: "Finish" }).click();
     await expect(page.getByRole("dialog", { name: "That’s the basics" })).toHaveCount(0);
@@ -1240,7 +1262,7 @@ test.describe("the app at /app", () => {
   test("presents a diagram: the canvas alone, a node's detail on hover, views to switch, and Escape to come back", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
-    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await present(page);
     const bar = page.getByRole("region", { name: "Presenting" });
     await expect(bar).toContainText("ledger-platform");
     await expect(page.getByTestId("save-status")).toHaveCount(0);
@@ -1478,6 +1500,76 @@ test.describe("the app at /app", () => {
     expect(console_.links).toEqual([{ diagram: made }]);
   });
 
+  test("fits a deep C4 breadcrumb on a tablet: nothing cut off, the levels it folds a tap away", async ({ page, request }) => {
+    // An 11-inch iPad held upright.
+    await page.setViewportSize({ width: 820, height: 1180 });
+    const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+    const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+    const id = (name: string) => list.find(d => d.name === name)!.id;
+    const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
+
+    await page.goto(`/app/d/${id("postings-components")}`);
+    const menu = crumbs.getByRole("button", { name: /postings-components/ });
+    await expect(menu).toBeVisible();
+    // The bar gives things up until it fits: nothing overflows, and the diagram's name shows whole.
+    await expect.poll(() => crumbs.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    expect(await menu.locator("span").first().evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    const nav = (await crumbs.boundingBox())!;
+    const box = (await menu.boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(nav.x + nav.width + 1);
+    await expect(page.getByRole("button", { name: /^Account/ })).toBeInViewport({ ratio: 1 });
+
+    // The workspace and the level just above stay as links; the one between is in view or a tap away.
+    await expect(crumbs.getByRole("link", { name: "Ledger C4", exact: true })).toBeVisible();
+    await expect(crumbs.getByRole("link", { name: "ledger-containers", exact: true })).toBeVisible();
+    const between = crumbs.getByRole("link", { name: "ledger-context", exact: true });
+    if (await between.isVisible()) await between.click();
+    else {
+      await crumbs.getByRole("button", { name: "Show 1 more level" }).click();
+      await page.getByRole("menu", { name: "More levels" }).getByRole("menuitem", { name: "ledger-context" }).click();
+    }
+    await expect(page).toHaveURL(new RegExp(`/app/d/${id("ledger-context")}`));
+
+    // At a desktop's width it all shows again.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/app/d/${id("postings-components")}`);
+    await expect(crumbs.getByRole("link")).toHaveText(["Ledger C4", "ledger-context", "ledger-containers"]);
+    await expect(crumbs.getByTestId("crumb-more")).toHaveCount(0);
+  });
+
+  test("draws a C4 Code node with members and a path as a code block, edited from its details", async ({ page, request }) => {
+    const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+    const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+    const code = list.find(d => d.name === "balance-code")!.id;
+    await page.goto(`/app/d/${code}`);
+
+    // The members, a line each, with the ones past the limit counted; the card holds them all.
+    const table = page.getByRole("button", { name: "Table: posting_batches" });
+    await expect(table.locator(".member")).toHaveCount(5);
+    await expect(table).toContainText("+3 more");
+    const fits = (card: typeof table) => card.evaluate(el => el.scrollHeight <= el.clientHeight + 1);
+    expect(await fits(table)).toBe(true);
+
+    const checker = page.getByRole("button", { name: "Class: BalanceChecker" });
+    await expect(checker.locator(".code-path")).toHaveText("postings/src/balance/BalanceChecker.kt");
+    await checker.click();
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    const before = (await checker.boundingBox())!.height;
+    await inspector.getByLabel("Members").fill("check(batch): Verdict\nexplain(batch): List<Imbalance>\nreset()");
+    await expect(checker.locator(".member")).toHaveText(["check(batch): Verdict", "explain(batch): List<Imbalance>", "reset()"]);
+    expect((await checker.boundingBox())!.height).toBeGreaterThan(before);
+    expect(await fits(checker)).toBe(true);
+    await inspector.getByLabel("Path").fill("");
+    await expect(checker.locator(".code-path")).toHaveCount(0);
+    await expect(page.getByTestId("save-status")).toContainText("Saved");
+    const doc = (await (await request.get(`/api/diagrams/${code}`)).json()).doc as { nodes: { id: string; members?: string[]; path?: string }[] };
+    const saved = doc.nodes.find(n => n.id === "checker")!;
+    expect(saved.members).toEqual(["check(batch): Verdict", "explain(batch): List<Imbalance>", "reset()"]);
+    expect(saved).not.toHaveProperty("path");
+  });
+
   test("makes the C4 level above a node as a new diagram, which zooms back down", async ({ page, request }) => {
     const res = await request.post("/api/workspaces/import", { data: c4Backup() });
     const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
@@ -1623,6 +1715,17 @@ test.describe("the app at /app", () => {
     await sheet.getByRole("radio", { name: "Light" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(242, 243, 249)");
+    // Each theme has its own colours.
+    await sheet.getByRole("radiogroup", { name: "Light colours" }).getByRole("radio", { name: "Sand" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-palette", "sand");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(240, 232, 216)");
+    // Picking one of the other theme's colours switches to that theme, so the pick shows.
+    await sheet.getByRole("radiogroup", { name: "Dark colours" }).getByRole("radio", { name: "Plum" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator("html")).toHaveAttribute("data-palette", "plum");
+    await expect(sheet.getByRole("radio", { name: "Dark", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(35, 17, 44)");
+    await sheet.getByRole("radio", { name: "Light", exact: true }).click();
 
     const simulate = sheet.getByRole("checkbox", { name: /Simulate it/ });
     await expect(simulate).toBeDisabled();
@@ -1649,7 +1752,7 @@ test.describe("the app at /app", () => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
     const journal = page.locator('[data-node="journal"]');
-    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await present(page);
     const bar = page.getByRole("region", { name: "Presenting" });
     const icons = bar.getByRole("button", { name: "Icon-only cards" });
     await expect(icons).toHaveAttribute("aria-pressed", "false");
@@ -1666,7 +1769,7 @@ test.describe("the app at /app", () => {
     // Editing keeps full cards; presenting again remembers the choice.
     await page.keyboard.press("Escape");
     await expect(journal).not.toHaveClass(/icon-only/);
-    await page.getByRole("button", { name: "Present", exact: true }).click();
+    await present(page);
     await expect(journal).toHaveClass(/icon-only/);
   });
 

@@ -76,7 +76,7 @@ describe("stage seed", () => {
     const first = await counts();
     await seed();
     expect(await counts()).toEqual(first);
-    expect(first).toEqual({ rate_windows: 0, access_tokens: 0, workspace_types: 0, snapshots: 6, diagrams: 10, workspace_members: 3 + 3 + 2 + 1, workspaces: 6, users: 3 });
+    expect(first).toEqual({ rate_windows: 0, access_tokens: 0, workspace_types: 0, snapshots: 6, diagrams: 11, workspace_members: 3 + 3 + 2 + 1, workspaces: 6, users: 3 });
   });
 
   it("signs the owner and teammates in to their seeded profiles", async () => {
@@ -166,7 +166,7 @@ describe("stage seed", () => {
     expect(nodes.some(n => n.layout.h)).toBe(true);
     for (const key of ["label", "line", "direction", "route", "anchors", "width", "showLabel"]) expect(edges.some(e => key in e), `edge ${key}`).toBe(true);
     for (const key of ["border", "moveContents", "labelPosition"]) expect(boundaries.some(b => key in b), `boundary ${key}`).toBe(true);
-    expect(new Set(docs.map(d => d.diagram.kind))).toEqual(new Set(["c4-context", "c4-container", "c4-component", "deployment", "freeform"]));
+    expect(new Set(docs.map(d => d.diagram.kind))).toEqual(new Set(["c4-context", "c4-container", "c4-component", "c4-code", "deployment", "freeform"]));
     // An edge may end on a boundary, as the prototype allows.
     const boundaryIds = new Set(boundaries.map(b => b.id));
     expect(edges.some(e => boundaryIds.has(e.to))).toBe(true);

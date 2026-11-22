@@ -95,4 +95,13 @@ describe('config', () => {
 		const { doc } = readConfig('nodes:\n  - id: q\nedges:\n  - from: api\n    to: q', current(), 'merge');
 		expect(doc.edges!.at(-1)).toEqual({ from: 'api', to: 'q' });
 	});
+
+	it('reads a code block: members as a list (or one name) and a path, and writes them back', () => {
+		const { doc } = readConfig('nodes:\n  - id: p\n    name: Parser\n    type: Class\n    path: src/parser.ts\n    members:\n      - parse(text)\n      - "emit(): void"\n  - id: q\n    members: only()\n  - id: r\n    members: []', current(), 'replace');
+		expect(doc.nodes![0]).toMatchObject({ path: 'src/parser.ts', members: ['parse(text)', 'emit(): void'] });
+		expect(doc.nodes![1].members).toEqual(['only()']);
+		expect(doc.nodes![2]).not.toHaveProperty('members');
+		const again = readConfig(configText(doc, 'yaml'), current(), 'replace').doc;
+		expect(again.nodes![0]).toMatchObject({ path: 'src/parser.ts', members: ['parse(text)', 'emit(): void'] });
+	});
 });

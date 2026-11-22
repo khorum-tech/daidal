@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { c4Backup } from "../stage/diagrams";
 import { importStageData } from "./support";
 
 // Runs in the "phone" project (playwright.config.ts): a touch screen 412 px wide.
@@ -725,5 +726,35 @@ test.describe("the app on a phone", () => {
     await account.getByRole("menuitem", { name: "Appearance" }).tap();
     await expect(account).toHaveCount(0);
     await expect(page.getByRole("dialog", { name: "Profile and appearance" }).getByRole("tab", { name: "Appearance" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("keeps a C4 breadcrumb to one step up and the diagram's menu, both big enough to tap", async ({ page, request }) => {
+    const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+    expect(res.status()).toBe(201);
+    const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+    const id = (name: string) => list.find(d => d.name === name)!.id;
+    const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
+
+    await page.goto(`/app/d/${id("postings-components")}`);
+    const up = crumbs.getByRole("link", { name: "Up to ledger-containers" });
+    await expect(up).toBeVisible();
+    // Only the step up and this diagram: the rest of the way waits behind the arrow.
+    await expect(crumbs.getByRole("link")).toHaveCount(1);
+    const menu = crumbs.getByRole("button", { name: /postings-components/ });
+    await expect(menu).toBeVisible();
+    for (const target of [up, menu]) expect((await target.boundingBox())!.height).toBeGreaterThanOrEqual(40);
+    // Nothing in the bar runs off the screen.
+    const width = page.viewportSize()!.width;
+    for (const target of [up, menu, page.getByRole("button", { name: /^Account/ })]) {
+      const box = (await target.boundingBox())!;
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+    }
+
+    // Each tap goes up a level.
+    await up.tap();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${id("ledger-containers")}`));
+    await crumbs.getByRole("link", { name: "Up to ledger-context" }).tap();
+    await expect(page).toHaveURL(new RegExp(`/app/d/${id("ledger-context")}`));
   });
 });

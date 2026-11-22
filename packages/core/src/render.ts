@@ -1,6 +1,6 @@
 import { edgePath, type Box } from './geometry';
 import { ICON_PATHS } from './icons';
-import { bounds, C4, c4Desc, c4Kind, c4Name, c4Text, c4Top, isHidden, NOTE, noteLines, wrapText, type Scene, type SceneNode } from './model';
+import { borderWidth, bounds, C4, CODE, codeLines, fitMono, c4Desc, c4Kind, c4Name, c4Text, c4Top, isHidden, MARKER, NOTE, noteLines, wrapText, type Scene, type SceneNode } from './model';
 
 /**
  * A diagram as a standalone SVG image, drawn from the scene the way the canvas draws it: containers, connections
@@ -42,6 +42,8 @@ export function esc(s: string): string {
 }
 
 /** About how many characters fit in [w] pixels at [size]; longer text is cut with an ellipsis. */
+const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+
 function fit(text: string, w: number, size: number): string {
 	const max = Math.max(1, Math.floor(w / (size * 0.56)));
 	return text.length > max ? `${text.slice(0, max - 1)}…` : text;
@@ -67,7 +69,7 @@ function boundaryMarkup(scene: Scene): string {
 	return scene.boundaries
 		.map(b => {
 			const dash = BORDER_DASH[b.bs];
-			const rect = `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="12" fill="none" stroke="${C.border}" stroke-width="${b.bw}"${dash}/>`;
+			const rect = `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="12" fill="none" stroke="${C.line}" stroke-width="${borderWidth(b.bw)}"${dash}/>`;
 			if (!b.label) return rect;
 			const { x, y, anchor } = labelAt(b);
 			const label = `<text x="${x}" y="${y}" text-anchor="${anchor}" dominant-baseline="middle" font-size="10" letter-spacing="1.2" fill="${C.faint}" paint-order="stroke" stroke="${C.bg}" stroke-width="6">${esc(b.label.toUpperCase())}</text>`;
@@ -144,6 +146,42 @@ function c4Markup(n: SceneNode, dash: string, edge: string | undefined): string 
 	return shape + head + mark + name.join('') + kind.join('') + desc.join('');
 }
 
+/** A code block: the type row, the name in monospace, the purpose and path, then a rule and the members, a line each. */
+function codeMarkup(n: SceneNode, dash: string, icon: string, tag: string | undefined): string {
+	const x = n.x + CODE.padX;
+	const w = n.w - 2 * CODE.padX;
+	let y = n.y + 1 + CODE.padY + CODE.head + CODE.nameTop;
+	const row = (line: string, lineH: number, extra: string) => {
+		const t = `<text x="${x}" y="${y + lineH / 2}" dominant-baseline="middle" xml:space="preserve"${extra}>${esc(line)}</text>`;
+		y += lineH;
+		return t;
+	};
+	const out = [
+		`<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="10" fill="${C.surface}" stroke="${C.border}"${dash}/>`,
+		`<path transform="translate(${x} ${n.y + 11}) scale(${15 / 256})" d="${icon}" fill="${C.accent}"/>`,
+		`<text x="${n.x + 36}" y="${n.y + 19}" dominant-baseline="middle" font-size="9.5" letter-spacing="0.95" fill="${C.muted}">${esc(fit(n.type.toUpperCase(), n.w - 70, 9.5))}</text>`,
+		tag ? `<circle cx="${n.x + n.w - 16}" cy="${n.y + 18}" r="3.5" fill="${esc(tag)}"/>` : '',
+		row(fitMono(n.name, w, CODE.nameSize), CODE.nameLine, ` font-family="${MONO}" font-size="${CODE.nameSize}" font-weight="600" fill="${C.text}"`)
+	];
+	if (n.sub.trim()) {
+		y += CODE.subTop;
+		out.push(row(fit(n.sub, w, 11.5), CODE.subLine, ` font-size="11.5" fill="${C.muted}"`));
+	}
+	if (n.path) {
+		y += CODE.pathTop;
+		out.push(row(fitMono(n.path, w, CODE.pathSize, true), CODE.pathLine, ` font-family="${MONO}" font-size="${CODE.pathSize}" fill="${C.faint}"`));
+	}
+	const { shown, more } = codeLines(n.members);
+	if (shown.length) {
+		y += CODE.ruleTop;
+		out.push(`<line x1="${n.x}" y1="${y + 0.5}" x2="${n.x + n.w}" y2="${y + 0.5}" stroke="${C.border}"/>`);
+		y += 1 + CODE.ruleBottom;
+		for (const m of shown) out.push(row(fitMono(m, w, CODE.size), CODE.line, ` font-family="${MONO}" font-size="${CODE.size}" fill="${C.text}"`));
+		if (more) out.push(row(`+${more} more`, CODE.line, ` font-size="11" fill="${C.muted}"`));
+	}
+	return out.join('');
+}
+
 function nodeMarkup(scene: Scene, shown: (id: string) => number | null): string {
 	const tagColor = new Map(scene.tags.map(t => [t.key, t.color]));
 	return scene.nodes
@@ -158,6 +196,7 @@ function nodeMarkup(scene: Scene, shown: (id: string) => number | null): string 
 			if (n.isNote) return [g(noteMarkup(n, dash))];
 			if (n.c4) return [g(c4Markup(n, dash, n.tags[0] ? tagColor.get(n.tags[0]) : undefined))];
 			const icon = ICON_PATHS[n.icon] ?? ICON_PATHS.cube;
+			if (n.code) return [g(codeMarkup(n, dash, icon, n.tags[0] ? tagColor.get(n.tags[0]) : undefined))];
 			const dot = n.tags[0] && tagColor.get(n.tags[0]) ? `<circle cx="${n.x + n.w - 16}" cy="${n.y + 18}" r="3.5" fill="${esc(tagColor.get(n.tags[0])!)}"/>` : '';
 			const sub = n.sub.trim() ? `<text x="${n.x + 13}" y="${n.y + 66}" font-size="11.5" fill="${C.muted}">${esc(fit(n.sub, n.w - 26, 11.5))}</text>` : '';
 			return [
@@ -197,8 +236,8 @@ export function toSvg(scene: Scene, { on, ghosted = true, edgeStyle = 'curved' }
 	const height = Math.ceil(box.h + 2 * PAD);
 	const markers = MARKERS.map(
 		([id, w, c]) =>
-			`<marker id="${id}" viewBox="0 0 7 6" markerWidth="9" markerHeight="8" refX="5.9" refY="3" markerUnits="userSpaceOnUse" orient="auto"><path d="M0.6,0.5L5.9,3L0.6,5.5" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/></marker>` +
-			`<marker id="${id.replace('arr', 'arrRev')}" viewBox="0 0 7 6" markerWidth="9" markerHeight="8" refX="1.1" refY="3" markerUnits="userSpaceOnUse" orient="auto"><path d="M6.4,0.5L1.1,3L6.4,5.5" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/></marker>`
+			`<marker id="${id}" viewBox="0 0 7 6" markerWidth="${MARKER.w}" markerHeight="${MARKER.h}" refX="5.9" refY="3" markerUnits="userSpaceOnUse" orient="auto"><path d="M0.6,0.5L5.9,3L0.6,5.5" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/></marker>` +
+			`<marker id="${id.replace('arr', 'arrRev')}" viewBox="0 0 7 6" markerWidth="${MARKER.w}" markerHeight="${MARKER.h}" refX="1.1" refY="3" markerUnits="userSpaceOnUse" orient="auto"><path d="M6.4,0.5L1.1,3L6.4,5.5" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/></marker>`
 	).join('');
 	const svg =
 		`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${x0} ${y0} ${width} ${height}" font-family="${FONT}">` +

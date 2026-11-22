@@ -93,3 +93,23 @@ describe('toSvg and C4 text placement', () => {
 		expect(Math.abs(top - 26 - (188 - bottom))).toBeLessThan(1);
 	});
 });
+
+describe('toSvg and code blocks', () => {
+	const svgOf = (node: object) => {
+		const scene = toScene({ version: 1, diagram: { name: 'd', kind: 'c4-code' }, nodes: [{ id: 'a', name: 'Parser', type: 'class', layout: { x: 0, y: 0 }, ...node }] });
+		return { svg: toSvg(scene, { on: tagsOn(scene, null) }).svg, node: scene.nodes[0] };
+	};
+
+	it('lists the members under a rule, in monospace, and counts the ones it leaves out', () => {
+		const { svg, node } = svgOf({ subtitle: 'Reads configs', path: 'src/parser.ts', members: ['parse(text)', 'emit<T>()', 'c()', 'd()', 'e()', 'f()', 'g()', 'h()'] });
+		for (const text of ['>Parser<', '>Reads configs<', '>src/parser.ts<', '>parse(text)<', '>emit&lt;T&gt;()<', '>+3 more<']) expect(svg, text).toContain(text);
+		expect(svg).not.toContain('>f()<');
+		expect(svg).toContain('<line ');
+		expect(svg).toContain('font-family="ui-monospace');
+		expect(svg).toContain(`height="${node.h}"`);
+	});
+
+	it('draws an ordinary card without members or a path', () => {
+		expect(svgOf({ subtitle: 'Reads configs' }).svg).not.toContain('<line ');
+	});
+});

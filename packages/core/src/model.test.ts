@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE } from './fixtures';
 import { catalogue } from './icons';
-import { bounds, C4, C4_PERSON_H, c4Desc, c4Height, c4Top, docLinks, zoomsOf, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
+import { bounds, CODE, codeHeight, codeLines, fitMono, EDGE_SCALE, C4, C4_PERSON_H, c4Desc, c4Height, c4Top, docLinks, zoomsOf, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
 
 describe('typeName', () => {
 	it("turns a slug back into the prototype's own type name", () => {
@@ -40,7 +40,7 @@ describe('toScene', () => {
 		expect(scene.nodes.find(n => n.id === 'db')!.h).toBe(100);
 		expect(scene.nodes.find(n => n.id === 'note')!.isText).toBe(true);
 		const edge = scene.edges[0];
-		expect(edge).toMatchObject({ style: 'solid', dir: 'forward', width: 1.4, route: null, showLabel: true, fromA: null });
+		expect(edge).toMatchObject({ style: 'solid', dir: 'forward', weight: 1.4, width: 1.4 * EDGE_SCALE, route: null, showLabel: true, fromA: null });
 		expect(scene.boundaries[0]).toMatchObject({ pos: 'outside-tr', bs: 'solid', bw: 2 });
 	});
 
@@ -221,5 +221,43 @@ describe('C4 person cards', () => {
 		expect(person.h).toBe(C4_PERSON_H);
 		expect(c4Top('person')).toBe(C4.pad + C4.head);
 		expect(c4Top('container')).toBe(C4.pad);
+	});
+});
+
+describe('code blocks', () => {
+	const doc = (node: object) => ({ version: 1 as const, diagram: { name: 'd', kind: 'c4-code' }, nodes: [{ id: 'a', name: 'Parser', type: 'class', ...node }] });
+	const only = (node: object) => toScene(doc(node)).nodes[0];
+
+	it('draws a node as a code block once it has members or a path, and not before', () => {
+		expect(only({ subtitle: 'Reads configs' })).toMatchObject({ code: false, members: [], path: '', h: NODE_H });
+		expect(only({ path: ' src/parser.ts ' })).toMatchObject({ code: true, path: 'src/parser.ts' });
+		expect(only({ members: ['parse()', ' ', 7, 'emit() '] })).toMatchObject({ code: true, members: ['parse()', '7', 'emit()'] });
+	});
+
+	it('grows the card to hold its lines, and keeps a taller size the document gives', () => {
+		const bare = only({ members: ['a()'] }).h;
+		expect(bare).toBe(codeHeight('', '', ['a()']));
+		expect(only({ members: ['a()', 'b()', 'c()'] }).h).toBe(bare + 2 * CODE.line);
+		expect(only({ subtitle: 'Why', path: 'p.ts', members: ['a()'] }).h).toBe(bare + CODE.subTop + CODE.subLine + CODE.pathTop + CODE.pathLine);
+		expect(only({ members: ['a()'], layout: { x: 0, y: 0, h: 400 } }).h).toBe(400);
+	});
+
+	it('shows up to the most lines a block takes, the last one counting the rest', () => {
+		const names = (n: number) => Array.from({ length: n }, (_, i) => `m${i}()`);
+		expect(codeLines(names(CODE.max))).toEqual({ shown: names(CODE.max), more: 0 });
+		expect(codeLines(names(CODE.max + 3))).toEqual({ shown: names(CODE.max - 1), more: 4 });
+		expect(only({ members: names(40) }).h).toBe(only({ members: names(CODE.max) }).h);
+	});
+
+	it('cuts monospace text to fit, from the start for a path', () => {
+		expect(fitMono('short', 200, 10)).toBe('short');
+		expect(fitMono('abcdefghij', 30, 10)).toBe('abcd…');
+		expect(fitMono('src/lib/parser.ts', 60, 10, true)).toBe('…parser.ts');
+	});
+
+	it('leaves C4 notation cards and notes as they are', () => {
+		const c4 = toScene({ version: 1, diagram: { name: 'd', kind: 'c4-container' }, nodes: [{ id: 'a', name: 'API', type: 'service', members: ['x()'] }] }).nodes[0];
+		expect(c4.code).toBe(false);
+		expect(only({ type: 'note', members: ['x()'] }).code).toBe(false);
 	});
 });
