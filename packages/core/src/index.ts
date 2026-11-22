@@ -45,4 +45,5 @@ export { readConfig, configText, langOf, ConfigError, type ConfigLang, type Read
 export { toScene, tagsOn, bounds, type Scene, type SceneNode, type SceneEdge, type SceneBoundary, type SceneTag, type SceneView } from './model';
 export { toSvg, type RenderOptions } from './render';
 export { parseYaml, YamlError } from './yaml';
-export type { DaidalDoc, DocNode, DocEdge, DocBoundary, DocTag, NodeLink, CustomType } from './types';
+export { signature, parseSignature, toFunctions } from './code';
+export type { DaidalDoc, DocNode, DocEdge, DocBoundary, DocTag, DocFunction, DocParam, NodeLink, CustomType } from './types';

@@ -1557,8 +1557,8 @@ test.describe("the app at /app", () => {
     await checker.click();
     const inspector = page.getByRole("region", { name: "Selected node" });
     const before = (await checker.boundingBox())!.height;
-    await inspector.getByLabel("Members").fill("check(batch): Verdict\nexplain(batch): List<Imbalance>\nreset()");
-    await expect(checker.locator(".member")).toHaveText(["check(batch): Verdict", "explain(batch): List<Imbalance>", "reset()"]);
+    await inspector.getByLabel("Members").fill("id: BatchId\nstrict: Boolean");
+    await expect(checker.locator(".members:not(.functions) .member")).toHaveText(["id: BatchId", "strict: Boolean"]);
     expect((await checker.boundingBox())!.height).toBeGreaterThan(before);
     expect(await fits(checker)).toBe(true);
     await inspector.getByLabel("Path").fill("");
@@ -1566,8 +1566,32 @@ test.describe("the app at /app", () => {
     await expect(page.getByTestId("save-status")).toContainText("Saved");
     const doc = (await (await request.get(`/api/diagrams/${code}`)).json()).doc as { nodes: { id: string; members?: string[]; path?: string }[] };
     const saved = doc.nodes.find(n => n.id === "checker")!;
-    expect(saved.members).toEqual(["check(batch): Verdict", "explain(batch): List<Imbalance>", "reset()"]);
+    expect(saved.members).toEqual(["id: BatchId", "strict: Boolean"]);
     expect(saved).not.toHaveProperty("path");
+  });
+
+  test("adds a code block's functions from their own fields, and draws them as signatures", async ({ page, request }) => {
+    const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+    const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+    const code = list.find(d => d.name === "balance-code")!.id;
+    await page.goto(`/app/d/${code}`);
+
+    const checker = page.getByRole("button", { name: "Class: BalanceChecker" });
+    await expect(checker.locator(".functions .member")).toHaveText(["check(batch: Batch): Verdict", "explain(batch: Batch): List<Imbalance>"]);
+    await checker.click();
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    await expect(inspector.getByRole("group", { name: "Function check" }).getByLabel("Returns")).toHaveValue("Verdict");
+    const before = (await checker.boundingBox())!.height;
+    await inspector.getByRole("button", { name: "+ Add function" }).click();
+    await inspector.getByLabel("Function name").last().fill("reset");
+    await inspector.getByLabel("Parameters").last().fill("reason: String");
+    await inspector.getByLabel("What reset does").fill("Forgets the last verdict.");
+    await expect(checker.locator(".functions .member")).toHaveText(["check(batch: Batch): Verdict", "explain(batch: Batch): List<Imbalance>", "reset(reason: String)"]);
+    expect((await checker.boundingBox())!.height).toBeGreaterThan(before);
+    await expect(page.getByTestId("save-status")).toContainText("Saved");
+    const doc = (await (await request.get(`/api/diagrams/${code}`)).json()).doc as { nodes: { id: string; functions?: unknown[] }[] };
+    expect(doc.nodes.find(n => n.id === "checker")!.functions!.at(-1)).toEqual({ name: "reset", params: [{ name: "reason", type: "String" }], notes: "Forgets the last verdict." });
   });
 
   test("makes the C4 level above a node as a new diagram, which zooms back down", async ({ page, request }) => {

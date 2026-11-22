@@ -104,4 +104,40 @@ describe('config', () => {
 		const again = readConfig(configText(doc, 'yaml'), current(), 'replace').doc;
 		expect(again.nodes![0]).toMatchObject({ path: 'src/parser.ts', members: ['parse(text)', 'emit(): void'] });
 	});
+
+	it('reads functions as entries or signatures, and writes them back as entries', () => {
+		const text = [
+			'nodes:',
+			'  - id: p',
+			'    name: BalanceChecker',
+			'    type: Class',
+			'    functions:',
+			'      - name: check',
+			'        params:',
+			'          - name: batch',
+			'            type: Batch',
+			'          - "strict: Boolean"',
+			'        returns: Verdict',
+			'        notes: Rejects a batch that does not balance.',
+			'      - "sum(lines: Map<Currency, Money>): Money"',
+			'      - reset()',
+			'  - id: q',
+			'    functions: []'
+		].join('\n');
+		const { doc } = readConfig(text, current(), 'replace');
+		const fns = [
+			{ name: 'check', params: [{ name: 'batch', type: 'Batch' }, { name: 'strict', type: 'Boolean' }], returns: 'Verdict', notes: 'Rejects a batch that does not balance.' },
+			{ name: 'sum', params: [{ name: 'lines', type: 'Map<Currency, Money>' }], returns: 'Money' },
+			{ name: 'reset' }
+		];
+		expect(doc.nodes![0].functions).toEqual(fns);
+		expect(doc.nodes![1]).not.toHaveProperty('functions');
+		for (const lang of ['yaml', 'json'] as const) expect(readConfig(configText(doc, lang), current(), 'replace').doc.nodes![0].functions, lang).toEqual(fns);
+		expect(configText(doc, 'yaml')).toContain('    functions:\n      - name: check\n        params:\n          - name: batch\n            type: Batch\n');
+	});
+
+	it('says which function has no name', () => {
+		expect(() => readConfig('nodes:\n  - id: p\n    functions:\n      - returns: Verdict', current(), 'replace')).toThrow('nodes[0].functions[0]: every function needs a name');
+		expect(() => readConfig('nodes:\n  - id: p\n    functions: 7', current(), 'replace')).toThrow('nodes[0].functions');
+	});
 });

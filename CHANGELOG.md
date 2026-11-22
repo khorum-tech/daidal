@@ -5,6 +5,15 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- **Functions on code blocks.** A code block's functions have their own fields: a name, parameters on one line
+  (`batch: Batch, strict: Boolean`), what it returns and a note, added with **+ Add function**. The card draws them as
+  signatures (`check(batch: Batch): Verdict`) under their own rule, below the members, the two sharing its six lines.
+  Documents keep them as `functions: [{ name, params: [{ name, type }], returns, notes }]`; a config may also give a
+  function as a signature, which reads into the same entry, and exports always write the entry. Members now stand
+  for what a block holds (fields, columns, exports). A box that lists functions as text in its members, subtitle or
+  notes offers to move them into fields. The MCP tools (`add_node`, `update_node`, `get_diagram`), the SVG and PNG
+  exports, the hover card, change review, the C4 Code template and the stage data carry them. Older diagrams load
+  as they were.
 - **Code blocks.** A node with `members` (what a class, file or table exposes, a line each) or a `path` (where it
   lives) draws as a code block: the name in monospace, the subtitle as one line of purpose, the path, then the
   members under a rule. The block grows to fit, and shows six lines or five and a count of the rest. The node's

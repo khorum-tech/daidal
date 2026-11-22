@@ -4,6 +4,9 @@
 	import { hostOf, linkUrl } from '@khorum/daidal-core/edit';
 	import { FLAGS, ICON_LIBRARY, TYPE_CATS, type TypeCats } from '@khorum/daidal-core/icons';
 	import { kindOf, type Kind } from '@khorum/daidal-core/kinds';
+	import { functionsInText, paramsText, signature, toFunction } from '@khorum/daidal-core/code';
+	import type { DocFunction } from '@khorum/daidal-core/types';
+	import { tick, untrack } from 'svelte';
 	import Icon from './Icon.svelte';
 	import IconPicker from './IconPicker.svelte';
 	import TypePicker from './TypePicker.svelte';
@@ -128,6 +131,64 @@
 		const members = (e.currentTarget as HTMLTextAreaElement).value.split('\n').map(m => m.trim()).filter(Boolean);
 		onchange?.({ members }, 'Edit members', `${node.id}:members`);
 	}
+
+	/**
+	 * A code block's functions, a row each: its name, its parameters on one line ("batch: Batch, strict: Boolean"),
+	 * what it returns, and a note, laid out as a node's own name and notes are. The rows are this panel's own copy
+	 * while one of them has focus, so a row being named or a parameter half typed stays as typed; every keystroke
+	 * still saves the functions as they read so far (a row without a name isn't one yet). When focus leaves the
+	 * functions, the rows read the node again.
+	 */
+	interface FnRow {
+		key: number;
+		name: string;
+		params: string;
+		returns: string;
+		notes: string;
+	}
+	let rows = $state<FnRow[]>([]);
+	let editingFns = $state(false);
+	let rowsFor = '';
+	let rowSeq = 0;
+	$effect.pre(() => {
+		const fns = node.functions;
+		const id = node.id;
+		if (editingFns && id === rowsFor) return;
+		rowsFor = id;
+		const kept = untrack(() => rows);
+		rows = fns.map((f, i) => ({ key: kept[i]?.key ?? ++rowSeq, name: f.name, params: paramsText(f.params), returns: f.returns ?? '', notes: f.notes ?? '' }));
+	});
+	const cleanRows = (list: FnRow[]): DocFunction[] => list.map(r => toFunction({ name: r.name, params: r.params, returns: r.returns, notes: r.notes })).filter((f): f is DocFunction => f !== null);
+	function fnTyped(key: number, field: 'name' | 'params' | 'returns' | 'notes') {
+		return (e: Event) => {
+			const value = (e.currentTarget as HTMLInputElement).value;
+			rows = rows.map(r => (r.key === key ? { ...r, [field]: value } : r));
+			onchange?.({ functions: cleanRows(rows) }, 'Edit functions', `${node.id}:functions`);
+		};
+	}
+	async function addFn() {
+		editingFns = true;
+		const row = { key: ++rowSeq, name: '', params: '', returns: '', notes: '' };
+		rows = [...rows, row];
+		await tick();
+		document.getElementById(`fn-name-${row.key}`)?.focus();
+	}
+	function removeFn(key: number) {
+		const row = rows.find(r => r.key === key);
+		rows = rows.filter(r => r.key !== key);
+		onchange?.({ functions: cleanRows(rows) }, `Remove ${row?.name.trim() || 'function'}`);
+	}
+	function fnsLeft(e: FocusEvent) {
+		if ((e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) return;
+		editingFns = false;
+		onfieldend?.();
+	}
+	/** Functions a code box has written as text (in its members, subtitle or notes), offered to move into rows. */
+	const inText = $derived(codeFields ? functionsInText({ members: node.members, subtitle: node.sub, notes: node.desc }) : null);
+	function moveInText() {
+		if (!inText?.found.length) return;
+		onchange?.({ functions: [...node.functions, ...inText.found], members: inText.members, subtitle: inText.subtitle, notes: inText.notes }, 'Move functions out of text');
+	}
 	function nameDone(e: FocusEvent) {
 		// A node keeps a name: left blank, it takes its type's.
 		if (!(e.currentTarget as HTMLInputElement).value.trim()) onchange?.({ name: node.type }, 'Rename node', `${node.id}:name`);
@@ -230,6 +291,14 @@
 			{#each node.members as m, i (i)}<li>{m}</li>{/each}
 		</ul>
 	{/if}
+	{#if node.functions.length}
+		<h3>Functions</h3>
+		<ul class="fn-list">
+			{#each node.functions as f, i (i)}
+				<li><code class="sig"><span class="sig-name">{f.name}</span>{signature(f).slice(f.name.length)}</code>{#if f.notes}<p class="fn-note">{f.notes}</p>{/if}</li>
+			{/each}
+		</ul>
+	{/if}
 {/snippet}
 
 <section class="inspector" class:editable aria-label="Selected node">
@@ -243,9 +312,34 @@
 		{#if codeFields}
 			<!-- A code block's own fields: offered in a C4 Code diagram, and wherever a node already has them. -->
 			<label class="sr" for="node-members">Members</label>
-			<textarea id="node-members" class="input members" rows="4" value={node.members.join('\n')} placeholder="What it exposes, one a line: parse(), Config, id: uuid…" oninput={membersTyped} onblur={() => onfieldend?.()}></textarea>
+			<textarea id="node-members" class="input members" rows="3" value={node.members.join('\n')} placeholder="Fields, columns or exports, one a line: id: uuid, Config…" oninput={membersTyped} onblur={() => onfieldend?.()}></textarea>
 			<label class="sr" for="node-path">Path</label>
 			<input id="node-path" class="input mono" value={node.path} placeholder="Where it lives: src/lib/parser.ts, or a link" oninput={typed('path', 'Edit path')} onblur={() => onfieldend?.()} />
+
+			<h3>Functions</h3>
+			{#if inText?.found.length}
+				<button type="button" class="btn btn-secondary from-text" onclick={moveInText}>
+					Make {inText.found.length === 1 ? 'the function' : `the ${inText.found.length} functions`} written as text into fields
+				</button>
+			{/if}
+			<div class="functions" onfocusin={() => (editingFns = true)} onfocusout={fnsLeft}>
+				{#each rows as r, i (r.key)}
+					<div class="fn" role="group" aria-label="Function {r.name.trim() || i + 1}">
+						<div class="fn-row">
+							<input id="fn-name-{r.key}" class="input mono fn-name" aria-label="Function name" placeholder="name" autocomplete="off" autocapitalize="off" spellcheck="false" value={r.name} oninput={fnTyped(r.key, 'name')} />
+							<button type="button" class="x" aria-label="Remove function {r.name.trim() || i + 1}" onclick={() => removeFn(r.key)}>×</button>
+						</div>
+						<div class="fn-row">
+							<span class="punct" aria-hidden="true">(</span>
+							<input class="input mono fn-params" aria-label="Parameters" placeholder="batch: Batch, strict: Boolean" autocomplete="off" autocapitalize="off" spellcheck="false" value={r.params} oninput={fnTyped(r.key, 'params')} />
+							<span class="punct" aria-hidden="true">):</span>
+							<input class="input mono fn-returns" aria-label="Returns" placeholder="Returns" autocomplete="off" autocapitalize="off" spellcheck="false" value={r.returns} oninput={fnTyped(r.key, 'returns')} />
+						</div>
+						<textarea class="input notes fn-notes" rows="2" aria-label="What {r.name.trim() || 'it'} does" placeholder="What it does, and anything worth knowing." value={r.notes} oninput={fnTyped(r.key, 'notes')}></textarea>
+					</div>
+				{/each}
+				<button type="button" class="btn btn-secondary add-fn" onclick={addFn}>+ Add function</button>
+			</div>
 		{/if}
 
 		<h3>Type</h3>
@@ -607,6 +701,86 @@
 		list-style: none;
 		line-height: 1.6;
 		overflow-wrap: anywhere;
+	}
+	.functions {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin-top: 6px;
+	}
+	.fn {
+		display: flex;
+		flex-direction: column;
+		padding: 7px 8px 8px;
+		border: 1px solid var(--color-divider);
+		border-radius: 8px;
+		background: var(--color-neutral-950, transparent);
+	}
+	.fn-row {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+	.fn-row + .fn-row {
+		margin-top: 5px;
+	}
+	.fn .input {
+		margin-top: 0;
+		min-width: 0;
+	}
+	.fn-name {
+		flex: 1;
+		font-weight: 600;
+	}
+	.fn-params {
+		flex: 3;
+	}
+	.fn-returns {
+		flex: 2;
+	}
+	.fn .fn-notes {
+		margin-top: 5px;
+		min-height: 44px;
+	}
+	.punct {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 12px;
+		color: var(--color-neutral-500);
+	}
+	.add-fn,
+	.from-text {
+		align-self: flex-start;
+		gap: 5px;
+	}
+	.from-text {
+		margin-top: 6px;
+		white-space: normal;
+		text-align: left;
+	}
+	.fn-list {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+	.sig {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 12px;
+		line-height: 1.6;
+		color: var(--color-neutral-500);
+		overflow-wrap: anywhere;
+	}
+	.sig-name {
+		color: var(--color-text);
+		font-weight: 600;
+	}
+	.fn-note {
+		margin: 1px 0 0;
+		font-size: 12px;
+		line-height: 1.5;
+		color: var(--color-neutral-400);
 	}
 	.editable .notes {
 		min-height: 64px;

@@ -1,4 +1,5 @@
-import type { DocBoundary, DocEdge, DocNode, DaidalDoc } from './types';
+import type { DocBoundary, DocEdge, DocFunction, DocNode, DaidalDoc } from './types';
+import { signature, toFunctions } from './code';
 import { isNodeIcon, TYPE_CATS, typeIcon, typeKey, type TypeCats } from './icons';
 import { c4Line, c4Role, kindOf, type C4Role, type Kind } from './kinds';
 
@@ -53,8 +54,12 @@ export interface SceneNode {
 	ownIcon: string | null;
 	sub: string;
 	desc: string;
-	/** What it exposes, a line each, and where it lives; with either, [code] and the card draws as a code block. */
+	/**
+	 * What it holds (fields, columns, exports), a line each, what it can do (its functions), and where it lives; with
+	 * any of them, [code] and the card draws as a code block.
+	 */
 	members: string[];
+	functions: DocFunction[];
 	path: string;
 	code: boolean;
 	flags: string[];
@@ -264,24 +269,41 @@ function c4About(role: C4Role, n: DocNode): string {
 }
 
 /**
- * A code block: a card that lists what a class, file or table exposes. Under the type row come its name in
- * monospace, its subtitle as one line of purpose, its path, then a rule and its members, a line each; past
- * [CODE.max] the last line counts the rest. The canvas card and the exported SVG both draw from these sizes.
+ * A code block: a card that lists what a class, file or table holds and does. Under the type row come its name in
+ * monospace, its subtitle as one line of purpose, its path, then a rule and its members (fields, columns, exports), a
+ * line each, then another rule and its functions as signatures, a line each. Past [CODE.max] lines in all, each part
+ * counts what it leaves out. The canvas card and the exported SVG both draw from these sizes.
  */
 export const CODE = { padX: 13, padY: 11, head: 14, nameTop: 7, nameSize: 13.5, nameLine: 18, subTop: 2, subLine: 16, pathTop: 1, pathSize: 10.5, pathLine: 14, ruleTop: 8, ruleBottom: 6, size: 11.5, line: 17, max: 6 } as const;
 
-/** The member lines a code block shows: all of them up to [CODE.max], else one fewer and a count of the rest. */
-export function codeLines(members: string[]): { shown: string[]; more: number } {
-	if (members.length <= CODE.max) return { shown: members, more: 0 };
-	return { shown: members.slice(0, CODE.max - 1), more: members.length - (CODE.max - 1) };
+/** The lines one part of a code block shows within [max]: all of them, else one fewer and a count of the rest. */
+export function codeLines(lines: string[], max: number = CODE.max): { shown: string[]; more: number } {
+	if (lines.length <= max) return { shown: lines, more: 0 };
+	const keep = Math.max(0, max - 1);
+	return { shown: lines.slice(0, keep), more: lines.length - keep };
 }
 
-/** The height a code block needs for its subtitle, path and members. */
-export function codeHeight(sub: string, path: string, members: string[]): number {
-	const { shown, more } = codeLines(members);
-	const lines = shown.length + (more ? 1 : 0);
+/**
+ * What each part of a code block shows: its members and its functions (as signatures) share [CODE.max] lines. When
+ * both have more than fits, each gets half; when one needs less, the other takes what it leaves.
+ */
+export function codeSections(members: string[], functions: string[]): { members: { shown: string[]; more: number }; functions: { shown: string[]; more: number } } {
+	const max = CODE.max;
+	if (members.length + functions.length <= max) return { members: { shown: members, more: 0 }, functions: { shown: functions, more: 0 } };
+	let forMembers = functions.length ? Math.min(members.length, Math.floor(max / 2)) : max;
+	if (functions.length && functions.length < max - forMembers) forMembers = max - functions.length;
+	return { members: codeLines(members, forMembers), functions: codeLines(functions, max - forMembers) };
+}
+
+/** The height a code block needs for its subtitle, path, members and functions (as signatures). */
+export function codeHeight(sub: string, path: string, members: string[], functions: string[] = []): number {
+	const parts = codeSections(members, functions);
+	const block = ({ shown, more }: { shown: string[]; more: number }) => {
+		const lines = shown.length + (more ? 1 : 0);
+		return lines ? CODE.ruleTop + 1 + CODE.ruleBottom + lines * CODE.line : 0;
+	};
 	return Math.ceil(
-		2 * CODE.padY + 2 + CODE.head + CODE.nameTop + CODE.nameLine + (sub.trim() ? CODE.subTop + CODE.subLine : 0) + (path ? CODE.pathTop + CODE.pathLine : 0) + (lines ? CODE.ruleTop + 1 + CODE.ruleBottom + lines * CODE.line : 0)
+		2 * CODE.padY + 2 + CODE.head + CODE.nameTop + CODE.nameLine + (sub.trim() ? CODE.subTop + CODE.subLine : 0) + (path ? CODE.pathTop + CODE.pathLine : 0) + block(parts.members) + block(parts.functions)
 	);
 }
 
@@ -303,10 +325,11 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind:
 	const name = String(n.name ?? n.id);
 	let drawnH = h;
 	const members = (Array.isArray(n.members) ? n.members : []).map(m => String(m).trim()).filter(Boolean);
+	const functions = toFunctions(n.functions);
 	const path = typeof n.path === 'string' ? n.path.trim() : '';
-	const code = !c4 && type !== 'Note' && type !== 'Text' && (members.length > 0 || path !== '');
+	const code = !c4 && type !== 'Note' && type !== 'Text' && (members.length > 0 || functions.length > 0 || path !== '');
 	if (c4) drawnH = Math.max(h, c4Height(c4.role, name, c4.line, c4.desc, w));
-	else if (code) drawnH = Math.max(h, codeHeight(n.subtitle ?? '', path, members));
+	else if (code) drawnH = Math.max(h, codeHeight(n.subtitle ?? '', path, members, functions.map(signature)));
 	else if (type === 'Note') drawnH = Math.max(h, noteHeight(name, n.notes ?? '', w));
 	return {
 		id: String(n.id),
@@ -317,6 +340,7 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind:
 		sub: n.subtitle ?? '',
 		desc: n.notes ?? '',
 		members,
+		functions,
 		path,
 		code,
 		flags: Array.isArray(n.flags) ? n.flags : [],

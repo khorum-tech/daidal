@@ -2,6 +2,7 @@ import type { DocBoundary, DocEdge, DocNode, DocTag, DaidalDoc } from './types';
 import { NEW_TAG_GROUP, TAG_COLORS } from './edit';
 import { isColor, slug } from './model';
 import { parseYaml, yamlLines, YamlError } from './yaml';
+import { toFunctions } from './code';
 
 /**
  * A diagram as a config file (the prototype's config dock): the saved document as YAML or JSON, and back. Reading a
@@ -109,6 +110,17 @@ function node(raw: unknown, i: number): DocNode {
 		const members = (Array.isArray(n.members) ? n.members : [n.members]).map(asText).map(m => m.trim()).filter(Boolean);
 		if (members.length) out.members = members;
 		else delete out.members;
+	}
+	if (n.functions != null) {
+		// Entries with a name, params, returns and notes, or signatures ("check(batch: Batch): Verdict") read into them.
+		if (typeof n.functions !== 'string' && !Array.isArray(n.functions) && (typeof n.functions !== 'object' || n.functions === null)) throw new ConfigError(`nodes[${i}].functions: a list of functions, each a signature or a map with a name`);
+		const entries = Array.isArray(n.functions) ? n.functions : [n.functions];
+		entries.forEach((f, j) => {
+			if (f && typeof f === 'object' && !Array.isArray(f) && !asText((f as Record<string, unknown>).name ?? '').trim()) throw new ConfigError(`nodes[${i}].functions[${j}]: every function needs a name`);
+		});
+		const functions = toFunctions(n.functions);
+		if (functions.length) out.functions = functions;
+		else delete out.functions;
 	}
 	if (n.path != null) out.path = asText(n.path);
 	return out;

@@ -436,10 +436,37 @@
 					"type": "class",
 					"subtitle": "Maps HTTP to the service.",
 					"path": "handlers/orders.ts",
-					"members": [
-						"create(req)",
-						"cancel(req)",
-						"show(req)"
+					"functions": [
+						{
+							"name": "create",
+							"params": [
+								{
+									"name": "req",
+									"type": "Request"
+								}
+							],
+							"returns": "Response"
+						},
+						{
+							"name": "cancel",
+							"params": [
+								{
+									"name": "req",
+									"type": "Request"
+								}
+							],
+							"returns": "Response"
+						},
+						{
+							"name": "show",
+							"params": [
+								{
+									"name": "req",
+									"type": "Request"
+								}
+							],
+							"returns": "Response"
+						}
 					],
 					"tags": [
 						"core"
@@ -456,10 +483,36 @@
 					"type": "class",
 					"subtitle": "The rules for placing an order.",
 					"path": "services/orders.ts",
-					"members": [
-						"place(order)",
-						"cancel(id)",
-						"total(id)"
+					"functions": [
+						{
+							"name": "place",
+							"params": [
+								{
+									"name": "order",
+									"type": "Order"
+								}
+							],
+							"returns": "OrderId"
+						},
+						{
+							"name": "cancel",
+							"params": [
+								{
+									"name": "id",
+									"type": "OrderId"
+								}
+							]
+						},
+						{
+							"name": "total",
+							"params": [
+								{
+									"name": "id",
+									"type": "OrderId"
+								}
+							],
+							"returns": "Money"
+						}
 					],
 					"tags": [
 						"core"
@@ -476,8 +529,17 @@
 					"type": "function",
 					"subtitle": "Applies discounts and tax.",
 					"path": "pricing.ts",
-					"members": [
-						"priceOrder(lines)"
+					"functions": [
+						{
+							"name": "priceOrder",
+							"params": [
+								{
+									"name": "lines",
+									"type": "Line[]"
+								}
+							],
+							"returns": "Price"
+						}
 					],
 					"tags": [
 						"core"

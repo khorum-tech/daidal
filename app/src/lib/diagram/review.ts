@@ -55,6 +55,7 @@ function nodeEdit(o: DocNode, n: DocNode, os: SceneNode, ns: SceneNode) {
 		['flags', sorted(o.flags) !== sorted(n.flags), `flags → ${(n.flags ?? []).join(', ') || 'none'}`],
 		['notes', os.desc !== ns.desc, 'notes'],
 		['members', os.members.join('\n') !== ns.members.join('\n'), 'members'],
+		['functions', !same(os.functions, ns.functions), 'functions'],
 		['path', os.path !== ns.path, `path → ${ns.path || '—'}`],
 		['links', !same(o.links, n.links), 'links']
 	];

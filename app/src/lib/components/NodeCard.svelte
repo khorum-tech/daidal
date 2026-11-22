@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { c4Desc, c4Kind, c4Name, CODE, codeLines, noteLines, wrapText, type SceneNode, type SceneTag } from '@khorum/daidal-core/model';
+	import { c4Desc, c4Kind, c4Name, CODE, codeSections, noteLines, wrapText, type SceneNode, type SceneTag } from '@khorum/daidal-core/model';
 	import { FLAGS } from '@khorum/daidal-core/icons';
+	import { signature } from '@khorum/daidal-core/code';
 	import Icon from './Icon.svelte';
 
 	/** One node on the canvas, read-only. Mirrors the prototype's card and text nodes (web/index.html). */
@@ -40,7 +41,8 @@
 			return u;
 		}
 	};
-	const lines = $derived(codeLines(node.members));
+	const sigs = $derived(node.functions.map(f => ({ name: f.name, rest: signature(f).slice(f.name.length), full: signature(f), notes: f.notes ?? '' })));
+	const parts = $derived(codeSections(node.members, sigs.map(s => s.full)));
 	const linkTitle = $derived(node.links.map(l => l.label || hostOf(l.url)).join(' · '));
 
 	// A card's name and subtitle wrap as they always have and use the room its height gives them, down to its
@@ -124,10 +126,17 @@
 			<span class="code-name" title={node.name}>{node.name}</span>
 			{#if node.sub.trim()}<span class="code-sub" title={node.sub}>{node.sub}</span>{/if}
 			{#if node.path}<span class="code-path" title={node.path}><bdi>{node.path}</bdi></span>{/if}
-			{#if lines.shown.length}
+			{#if parts.members.shown.length || parts.members.more}
 				<span class="members" style:--line="{CODE.line}px">
-					{#each lines.shown as m, i (i)}<span class="member" title={m}>{m}</span>{/each}
-					{#if lines.more}<span class="more">+{lines.more} more</span>{/if}
+					{#each parts.members.shown as m, i (i)}<span class="member" title={m}>{m}</span>{/each}
+					{#if parts.members.more}<span class="more">+{parts.members.more} more</span>{/if}
+				</span>
+			{/if}
+			{#if parts.functions.shown.length || parts.functions.more}
+				<!-- Its functions as signatures: the name in the text colour, parameters and return type quieter. -->
+				<span class="members functions" style:--line="{CODE.line}px">
+					{#each sigs.slice(0, parts.functions.shown.length) as f, i (i)}<span class="member fn" title={f.notes ? `${f.full}\n${f.notes}` : f.full}>{f.name}<span class="fn-rest">{f.rest}</span></span>{/each}
+					{#if parts.functions.more}<span class="more">+{parts.functions.more} more</span>{/if}
 				</span>
 			{/if}
 		{:else}
@@ -417,6 +426,9 @@
 	.more {
 		font-size: 11.5px;
 		line-height: var(--line);
+	}
+	.fn-rest {
+		color: var(--color-neutral-500);
 	}
 	.more {
 		font-size: 11px;

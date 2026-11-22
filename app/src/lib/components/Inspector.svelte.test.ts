@@ -197,3 +197,83 @@ describe('the inspector and new diagrams above a node', () => {
 		expect(page.getByRole('button', { name: /diagram above$/ }).elements()).toHaveLength(0);
 	});
 });
+
+describe("the inspector and a code block's functions", () => {
+	const codeNode = (node: object) => toScene({ version: 1, diagram: { kind: 'c4-code' }, nodes: [{ id: 'chk', name: 'BalanceChecker', type: 'class', ...node }] }).nodes[0];
+	async function editingCode(node: object) {
+		const { kindOf } = await import('@khorum/daidal-core/kinds');
+		const changes: { change: NodeChange; label: string; group?: string }[] = [];
+		const calls: string[] = [];
+		await render(Inspector, {
+			node: codeNode(node),
+			tags: {},
+			editable: true,
+			kind: kindOf('c4-code'),
+			onchange: (change, label, group) => changes.push({ change, label, group }),
+			onfieldend: () => calls.push('end')
+		});
+		return { changes, calls };
+	}
+
+	it('adds a function from its fields, saving it as typed, as one undo step', async () => {
+		const { changes, calls } = await editingCode({});
+		await page.getByRole('button', { name: '+ Add function' }).click();
+		await expect.element(page.getByLabelText('Function name')).toHaveFocus();
+		await page.getByLabelText('Function name').fill('check');
+		await page.getByLabelText('Parameters').fill('batch: Batch, lines: Map<K, V>, ');
+		// Half typed, the line stays as it is while the saved function reads what it can.
+		await expect.element(page.getByLabelText('Parameters')).toHaveValue('batch: Batch, lines: Map<K, V>, ');
+		await page.getByLabelText('Returns').fill('Verdict');
+		await page.getByLabelText('What check does').fill('Rejects a batch that does not balance.');
+		expect(changes.at(-1)).toEqual({
+			change: {
+				functions: [
+					{
+						name: 'check',
+						params: [
+							{ name: 'batch', type: 'Batch' },
+							{ name: 'lines', type: 'Map<K, V>' }
+						],
+						returns: 'Verdict',
+						notes: 'Rejects a batch that does not balance.'
+					}
+				]
+			},
+			label: 'Edit functions',
+			group: 'chk:functions'
+		});
+		expect(new Set(changes.map(c => c.group))).toEqual(new Set(['chk:functions']));
+		expect(calls).toEqual([]);
+		await page.getByLabelText('Name').click();
+		expect(calls).toEqual(['end']);
+	});
+
+	it('shows the functions it has, and removes one', async () => {
+		const { changes } = await editingCode({ functions: [{ name: 'check', params: [{ name: 'batch', type: 'Batch' }], returns: 'Verdict' }, { name: 'reset' }] });
+		await expect.element(page.getByRole('group', { name: 'Function check' }).getByLabelText('Parameters')).toHaveValue('batch: Batch');
+		await expect.element(page.getByRole('group', { name: 'Function check' }).getByLabelText('Returns')).toHaveValue('Verdict');
+		await page.getByRole('button', { name: 'Remove function check' }).click();
+		expect(changes.at(-1)).toEqual({ change: { functions: [{ name: 'reset' }] }, label: 'Remove check', group: undefined });
+	});
+
+	it('moves functions written as text into fields, leaving the rest', async () => {
+		const { changes } = await editingCode({ members: ['id: uuid', 'check(batch): Verdict'], subtitle: 'reset()' });
+		await page.getByRole('button', { name: 'Make the 2 functions written as text into fields' }).click();
+		expect(changes.at(-1)).toEqual({
+			change: { functions: [{ name: 'check', params: [{ name: 'batch' }], returns: 'Verdict' }, { name: 'reset' }], members: ['id: uuid'], subtitle: '', notes: '' },
+			label: 'Move functions out of text'
+		});
+	});
+
+	it('offers no move when nothing written is a function', async () => {
+		await editingCode({ members: ['id: uuid'] });
+		expect(page.getByRole('button', { name: /written as text/ }).elements()).toHaveLength(0);
+	});
+
+	it('lists them read-only as signatures, with their notes', async () => {
+		await render(Inspector, { node: codeNode({ functions: [{ name: 'check', params: [{ name: 'batch', type: 'Batch' }], returns: 'Verdict', notes: 'Rejects it.' }] }), tags: {} });
+		await expect.element(page.getByRole('heading', { name: 'Functions' })).toBeVisible();
+		await expect.element(page.getByText('(batch: Batch): Verdict')).toBeVisible();
+		await expect.element(page.getByText('Rejects it.')).toBeVisible();
+	});
+});

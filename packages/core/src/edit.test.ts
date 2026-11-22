@@ -108,6 +108,12 @@ describe('updateNode', () => {
 		expect(cleared).not.toHaveProperty('path');
 	});
 
+	it("sets a code block's functions, and drops them once emptied", () => {
+		const set = updateNode(base(), 'api', { functions: [{ name: 'get', params: [{ name: 'id', type: 'Id' }], returns: 'Order' }] });
+		expect(set.nodes!.find(n => n.id === 'api')!.functions).toEqual([{ name: 'get', params: [{ name: 'id', type: 'Id' }], returns: 'Order' }]);
+		expect(updateNode(set, 'api', { functions: [] }).nodes!.find(n => n.id === 'api')).not.toHaveProperty('functions');
+	});
+
 	it('changes the given fields and slugs the type', () => {
 		const next = updateNode(base(), 'api', { name: 'Gateway', type: 'API Gateway', subtitle: 'edge', flags: ['cache'] });
 		expect(next.nodes![0]).toMatchObject({ name: 'Gateway', type: 'api-gateway', subtitle: 'edge', flags: ['cache'] });

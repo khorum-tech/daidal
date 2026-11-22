@@ -136,6 +136,22 @@ describe("the MCP server", () => {
     expect((await tool("update_node", { diagram: d, node: "Billing Agent", icon: "trash" })).error).toContain("no icon");
   });
 
+  it("gives a code block functions, as signatures or entries, and lists them as signatures", async () => {
+    const email = "mcp-functions@example.com";
+    const { tool } = await client(email);
+    const d = (await tool("create_diagram", { workspace: personal(email), name: "code" })).diagram;
+    await tool("add_node", { diagram: d, name: "BalanceChecker", type: "Class", members: ["id: BatchId"], functions: ["check(batch: Batch): Verdict"] });
+    let out = await tool("get_diagram", { diagram: d });
+    expect(out.nodes[0]).toMatchObject({ name: "BalanceChecker", members: ["id: BatchId"], functions: ["check(batch: Batch): Verdict"] });
+    await tool("update_node", { diagram: d, node: "BalanceChecker", functions: [{ name: "explain", params: [{ name: "batch", type: "Batch" }], returns: "List<Imbalance>", notes: "Which currencies are out." }] });
+    out = await tool("get_diagram", { diagram: d });
+    expect(out.nodes[0].functions).toEqual(["explain(batch: Batch): List<Imbalance>"]);
+    const yaml = (await tool("get_diagram", { diagram: d, format: "yaml" })).config;
+    expect(yaml).toContain("functions:\n      - name: explain\n        params:\n          - name: batch\n            type: Batch\n        returns: \"List<Imbalance>\"\n        notes: Which currencies are out.");
+    await tool("update_node", { diagram: d, node: "BalanceChecker", functions: [] });
+    expect((await tool("get_diagram", { diagram: d })).nodes[0]).not.toHaveProperty("functions");
+  });
+
   it("applies a config by merge or replace, says what it did, and explains a config it can't read", async () => {
     const email = "mcp-config@example.com";
     const { body: d } = await call.post(email, "/api/diagrams", { workspace: personal(email), doc: doc("cfg") });

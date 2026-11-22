@@ -109,6 +109,16 @@ describe('toSvg and code blocks', () => {
 		expect(svg).toContain(`height="${node.h}"`);
 	});
 
+	it('lists its functions as signatures under their own rule, the name stronger than the rest', () => {
+		const { svg, node } = svgOf({ layout: { x: 0, y: 0, w: 280 }, members: ['id: uuid'], functions: [{ name: 'check', params: [{ name: 'batch', type: 'Batch' }], returns: 'Verdict', notes: 'Not drawn on the card.' }, 'reset()'] });
+		expect(svg).toContain('>check<tspan fill="#');
+		expect(svg).toContain('>(batch: Batch): Verdict</tspan>');
+		expect(svg).toContain('>reset<tspan');
+		expect(svg).not.toContain('Not drawn on the card.');
+		expect(svg.match(/<line /g)).toHaveLength(2);
+		expect(svg).toContain(`height="${node.h}"`);
+	});
+
 	it('draws an ordinary card without members or a path', () => {
 		expect(svgOf({ subtitle: 'Reads configs' }).svg).not.toContain('<line ');
 	});
