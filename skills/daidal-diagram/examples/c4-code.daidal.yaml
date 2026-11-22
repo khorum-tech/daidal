@@ -7,6 +7,7 @@ nodes:
     type: class
     subtitle: Says whether a batch balances
     path: postings/src/balance/BalanceChecker.kt
+    language: kotlin
     members: ["rules: List<Rule>"]
     functions:
       - name: check
@@ -22,6 +23,7 @@ nodes:
     name: Batch
     type: class
     path: postings/src/model/Batch.kt
+    language: kotlin
     members: ["id: BatchId", "lines: List<Line>"]
     functions: ["total(currency: Currency): Money"]
     x: 460

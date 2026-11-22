@@ -2,7 +2,7 @@ import type { DocBoundary, DocEdge, DocNode, DocTag, DaidalDoc } from './types';
 import { NEW_TAG_GROUP, TAG_COLORS } from './edit';
 import { isColor, slug } from './model';
 import { parseYaml, yamlLines, YamlError } from './yaml';
-import { toFunctions } from './code';
+import { LANGUAGES, toFunctions, toLanguage } from './code';
 
 /**
  * A diagram as a config file (the prototype's config dock): the saved document as YAML or JSON, and back. Reading a
@@ -121,6 +121,14 @@ function node(raw: unknown, i: number): DocNode {
 		const functions = toFunctions(n.functions);
 		if (functions.length) out.functions = functions;
 		else delete out.functions;
+	}
+	if (n.language != null) {
+		// One of the languages a code block's functions can read in, by id, name or a short name ("ts", "c#").
+		const raw = asText(n.language).trim();
+		const language = toLanguage(raw);
+		if (raw && !language) throw new ConfigError(`nodes[${i}].language: "${raw}" isn't one of ${LANGUAGES.map(l => l.id).join(', ')}`);
+		if (language) out.language = language;
+		else delete out.language;
 	}
 	if (n.path != null) out.path = asText(n.path);
 	return out;

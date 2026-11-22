@@ -145,10 +145,16 @@ describe("the MCP server", () => {
     const d = (await tool("create_diagram", { workspace: personal(email), name: "code" })).diagram;
     await tool("add_node", { diagram: d, name: "BalanceChecker", type: "Class", members: ["id: BatchId"], functions: ["check(batch: Batch): Verdict"] });
     let out = await tool("get_diagram", { diagram: d });
-    expect(out.nodes[0]).toMatchObject({ name: "BalanceChecker", members: ["id: BatchId"], functions: ["check(batch: Batch): Verdict"] });
+    expect(out.nodes[0]).toMatchObject({ name: "BalanceChecker", members: ["id: BatchId"], functions: ["check(batch: Batch) → Verdict"] });
     await tool("update_node", { diagram: d, node: "BalanceChecker", functions: [{ name: "explain", params: [{ name: "batch", type: "Batch" }], returns: "List<Imbalance>", notes: "Which currencies are out." }] });
     out = await tool("get_diagram", { diagram: d });
-    expect(out.nodes[0].functions).toEqual(["explain(batch: Batch): List<Imbalance>"]);
+    expect(out.nodes[0].functions).toEqual(["explain(batch: Batch) → List<Imbalance>"]);
+    // In a language, the outline writes them as that language does.
+    await tool("update_node", { diagram: d, node: "BalanceChecker", language: "java" });
+    out = await tool("get_diagram", { diagram: d });
+    expect(out.nodes[0]).toMatchObject({ language: "java", functions: ["List<Imbalance> explain(Batch batch)"] });
+    await tool("update_node", { diagram: d, node: "BalanceChecker", language: "" });
+    expect((await tool("get_diagram", { diagram: d })).nodes[0]).not.toHaveProperty("language");
     const yaml = (await tool("get_diagram", { diagram: d, format: "yaml" })).config;
     expect(yaml).toContain("functions:\n      - name: explain\n        params:\n          - name: batch\n            type: Batch\n        returns: \"List<Imbalance>\"\n        notes: Which currencies are out.");
     await tool("update_node", { diagram: d, node: "BalanceChecker", functions: [] });
@@ -169,6 +175,7 @@ describe("the MCP server", () => {
     notes: { yamlOnly: "long text, kept out of the outline" },
     members: "members",
     functions: "functions",
+    language: "language",
     path: "path",
     links: "zoomsInto",
     ref: { yamlOnly: "ties the node to another diagram" },

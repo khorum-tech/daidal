@@ -1578,20 +1578,50 @@ test.describe("the app at /app", () => {
     await page.goto(`/app/d/${code}`);
 
     const checker = page.getByRole("button", { name: "Class: BalanceChecker" });
-    await expect(checker.locator(".functions .member")).toHaveText(["check(batch: Batch): Verdict", "explain(batch: Batch): List<Imbalance>"]);
+    await expect(checker.locator(".functions .member")).toHaveText(["check(batch: Batch) → Verdict", "explain(batch: Batch) → List<Imbalance>"]);
     await checker.click();
     const inspector = page.getByRole("region", { name: "Selected node" });
     await expect(inspector.getByRole("group", { name: "Function check" }).getByLabel("Returns")).toHaveValue("Verdict");
     const before = (await checker.boundingBox())!.height;
     await inspector.getByRole("button", { name: "+ Add function" }).click();
     await inspector.getByLabel("Function name").last().fill("reset");
-    await inspector.getByLabel("Parameters").last().fill("reason: String");
+    const reset = inspector.getByRole("group", { name: "Function reset" });
+    await reset.getByRole("button", { name: "+ Parameter" }).click();
+    await reset.getByLabel("Parameter 1 name").fill("reason");
+    await reset.getByLabel("Parameter 1 type").fill("String");
     await inspector.getByLabel("What reset does").fill("Forgets the last verdict.");
-    await expect(checker.locator(".functions .member")).toHaveText(["check(batch: Batch): Verdict", "explain(batch: Batch): List<Imbalance>", "reset(reason: String)"]);
+    await expect(checker.locator(".functions .member")).toHaveText(["check(batch: Batch) → Verdict", "explain(batch: Batch) → List<Imbalance>", "reset(reason: String)"]);
     expect((await checker.boundingBox())!.height).toBeGreaterThan(before);
+
+    // In a language, each function reads as that language writes it; the document keeps them the same.
+    await inspector.getByLabel("Written in").selectOption({ label: "Java" });
+    await expect(checker.locator(".functions .member")).toHaveText(["Verdict check(Batch batch)", "List<Imbalance> explain(Batch batch)", "reset(String reason)"]);
+    await inspector.getByLabel("Written in").selectOption({ label: "Kotlin" });
+    await expect(checker.locator(".functions .member").first()).toHaveText("fun check(batch: Batch): Verdict");
     await expect(page.getByTestId("save-status")).toContainText("Saved");
-    const doc = (await (await request.get(`/api/diagrams/${code}`)).json()).doc as { nodes: { id: string; functions?: unknown[] }[] };
-    expect(doc.nodes.find(n => n.id === "checker")!.functions!.at(-1)).toEqual({ name: "reset", params: [{ name: "reason", type: "String" }], notes: "Forgets the last verdict." });
+    const doc = (await (await request.get(`/api/diagrams/${code}`)).json()).doc as { nodes: { id: string; functions?: unknown[]; language?: string }[] };
+    const node = doc.nodes.find(n => n.id === "checker")!;
+    expect(node.functions!.at(-1)).toEqual({ name: "reset", params: [{ name: "reason", type: "String" }], notes: "Forgets the last verdict." });
+    expect(node.language).toBe("kotlin");
+  });
+
+  test("fits a code block's function fields on a tablet held upright, with nothing to scroll sideways", async ({ page, request }) => {
+    // An 11-inch iPad held upright.
+    await page.setViewportSize({ width: 820, height: 1180 });
+    const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+    const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+    await page.goto(`/app/d/${list.find(d => d.name === "balance-code")!.id}`);
+    await page.getByRole("button", { name: "Class: BalanceChecker" }).click();
+    const fn = page.getByRole("region", { name: "Selected node" }).getByRole("group", { name: "Function check" });
+    await expect(fn).toBeVisible();
+    expect(await fn.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    const box = (await fn.boundingBox())!;
+    for (const field of await fn.locator("input, textarea").all()) {
+      const f = (await field.boundingBox())!;
+      expect(f.x).toBeGreaterThanOrEqual(box.x - 1);
+      expect(f.x + f.width).toBeLessThanOrEqual(box.x + box.width + 1);
+    }
   });
 
   test("makes the C4 level above a node as a new diagram, which zooms back down", async ({ page, request }) => {

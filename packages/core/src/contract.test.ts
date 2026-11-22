@@ -33,6 +33,8 @@ const NODE_FIELDS: { [K in keyof DocNode]-?: Shown<Node> } = {
 	notes: { notDrawn: "a code block's notes show in its hover card and details, not on the card" },
 	members: { svg: n => n.members.map(m => `>${esc(m)}<`) },
 	functions: { svg: n => n.functions.map(f => `>${esc(f.name)}<tspan`) },
+	// EVERY_FIELD's code block is Kotlin: each function starts with Kotlin's "fun", drawn quieter than its name.
+	language: { svg: n => n.functions.map(f => `>fun </tspan>${esc(f.name)}<tspan`) },
 	path: { svg: n => [`>${esc(n.path)}<`] },
 	links: { notDrawn: 'links open from the canvas; an image has nothing to click' },
 	ref: { notDrawn: 'a ref ties the node to another diagram; it draws nothing' }

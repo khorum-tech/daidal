@@ -220,9 +220,17 @@ describe("the inspector and a code block's functions", () => {
 		await page.getByRole('button', { name: '+ Add function' }).click();
 		await expect.element(page.getByLabelText('Function name')).toHaveFocus();
 		await page.getByLabelText('Function name').fill('check');
-		await page.getByLabelText('Parameters').fill('batch: Batch, lines: Map<K, V>, ');
-		// Half typed, the line stays as it is while the saved function reads what it can.
-		await expect.element(page.getByLabelText('Parameters')).toHaveValue('batch: Batch, lines: Map<K, V>, ');
+		await page.getByRole('button', { name: '+ Parameter' }).click();
+		await expect.element(page.getByLabelText('Parameter 1 name')).toHaveFocus();
+		await page.getByLabelText('Parameter 1 name').fill('batch');
+		await page.getByLabelText('Parameter 1 type').fill('Batch');
+		await page.getByRole('button', { name: '+ Parameter' }).click();
+		await page.getByLabelText('Parameter 2 name').fill('lines');
+		await page.getByLabelText('Parameter 2 type').fill('Map<K, V>');
+		// A third, not named yet, stays as it is while the saved function leaves it out.
+		await page.getByRole('button', { name: '+ Parameter' }).click();
+		await page.getByLabelText('Parameter 3 type').fill('Boolean');
+		await expect.element(page.getByLabelText('Parameter 3 type')).toHaveValue('Boolean');
 		await page.getByLabelText('Returns').fill('Verdict');
 		await page.getByLabelText('What check does').fill('Rejects a batch that does not balance.');
 		expect(changes.at(-1)).toEqual({
@@ -250,7 +258,8 @@ describe("the inspector and a code block's functions", () => {
 
 	it('shows the functions it has, and removes one', async () => {
 		const { changes } = await editingCode({ functions: [{ name: 'check', params: [{ name: 'batch', type: 'Batch' }], returns: 'Verdict' }, { name: 'reset' }] });
-		await expect.element(page.getByRole('group', { name: 'Function check' }).getByLabelText('Parameters')).toHaveValue('batch: Batch');
+		await expect.element(page.getByRole('group', { name: 'Function check' }).getByLabelText('Parameter 1 name')).toHaveValue('batch');
+		await expect.element(page.getByRole('group', { name: 'Function check' }).getByLabelText('Parameter 1 type')).toHaveValue('Batch');
 		await expect.element(page.getByRole('group', { name: 'Function check' }).getByLabelText('Returns')).toHaveValue('Verdict');
 		await page.getByRole('button', { name: 'Remove function check' }).click();
 		expect(changes.at(-1)).toEqual({ change: { functions: [{ name: 'reset' }] }, label: 'Remove check', group: undefined });
@@ -265,6 +274,16 @@ describe("the inspector and a code block's functions", () => {
 		});
 	});
 
+	it('removes a parameter, and sets the language the card writes functions in', async () => {
+		const { changes } = await editingCode({ functions: [{ name: 'check', params: [{ name: 'batch', type: 'Batch' }, { name: 'strict' }], returns: 'Verdict' }] });
+		await page.getByRole('button', { name: 'Remove parameter batch' }).click();
+		expect(changes.at(-1)).toEqual({ change: { functions: [{ name: 'check', params: [{ name: 'strict' }], returns: 'Verdict' }] }, label: 'Remove parameter', group: 'chk:functions' });
+		await page.getByLabelText('Written in').selectOptions('kotlin');
+		expect(changes.at(-1)).toEqual({ change: { language: 'kotlin' }, label: 'Write functions in Kotlin', group: undefined });
+		await page.getByLabelText('Written in').selectOptions('Any language');
+		expect(changes.at(-1)).toEqual({ change: { language: '' }, label: 'Write functions in any language', group: undefined });
+	});
+
 	it('offers no move when nothing written is a function', async () => {
 		await editingCode({ members: ['id: uuid'] });
 		expect(page.getByRole('button', { name: /written as text/ }).elements()).toHaveLength(0);
@@ -273,7 +292,12 @@ describe("the inspector and a code block's functions", () => {
 	it('lists them read-only as signatures, with their notes', async () => {
 		await render(Inspector, { node: codeNode({ functions: [{ name: 'check', params: [{ name: 'batch', type: 'Batch' }], returns: 'Verdict', notes: 'Rejects it.' }] }), tags: {} });
 		await expect.element(page.getByRole('heading', { name: 'Functions' })).toBeVisible();
-		await expect.element(page.getByText('(batch: Batch): Verdict')).toBeVisible();
+		await expect.element(page.getByText('(batch: Batch) → Verdict')).toBeVisible();
 		await expect.element(page.getByText('Rejects it.')).toBeVisible();
+	});
+
+	it('lists them read-only in the language the block is written in', async () => {
+		await render(Inspector, { node: codeNode({ language: 'java', functions: [{ name: 'check', params: [{ name: 'batch', type: 'Batch' }], returns: 'Verdict' }] }), tags: {} });
+		await expect.element(page.getByText('Verdict check(Batch batch)')).toBeVisible();
 	});
 });

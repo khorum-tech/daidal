@@ -27,7 +27,7 @@ import {
 import { catalogue, isNodeIcon, typeKey, type TypeCats } from "@khorum/daidal-core/icons";
 import { KINDS, kindOf, type KindId } from "@khorum/daidal-core/kinds";
 import { toScene } from "@khorum/daidal-core/model";
-import { signature, toFunctions } from "@khorum/daidal-core/code";
+import { LANGUAGES, signature, toFunctions, toLanguage } from "@khorum/daidal-core/code";
 import { fromTemplate, TEMPLATES } from "@khorum/daidal-core/templates";
 import type { CustomType, DocEdge, DocNode, DaidalDoc } from "@khorum/daidal-core/types";
 
@@ -271,7 +271,8 @@ function outline(d: Diagram, me: string, workspace?: string): Row {
       type: n.type,
       ...(n.sub ? { subtitle: n.sub } : {}),
       ...(n.members.length ? { members: n.members } : {}),
-      ...(n.functions.length ? { functions: n.functions.map(signature) } : {}),
+      ...(n.functions.length ? { functions: n.functions.map(f => signature(f, n.language)) } : {}),
+      ...(n.language ? { language: n.language } : {}),
       ...(n.path ? { path: n.path } : {}),
       ...(n.tags.length ? { tags: n.tags } : {}),
       ...(n.ownIcon ? { icon: n.ownIcon } : {}),
@@ -319,6 +320,13 @@ async function save(api: Api, param: unknown, change: (doc: DaidalDoc) => { doc:
 const just = (doc: DaidalDoc, out?: Row) => ({ doc, ...(out ? { out } : {}) });
 
 // ---- schemas ----
+
+/** The language a code block's functions read in on its card. */
+const LANGUAGE = {
+  type: "string",
+  enum: ["", ...LANGUAGES.map(l => l.id)],
+  description: "The language its code is in; its functions read as that language writes them (\"Verdict check(Batch batch)\" in java, \"fun check(batch: Batch): Verdict\" in kotlin). Empty for a neutral form, \"check(batch: Batch) → Verdict\"",
+};
 
 /** A code block's functions, as add_node and update_node take them: replaces the node's functions. */
 const FUNCTIONS = {
@@ -511,6 +519,7 @@ export const TOOLS: Tool[] = [
         notes: { type: "string" },
         members: { type: "array", items: { type: "string" }, description: "What it holds besides its functions, one a line on its card (a class's fields, a file's exports, a table's columns): makes the card a code block" },
         functions: FUNCTIONS,
+        language: LANGUAGE,
         path: { type: "string", description: "Where it lives: a file path, or a link to the source" },
         tags: { type: "array", items: { type: "string" }, description: "Tag keys or labels; new ones are made" },
         near: NODE("Place it beside this node"),
@@ -540,6 +549,7 @@ export const TOOLS: Tool[] = [
           const change: NodeChange = { name, ...(str(args.subtitle) ? { subtitle: str(args.subtitle) } : {}), ...(str(args.notes) ? { notes: str(args.notes) } : {}) };
           if (Array.isArray(args.members)) change.members = list(args.members);
           if (Array.isArray(args.functions)) change.functions = toFunctions(args.functions);
+          if (typeof args.language === "string") change.language = toLanguage(args.language);
           if (str(args.path)) change.path = str(args.path);
           if (tagged.keys.length) change.tags = tagged.keys;
           return just(updateNode(tagged.doc, made.id, change), { node: made.id });
@@ -551,7 +561,7 @@ export const TOOLS: Tool[] = [
   {
     name: "update_node",
     title: "Change a node",
-    description: "Changes what you name on a node: name, type, subtitle, notes, members, functions and path (a code block's), tags (replaces them), flags (db, cache, mq), links (web pages, or diagrams to zoom into; replaces them), its own icon (null for its type's), or where it sits (x, y).",
+    description: "Changes what you name on a node: name, type, subtitle, notes, members, functions, language and path (a code block's), tags (replaces them), flags (db, cache, mq), links (web pages, or diagrams to zoom into; replaces them), its own icon (null for its type's), or where it sits (x, y).",
     readOnly: false,
     inputSchema: schema(
       {
@@ -563,6 +573,7 @@ export const TOOLS: Tool[] = [
         notes: { type: "string" },
         members: { type: "array", items: { type: "string" }, description: "What it holds besides its functions, one a line on its card (a class's fields, a file's exports, a table's columns): makes the card a code block" },
         functions: FUNCTIONS,
+        language: LANGUAGE,
         path: { type: "string", description: "Where it lives: a file path, or a link to the source" },
         tags: { type: "array", items: { type: "string" } },
         flags: { type: "array", items: { type: "string", enum: ["db", "cache", "mq"] } },
@@ -590,6 +601,7 @@ export const TOOLS: Tool[] = [
           for (const key of ["name", "subtitle", "notes", "path"] as const) if (typeof args[key] === "string") change[key] = args[key];
           if (Array.isArray(args.members)) change.members = list(args.members);
           if (Array.isArray(args.functions)) change.functions = toFunctions(args.functions);
+          if (typeof args.language === "string") change.language = toLanguage(args.language);
           if (type) change.type = type;
           if (Array.isArray(args.flags)) change.flags = list(args.flags);
           if (links) change.links = links;

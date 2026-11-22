@@ -51,6 +51,11 @@ export interface DocNode {
 	members?: string[];
 	/** What it can be asked to do: a class's methods, a module's functions. Each makes a line of its code block. */
 	functions?: DocFunction[];
+	/**
+	 * The language its code is in (java, kotlin, typescript, javascript, python, ruby, go, rust, csharp, swift):
+	 * its functions read as that language writes them. Without one they read in a neutral form.
+	 */
+	language?: string;
 	/** Where it lives: a file path, or a link to the source. */
 	path?: string;
 	/** Web pages ({ url }) and diagrams to zoom into ({ diagram, view? }), in one list. */

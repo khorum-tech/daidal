@@ -1,6 +1,6 @@
 import { edgePath, type Box } from './geometry';
 import { ICON_PATHS } from './icons';
-import { signature } from './code';
+import { signatureParts } from './code';
 import { borderWidth, bounds, C4, CODE, codeSections, fitMono, c4Desc, c4Kind, c4Name, c4Text, c4Top, isHidden, MARKER, NOTE, noteLines, wrapText, type Scene, type SceneNode } from './model';
 
 /**
@@ -172,7 +172,8 @@ function codeMarkup(n: SceneNode, dash: string, icon: string, tag: string | unde
 		y += CODE.pathTop;
 		out.push(row(fitMono(n.path, w, CODE.pathSize, true), CODE.pathLine, ` font-family="${MONO}" font-size="${CODE.pathSize}" fill="${C.faint}"`));
 	}
-	const parts = codeSections(n.members, n.functions.map(signature));
+	const sigs = n.functions.map(f => signatureParts(f, n.language));
+	const parts = codeSections(n.members, sigs.map(s => s.lead + s.name + s.rest));
 	const rule = () => {
 		y += CODE.ruleTop;
 		out.push(`<line x1="${n.x}" y1="${y + 0.5}" x2="${n.x + n.w}" y2="${y + 0.5}" stroke="${C.border}"/>`);
@@ -187,16 +188,19 @@ function codeMarkup(n: SceneNode, dash: string, icon: string, tag: string | unde
 	}
 	if (parts.functions.shown.length || parts.functions.more) {
 		rule();
-		// A signature's name in the text colour, its parameters and return type quieter, as the canvas card draws it.
-		for (const sig of parts.functions.shown) {
+		// A signature's name in the text colour, what comes before it (a return type, the word that starts a
+		// definition) and after it (parameters, return type) quieter, as the canvas card draws it.
+		parts.functions.shown.forEach((sig, i) => {
 			const line = fitMono(sig, w, CODE.size);
-			const cut = line.indexOf('(');
-			const name = cut < 0 ? line : line.slice(0, cut);
-			const rest = cut < 0 ? '' : line.slice(cut);
-			const t = `<text x="${x}" y="${y + CODE.line / 2}" dominant-baseline="middle" xml:space="preserve"${mono} fill="${C.text}">${esc(name)}${rest ? `<tspan fill="${C.muted}">${esc(rest)}</tspan>` : ''}</text>`;
+			const leadLen = Math.min(sigs[i].lead.length, line.length);
+			const lead = line.slice(0, leadLen);
+			const name = line.slice(leadLen, leadLen + sigs[i].name.length);
+			const rest = line.slice(leadLen + sigs[i].name.length);
+			const quiet = (t: string) => (t ? `<tspan fill="${C.muted}">${esc(t)}</tspan>` : '');
+			const t = `<text x="${x}" y="${y + CODE.line / 2}" dominant-baseline="middle" xml:space="preserve"${mono} fill="${C.text}">${quiet(lead)}${esc(name)}${quiet(rest)}</text>`;
 			y += CODE.line;
 			out.push(t);
-		}
+		});
 		if (parts.functions.more) out.push(more(parts.functions.more));
 	}
 	return out.join('');

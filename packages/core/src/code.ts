@@ -47,9 +47,106 @@ export const parseParams = (text: string): DocParam[] => splitTopLevel(text).map
 /** Parameters written back as one line. */
 export const paramsText = (params: DocParam[] | undefined): string => (params ?? []).map(p => (p.type ? `${p.name}: ${p.type}` : p.name)).join(', ');
 
-/** A function as one line: name(a: A, b: B): R. */
-export function signature(f: DocFunction): string {
-	return `${f.name}(${paramsText(f.params)})${f.returns ? `: ${f.returns}` : ''}`;
+/**
+ * The languages a code block can be written in. A block's language changes only how its functions read on the
+ * card (where types go, how a return type is written, the word that starts a definition); the document keeps
+ * every function the same way whatever the language, so changing it never loses anything.
+ */
+export const LANGUAGES = [
+	{ id: 'java', label: 'Java' },
+	{ id: 'kotlin', label: 'Kotlin' },
+	{ id: 'typescript', label: 'TypeScript' },
+	{ id: 'javascript', label: 'JavaScript' },
+	{ id: 'python', label: 'Python' },
+	{ id: 'ruby', label: 'Ruby' },
+	{ id: 'go', label: 'Go' },
+	{ id: 'rust', label: 'Rust' },
+	{ id: 'csharp', label: 'C#' },
+	{ id: 'swift', label: 'Swift' }
+] as const;
+
+export type Language = (typeof LANGUAGES)[number]['id'];
+
+/** Other names people write for a language: "ts", "c#", "py", "golang". */
+const LANGUAGE_NAMES: Record<string, Language> = {
+	ts: 'typescript',
+	js: 'javascript',
+	py: 'python',
+	rb: 'ruby',
+	golang: 'go',
+	rs: 'rust',
+	'c#': 'csharp',
+	cs: 'csharp',
+	kt: 'kotlin'
+};
+
+/** A language as a document or config names it, by id, label or a common short name; '' when it isn't one. */
+export function toLanguage(raw: unknown): Language | '' {
+	if (typeof raw !== 'string') return '';
+	const s = raw.trim().toLowerCase();
+	if (!s) return '';
+	const known = LANGUAGES.find(l => l.id === s || l.label.toLowerCase() === s);
+	return known ? known.id : (LANGUAGE_NAMES[s] ?? '');
+}
+
+/** A language's name to show: "C#" for csharp; "Any language" with none. */
+export const languageLabel = (language: unknown): string => LANGUAGES.find(l => l.id === toLanguage(language))?.label ?? 'Any language';
+
+/**
+ * A signature in three parts, so a card can draw the name in the text colour and the rest quieter: what comes
+ * before the name (a return type, or the word that starts a definition), the name, and what follows it.
+ */
+export interface SignatureParts {
+	lead: string;
+	name: string;
+	rest: string;
+}
+
+/** A return type that is several values (Go's "Order, error") in the brackets the language wants round it. */
+const grouped = (returns: string) => (splitTopLevel(returns).length > 1 && !/^\(.*\)$/.test(returns) ? `(${returns})` : returns);
+
+/**
+ * A function as its language writes it, in parts. With no language it reads in a neutral form any reader follows:
+ * check(batch: Batch) → Verdict. A parameter without a type is just its name, in every language; JavaScript and
+ * Ruby leave types out.
+ */
+export function signatureParts(f: DocFunction, language?: unknown): SignatureParts {
+	const ps = f.params ?? [];
+	const r = f.returns ?? '';
+	const list = (each: (p: DocParam) => string) => `(${ps.map(p => (p.type ? each(p) : p.name)).join(', ')})`;
+	const colon = list(p => `${p.name}: ${p.type}`);
+	const typeFirst = list(p => `${p.type} ${p.name}`);
+	const names = `(${ps.map(p => p.name).join(', ')})`;
+	const arrow = (to: string) => (r ? ` ${to} ${r}` : '');
+	switch (toLanguage(language)) {
+		case 'java':
+		case 'csharp':
+			return { lead: r ? `${r} ` : '', name: f.name, rest: typeFirst };
+		case 'kotlin':
+			return { lead: 'fun ', name: f.name, rest: `${colon}${r ? `: ${r}` : ''}` };
+		case 'typescript':
+			return { lead: '', name: f.name, rest: `${colon}${r ? `: ${r}` : ''}` };
+		case 'javascript':
+			return { lead: '', name: f.name, rest: `${names}${arrow('→')}` };
+		case 'python':
+			return { lead: 'def ', name: f.name, rest: `${colon}${arrow('->')}` };
+		case 'ruby':
+			return { lead: 'def ', name: f.name, rest: `${names}${arrow('→')}` };
+		case 'go':
+			return { lead: 'func ', name: f.name, rest: `${list(p => `${p.name} ${p.type}`)}${r ? ` ${grouped(r)}` : ''}` };
+		case 'rust':
+			return { lead: 'fn ', name: f.name, rest: `${colon}${arrow('->')}` };
+		case 'swift':
+			return { lead: 'func ', name: f.name, rest: `${colon}${arrow('->')}` };
+		default:
+			return { lead: '', name: f.name, rest: `${colon}${arrow('→')}` };
+	}
+}
+
+/** A function as one line, as its language writes it (see [signatureParts]): check(batch: Batch) → Verdict. */
+export function signature(f: DocFunction, language?: unknown): string {
+	const p = signatureParts(f, language);
+	return p.lead + p.name + p.rest;
 }
 
 /** A line of text with a list's bullet taken off: "- ", "* ", "• ". */
@@ -57,7 +154,8 @@ const unbulleted = (line: string) => line.trim().replace(/^(?:[-*•]\s+)/, '');
 
 /**
  * A signature read into a function, or null when [text] isn't one: a name, its parameters in brackets and, after a
- * colon or an arrow, what it returns. "check(batch: Batch): Verdict", "reset()", "load(id) -> Order".
+ * colon or an arrow, what it returns. "check(batch: Batch): Verdict", "reset()", "load(id) -> Order",
+ * "load(id) → Order".
  */
 export function parseSignature(text: string): DocFunction | null {
 	const s = unbulleted(text);
@@ -78,7 +176,7 @@ export function parseSignature(text: string): DocFunction | null {
 	const rest = s.slice(close + 1).trim();
 	let returns = '';
 	if (rest) {
-		const m = /^(?::|->|=>)\s*(.+)$/.exec(rest);
+		const m = /^(?::|->|=>|→)\s*(.+)$/.exec(rest);
 		if (!m) return null;
 		returns = m[1].trim();
 	}

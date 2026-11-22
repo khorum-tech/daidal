@@ -136,6 +136,14 @@ describe('config', () => {
 		expect(configText(doc, 'yaml')).toContain('    functions:\n      - name: check\n        params:\n          - name: batch\n            type: Batch\n');
 	});
 
+	it("reads a code block's language by its id, name or a short name, and refuses one it doesn't know", () => {
+		const read = (language: string) => readConfig(`nodes:\n  - id: p\n    language: "${language}"`, current(), 'replace').doc.nodes![0];
+		expect(read('Kotlin').language).toBe('kotlin');
+		expect(read('c#').language).toBe('csharp');
+		expect(read('')).not.toHaveProperty('language');
+		expect(() => read('cobol')).toThrow('nodes[0].language: "cobol" isn\'t one of java, kotlin');
+	});
+
 	it('says which function has no name', () => {
 		expect(() => readConfig('nodes:\n  - id: p\n    functions:\n      - returns: Verdict', current(), 'replace')).toThrow('nodes[0].functions[0]: every function needs a name');
 		expect(() => readConfig('nodes:\n  - id: p\n    functions: 7', current(), 'replace')).toThrow('nodes[0].functions');

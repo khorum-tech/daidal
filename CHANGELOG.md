@@ -15,6 +15,14 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   exports, the hover card, change review, the C4 Code template and the stage data carry them. Older diagrams load
   as they were. `@khorum/daidal-core` moves to 0.2.0 to carry them, and the Claude skill pins 0.2.0 and documents
   `functions`; publish 0.2.0 before handing out the updated skill.
+- **Functions read in their code's language.** A code block can say what it is written in (Java, Kotlin,
+  TypeScript, JavaScript, Python, Ruby, Go, Rust, C# or Swift) with **Written in**, and its functions then read as
+  that language writes them: `Verdict check(Batch batch)` in Java, `fun check(batch: Batch): Verdict` in Kotlin,
+  `func check(batch Batch) Verdict` in Go. With no language they read in a neutral form,
+  `check(batch: Batch) → Verdict`, in place of the TypeScript-looking one. Documents keep each function the same
+  whatever the language, as `language` on the node; the config format, the MCP tools, the exports and the Claude
+  skill carry it. Each parameter now has its own name and type fields, stacked so a function's fields fit a phone or
+  a tablet held upright without scrolling sideways.
 - **Core and exports stay in step with the document format.** A contract test sets every field of the format and
   checks that the config export reads back unchanged, that the SVG shows what a field-by-field ledger says it shows,
   and that the npm bundle draws an exported config exactly as the app does; the MCP outline and backups get the same

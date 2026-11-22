@@ -60,6 +60,7 @@ export const EVERY_FIELD: Full<DaidalDoc> = {
 				{ name: 'check', params: [{ name: 'batch', type: 'Batch' }], returns: 'Verdict', notes: 'Balanced or not, per currency.' },
 				{ name: 'explain', params: [{ name: 'batch', type: 'Map<K, V>' }], returns: 'List<Imbalance>', notes: 'Why not.' }
 			],
+			language: 'kotlin',
 			path: 'postings/src/balance/BalanceChecker.kt',
 			links: [{ label: 'Source', url: 'example.com/checker', diagram: 'ledger', view: 'Core' }],
 			ref: 'ledger#checker'

@@ -1,5 +1,5 @@
 import type { DocBoundary, DocEdge, DocFunction, DocNode, DaidalDoc } from './types';
-import { signature, toFunctions } from './code';
+import { signature, toFunctions, toLanguage, type Language } from './code';
 import { isNodeIcon, TYPE_CATS, typeIcon, typeKey, type TypeCats } from './icons';
 import { c4Line, c4Role, kindOf, type C4Role, type Kind } from './kinds';
 
@@ -60,6 +60,8 @@ export interface SceneNode {
 	 */
 	members: string[];
 	functions: DocFunction[];
+	/** The language its functions read in; '' for the neutral form. */
+	language: Language | '';
 	path: string;
 	code: boolean;
 	flags: string[];
@@ -326,10 +328,11 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind:
 	let drawnH = h;
 	const members = (Array.isArray(n.members) ? n.members : []).map(m => String(m).trim()).filter(Boolean);
 	const functions = toFunctions(n.functions);
+	const language = toLanguage(n.language);
 	const path = typeof n.path === 'string' ? n.path.trim() : '';
 	const code = !c4 && type !== 'Note' && type !== 'Text' && (members.length > 0 || functions.length > 0 || path !== '');
 	if (c4) drawnH = Math.max(h, c4Height(c4.role, name, c4.line, c4.desc, w));
-	else if (code) drawnH = Math.max(h, codeHeight(n.subtitle ?? '', path, members, functions.map(signature)));
+	else if (code) drawnH = Math.max(h, codeHeight(n.subtitle ?? '', path, members, functions.map(f => signature(f, language))));
 	else if (type === 'Note') drawnH = Math.max(h, noteHeight(name, n.notes ?? '', w));
 	return {
 		id: String(n.id),
@@ -341,6 +344,7 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind:
 		desc: n.notes ?? '',
 		members,
 		functions,
+		language,
 		path,
 		code,
 		flags: Array.isArray(n.flags) ? n.flags : [],

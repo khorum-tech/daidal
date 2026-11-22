@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { c4Desc, c4Kind, c4Name, CODE, codeSections, noteLines, wrapText, type SceneNode, type SceneTag } from '@khorum/daidal-core/model';
 	import { FLAGS } from '@khorum/daidal-core/icons';
-	import { signature } from '@khorum/daidal-core/code';
+	import { signatureParts } from '@khorum/daidal-core/code';
 	import Icon from './Icon.svelte';
 
 	/** One node on the canvas, read-only. Mirrors the prototype's card and text nodes (web/index.html). */
@@ -41,7 +41,12 @@
 			return u;
 		}
 	};
-	const sigs = $derived(node.functions.map(f => ({ name: f.name, rest: signature(f).slice(f.name.length), full: signature(f), notes: f.notes ?? '' })));
+	const sigs = $derived(
+		node.functions.map(f => {
+			const p = signatureParts(f, node.language);
+			return { ...p, full: p.lead + p.name + p.rest, notes: f.notes ?? '' };
+		})
+	);
 	const parts = $derived(codeSections(node.members, sigs.map(s => s.full)));
 	const linkTitle = $derived(node.links.map(l => l.label || hostOf(l.url)).join(' · '));
 
@@ -135,7 +140,7 @@
 			{#if parts.functions.shown.length || parts.functions.more}
 				<!-- Its functions as signatures: the name in the text colour, parameters and return type quieter. -->
 				<span class="members functions" style:--line="{CODE.line}px">
-					{#each sigs.slice(0, parts.functions.shown.length) as f, i (i)}<span class="member fn" title={f.notes ? `${f.full}\n${f.notes}` : f.full}>{f.name}<span class="fn-rest">{f.rest}</span></span>{/each}
+					{#each sigs.slice(0, parts.functions.shown.length) as f, i (i)}<span class="member fn" title={f.notes ? `${f.full}\n${f.notes}` : f.full}>{#if f.lead}<span class="fn-rest">{f.lead}</span>{/if}{f.name}<span class="fn-rest">{f.rest}</span></span>{/each}
 					{#if parts.functions.more}<span class="more">+{parts.functions.more} more</span>{/if}
 				</span>
 			{/if}

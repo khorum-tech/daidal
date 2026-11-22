@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { SceneNode, SceneTag } from '@khorum/daidal-core/model';
-	import { signature } from '@khorum/daidal-core/code';
+	import { signatureParts } from '@khorum/daidal-core/code';
 	import Icon from './Icon.svelte';
 
 	/**
@@ -51,7 +51,8 @@
 	{#if node.functions.length}
 		<ul class="code functions" aria-label="Functions">
 			{#each node.functions as f, i (i)}
-				<li><span class="fn-name">{f.name}</span>{signature(f).slice(f.name.length)}{#if f.notes}<span class="fn-note">{f.notes}</span>{/if}</li>
+				{@const p = signatureParts(f, node.language)}
+				<li>{p.lead}<span class="fn-name">{f.name}</span>{p.rest}{#if f.notes}<span class="fn-note">{f.notes}</span>{/if}</li>
 			{/each}
 		</ul>
 	{/if}

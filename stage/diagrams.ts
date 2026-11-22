@@ -300,7 +300,7 @@ const balanceCode = c4("balance-code", "balance-code", "c4-code", {
         { name: "explain", params: [{ name: "batch", type: "Batch" }], returns: "List<Imbalance>", notes: "Which currencies are out, and by how much." },
       ],
     }),
-    node("sum", "sumByCurrency", "function", 690, 120, ["internal"], { layout: { x: 690, y: 120, w: 250 }, subtitle: "Debits less credits, per currency.", path: "postings/src/balance/sums.kt", functions: [{ name: "sumByCurrency", params: [{ name: "lines", type: "List<Line>" }], returns: "Map<Currency, Money>" }] }),
+    node("sum", "sumByCurrency", "function", 690, 120, ["internal"], { layout: { x: 690, y: 120, w: 250 }, subtitle: "Debits less credits, per currency.", path: "postings/src/balance/sums.kt", language: "kotlin", functions: [{ name: "sumByCurrency", params: [{ name: "lines", type: "List<Line>" }], returns: "Map<Currency, Money>" }] }),
     node("verdict", "Verdict", "class", 340, 340, ["internal"], { layout: { x: 340, y: 340, w: 250 }, subtitle: "What a check found.", path: "postings/src/balance/Verdict.kt", members: ["Balanced", "Unbalanced(imbalances)"] }),
     node("batch", "posting_batches", "table", 690, 340, ["internal"], {
       layout: { x: 690, y: 340, w: 250 },

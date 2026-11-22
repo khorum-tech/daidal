@@ -45,6 +45,9 @@ Any other top-level key is an error, and so is giving both `edges` and `connecti
 - `functions`: an optional list of what it can do, drawn as signatures under the members. Each is a signature
   (`"check(batch: Batch): Verdict"`, double-quoted for its colon) or a map of `name`, `params` (a list of
   `{ name, type }`), `returns` and `notes`.
+- `language`: optional, what a code block is written in: `java`, `kotlin`, `typescript`, `javascript`, `python`,
+  `ruby`, `go`, `rust`, `csharp` or `swift`. Its functions read as that language writes them (`Verdict check(Batch
+  batch)` in Java); without it they read `check(batch: Batch) → Verdict`. Set it from the code's own language.
 - `notes`: optional; a C4 card shows it as its description, a note as its body.
 - `tags`: optional, keys from `tags`.
 - `x`, `y`: where the card's top-left corner goes. `w` and `h` are optional (190 and 88 by default).
