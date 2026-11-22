@@ -21,16 +21,16 @@ export interface Palette {
  */
 export const DARK_PALETTES = [
 	{ id: 'nocturne', label: 'Nocturne', swatch: ['#161826', '#232532', '#9184d9'] },
-	{ id: 'midnight', label: 'Midnight', swatch: ['#0e1222', '#191e33', '#8a90ea'] },
-	{ id: 'plum', label: 'Plum', swatch: ['#1b1524', '#2a2135', '#ab88e2'] },
-	{ id: 'graphite', label: 'Graphite', swatch: ['#17171a', '#242428', '#9d92d8'] },
-	{ id: 'ink', label: 'Ink', swatch: ['#0b0b10', '#16161d', '#a497f0'] }
+	{ id: 'midnight', label: 'Midnight', swatch: ['#0a1030', '#141d47', '#7f8cf2'] },
+	{ id: 'plum', label: 'Plum', swatch: ['#23112c', '#351c42', '#bb84e8'] },
+	{ id: 'graphite', label: 'Graphite', swatch: ['#18181a', '#262629', '#9d92d8'] },
+	{ id: 'ink', label: 'Ink', swatch: ['#07070a', '#121217', '#a497f0'] }
 ] as const satisfies readonly Palette[];
 export const LIGHT_PALETTES = [
 	{ id: 'paper', label: 'Paper', swatch: ['#f2f3f9', '#fbfbfe', '#6a5cb3'] },
-	{ id: 'lilac', label: 'Lilac', swatch: ['#f0ecfa', '#fbf9ff', '#6d53b6'] },
-	{ id: 'sand', label: 'Sand', swatch: ['#f5f1e9', '#fdfbf6', '#6b56ae'] },
-	{ id: 'mist', label: 'Mist', swatch: ['#eaf0f6', '#f9fbfd', '#5b61b8'] }
+	{ id: 'lilac', label: 'Lilac', swatch: ['#e8e0f8', '#f7f3ff', '#6a4db8'] },
+	{ id: 'sand', label: 'Sand', swatch: ['#f0e8d8', '#fbf7ee', '#6b56ae'] },
+	{ id: 'mist', label: 'Mist', swatch: ['#dfe9f4', '#f4f8fc', '#5560ba'] }
 ] as const satisfies readonly Palette[];
 export type DarkPalette = (typeof DARK_PALETTES)[number]['id'];
 export type LightPalette = (typeof LIGHT_PALETTES)[number]['id'];
