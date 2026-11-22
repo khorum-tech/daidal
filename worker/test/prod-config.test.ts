@@ -32,6 +32,11 @@ describe("prod-config", () => {
     const repo = parseJsonc(wranglerText);
     expect(repo.d1_databases[0].database_id).toBe(PLACEHOLDER_D1_ID);
     expect(repo.vars.ACCESS_AUD).toBe("");
+    // Prod answers on its main hostname first and keeps the old one: dropping a name here detaches it on deploy.
+    expect(repo.routes).toEqual([
+      { pattern: "daidal.khorum.org", custom_domain: true },
+      { pattern: "skope.khorum-oss.org", custom_domain: true },
+    ]);
     expect(prodConfig(repo, { PROD_D1_ID: "x", PROD_ACCESS_AUD: "y" }).d1_databases[0].database_id).toBe("x");
   });
 });

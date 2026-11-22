@@ -44,8 +44,9 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   messages and what the MCP server tells an AI.
 - The rest of the rename: diagrams download as `.daidal.yaml` / `.daidal.json`, workspace backups as `daidal-backup`
   and your data as `daidal-account`, and the MCP server introduces itself as `daidal`. Backups saved as
-  `skope-backup` still import. The hosted site's address and the Cloudflare Worker and D1 database names keep
-  `skope` for now.
+  `skope-backup` still import. The Cloudflare Worker and D1 database names keep `skope` for now.
+- The hosted site moves to **daidal.khorum.org** (stage to daidal-stage.khorum.org). The old addresses,
+  skope.khorum-oss.org and skope-stage.khorum-oss.org, still answer.
 
 ### Fixed
 - A node card no longer lets long text spill out of it: the type keeps to one line, and the name and subtitle wrap

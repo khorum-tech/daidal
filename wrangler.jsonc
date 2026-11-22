@@ -5,7 +5,12 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": false,
   "preview_urls": false,
-  "routes": [{ "pattern": "skope.khorum-oss.org", "custom_domain": true }],
+  // Every hostname prod answers on, the main one first. Wrangler treats `routes` as the Worker's whole set of custom
+  // domains, so a name left out here is detached on the next prod deploy (each merge to main).
+  "routes": [
+    { "pattern": "daidal.khorum.org", "custom_domain": true },
+    { "pattern": "skope.khorum-oss.org", "custom_domain": true }
+  ],
   // Without this, `wrangler dev` presents requests as coming to the route's hostname,
   // and the Worker's localhost-only DEV_USER_EMAIL sign-in would never apply.
   "dev": { "host": "localhost" },
