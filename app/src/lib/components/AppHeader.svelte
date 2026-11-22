@@ -29,15 +29,18 @@
 		/** Where you are. A crumb with [onclick] is a button (the diagram's name opens what can be done with it). */
 		/** The path to this page. The last can open a menu, with [links]: the diagrams above and below it by zooming. */
 		/** A diagram's crumb can carry its [kind]: a C4 level shows as four pips with its own lit, and the last crumb names it. */
-		crumbs?: {
-			label: string;
-			href?: string;
-			onclick?: () => void;
-			title?: string;
-			links?: { above: number; below: number };
-			kind?: { label: string; level?: number; hint: string };
-		}[];
+		crumbs?: Crumb[];
 	} = $props();
+	type Crumb = {
+		label: string;
+		href?: string;
+		onclick?: () => void;
+		title?: string;
+		links?: { above: number; below: number };
+		kind?: { label: string; level?: number; hint: string };
+	};
+	// On a phone: the nearest crumb above where you are, the one step back the bar has room for.
+	const up = $derived(crumbs.slice(0, -1).findLast(c => c.href));
 	// What build is live (/version.json, loaded with the page): the account menu names it, a snapshot with its branch
 	// off main and the release on prod.
 	const build = $derived((page.data.build as BuildInfo | null | undefined) ?? null);
@@ -105,42 +108,24 @@
 	</a>
 	{#if crumbs.length}
 		<span class="sep" aria-hidden="true"></span>
-		<nav aria-label="Breadcrumb" class="crumbs">
-			{#each crumbs as c, i (i)}
-				{#if i > 0}<span aria-hidden="true" class="slash">/</span>{/if}
-				{#if c.kind}
-					<span class="kind" class:named={!c.href} title="{c.kind.label} · {c.kind.hint}" data-testid="kind-badge" data-level={c.kind.level}>
-						{#if c.kind.level}
-							<span class="pips" aria-hidden="true">
-								{#each [1, 2, 3, 4] as l (l)}<i class:on={l === c.kind.level}></i>{/each}
-							</span>
-						{/if}
-						<span class="kind-label" class:sr={!!c.href}>{c.kind.label}</span>
-					</span>
-				{/if}
-				{#if c.href}<a href={c.href}>{c.label}</a>{:else if c.onclick}
-					<button
-						type="button"
-						class="crumb-btn"
-						data-tour="diagram-menu"
-						aria-current="page"
-						aria-haspopup="dialog"
-						title={c.title}
-						aria-describedby={c.links && (c.links.above || c.links.below) ? 'crumb-links' : undefined}
-						onclick={c.onclick}
-					>
-						<span>{c.label}</span>
-						{#if c.links && (c.links.above || c.links.below)}
-							<span id="crumb-links" hidden>Linked diagrams: {c.links.above} above, {c.links.below} below</span>
-							<span class="links-badge" aria-hidden="true" data-testid="links-badge">
-								<Icon name="treeStructure" size={11} />{#if c.links.above}<span>↑{c.links.above}</span>{/if}{#if c.links.below}<span>↓{c.links.below}</span>{/if}
-							</span>
-						{/if}
-						<Icon name="caretDown" size={11} />
-					</button>
-				{:else}<span aria-current="page">{c.label}</span>{/if}
-			{/each}
-		</nav>
+		{#if narrow && up}
+			<!-- A phone has room for one step back and where you are: the arrow goes up a level (from a C4 Component to its
+			     Container, say), and the diagram's menu holds the rest. -->
+			<nav aria-label="Breadcrumb" class="crumbs compact">
+				<a class="up" href={up.href} aria-label="Up to {up.label}" title="Up to {up.label}" data-testid="crumb-up">
+					<Icon name="caretLeft" size={16} />
+					{#if up.kind?.level}{@render pips(up.kind.level)}{/if}
+				</a>
+				{@render crumb(crumbs[crumbs.length - 1])}
+			</nav>
+		{:else}
+			<nav aria-label="Breadcrumb" class="crumbs">
+				{#each crumbs as c, i (i)}
+					{#if i > 0}<span aria-hidden="true" class="slash">/</span>{/if}
+					{@render crumb(c)}
+				{/each}
+			</nav>
+		{/if}
 	{/if}
 	<div class="user" bind:this={userEl}>
 		<button type="button" class="who" aria-expanded={open} aria-haspopup={narrow ? 'dialog' : 'menu'} aria-label="Account: {me.name || me.email}" onclick={() => (open = !open)}>
@@ -160,6 +145,42 @@
 		create={body => api.createToken(body)}
 		revoke={id => api.revokeToken(id)}
 	/>
+{/snippet}
+
+{#snippet pips(level: number)}
+	<span class="pips" aria-hidden="true">
+		{#each [1, 2, 3, 4] as l (l)}<i class:on={l === level}></i>{/each}
+	</span>
+{/snippet}
+
+{#snippet crumb(c: Crumb)}
+	{#if c.kind}
+		<span class="kind" class:named={!c.href} title="{c.kind.label} · {c.kind.hint}" data-testid="kind-badge" data-level={c.kind.level}>
+			{#if c.kind.level}{@render pips(c.kind.level)}{/if}
+			<span class="kind-label" class:sr={!!c.href}>{c.kind.label}</span>
+		</span>
+	{/if}
+	{#if c.href}<a href={c.href}>{c.label}</a>{:else if c.onclick}
+		<button
+			type="button"
+			class="crumb-btn"
+			data-tour="diagram-menu"
+			aria-current="page"
+			aria-haspopup="dialog"
+			title={c.title}
+			aria-describedby={c.links && (c.links.above || c.links.below) ? 'crumb-links' : undefined}
+			onclick={c.onclick}
+		>
+			<span>{c.label}</span>
+			{#if c.links && (c.links.above || c.links.below)}
+				<span id="crumb-links" hidden>Linked diagrams: {c.links.above} above, {c.links.below} below</span>
+				<span class="links-badge" aria-hidden="true" data-testid="links-badge">
+					<Icon name="treeStructure" size={11} />{#if c.links.above}<span>↑{c.links.above}</span>{/if}{#if c.links.below}<span>↓{c.links.below}</span>{/if}
+				</span>
+			{/if}
+			<Icon name="caretDown" size={11} />
+		</button>
+	{:else}<span aria-current="page">{c.label}</span>{/if}
 {/snippet}
 
 {#snippet accountItems()}
@@ -467,5 +488,36 @@
 	}
 	.crumb-btn:hover {
 		background: color-mix(in srgb, var(--color-text) 7%, transparent);
+	}
+	@media (max-width: 600px) {
+		/* A phone's bar: one step up and where you are, each big enough to tap. */
+		.crumbs.compact {
+			flex: 1 1 auto;
+			gap: 2px;
+		}
+		.up {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			gap: 4px;
+			flex: none;
+			min-width: 40px;
+			height: 40px;
+			margin-left: -8px;
+			padding: 0 6px;
+			border-radius: 8px;
+			color: var(--color-neutral-400);
+		}
+		.up:hover,
+		.up:active {
+			background: color-mix(in srgb, var(--color-text) 8%, transparent);
+			color: var(--color-text);
+		}
+		.crumb-btn {
+			min-height: 40px;
+		}
+		.compact .crumb-btn {
+			flex: 0 1 auto;
+		}
 	}
 </style>
