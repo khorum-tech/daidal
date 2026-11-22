@@ -38,7 +38,7 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 - Connections draw heavier: every weight scales up by 1.4 (Medium goes from 1.4 to about 2), dashes and arrowheads with it. Container borders scale the same way and draw in a stronger colour, so they read on the light theme too.
   Saved weights don't change.
 - The header drops the **Preview** tag, leaving the breadcrumbs and the account menu.
-- On a phone, the header's breadcrumb keeps to a back arrow one level up (with that level's C4 pips) and the diagram you're on, each big enough to tap, so a deep C4 path no longer crowds the bar.
+- The header fits the width it has instead of cutting off: on a tablet or a narrow window it drops your name (the initial stays), shows the C4 level by its pips, folds the levels between the workspace and the one above into a **⋯** menu, and on a phone keeps only a back arrow one level up and the diagram you're on. Every way in the bar is big enough to tap with a finger.
 - **Present** moved out of the strip above the canvas; it stays in the diagram's sheet (press the diagram's name).
 - The product is now called **Daidal** (formerly Skope), everywhere a person reads it: the app, its docs, error
   messages and what the MCP server tells an AI.

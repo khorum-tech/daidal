@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { tick } from 'svelte';
+	import { afterNavigate, goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { createApi } from '../api';
@@ -39,8 +40,79 @@
 		links?: { above: number; below: number };
 		kind?: { label: string; level?: number; hint: string };
 	};
-	// On a phone: the nearest crumb above where you are, the one step back the bar has room for.
+	// The nearest crumb above where you are: the one step back when the bar has room for nothing more.
 	const up = $derived(crumbs.slice(0, -1).findLast(c => c.href));
+	// How much the bar gives up to fit the width it has, a step at a time, so nothing is ever cut off: 0 shows it all;
+	// 1 drops your name (the initial stays); 2 shows the diagram's C4 level by its pips alone; 3 folds the levels between
+	// the workspace and the one just above into a menu; 4 keeps only the step up and where you are.
+	let fit = $state(0);
+	const FULLEST = 4;
+	let barEl = $state<HTMLElement>();
+	let navEl = $state<HTMLElement>();
+	const folded = $derived(crumbs.length > 3 ? crumbs.slice(1, -2) : []);
+	let refitting = false;
+	async function refit() {
+		if (refitting) return;
+		refitting = true;
+		try {
+			for (let step = 0; step <= FULLEST; step++) {
+				fit = step;
+				await tick();
+				if (!navEl || navEl.scrollWidth <= navEl.clientWidth + 1) break;
+			}
+		} finally {
+			refitting = false;
+		}
+	}
+	// What decides the bar's width: refit when it changes, and once the fonts are in.
+	const crumbKey = $derived(crumbs.map(c => `${c.label}|${c.kind?.label ?? ''}|${c.links?.above ?? ''}${c.links?.below ?? ''}`).join('/'));
+	$effect(() => {
+		void crumbKey;
+		void refit();
+	});
+	$effect(() => {
+		void document.fonts?.ready.then(() => refit());
+	});
+	$effect(() => {
+		if (!barEl) return;
+		let width = barEl.clientWidth;
+		const ro = new ResizeObserver(() => {
+			if (barEl && barEl.clientWidth !== width) {
+				width = barEl.clientWidth;
+				void refit();
+			}
+		});
+		ro.observe(barEl);
+		return () => ro.disconnect();
+	});
+	// The folded levels open as a list under their button. It sits outside the breadcrumb, which clips what overflows.
+	let moreOpen = $state(false);
+	let moreEl = $state<HTMLElement>();
+	let morePos = $state({ top: 0, left: 0 });
+	function toggleMore() {
+		if (!moreOpen && moreEl) {
+			const r = moreEl.getBoundingClientRect();
+			morePos = { top: r.bottom + 6, left: Math.max(8, r.left) };
+		}
+		moreOpen = !moreOpen;
+	}
+	$effect(() => {
+		if (!moreOpen) return;
+		const away = (e: PointerEvent) => {
+			const t = e.target as HTMLElement;
+			if (!t.closest('.more-menu') && !moreEl?.contains(t)) moreOpen = false;
+		};
+		const esc = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') moreOpen = false;
+		};
+		document.addEventListener('pointerdown', away);
+		document.addEventListener('keydown', esc);
+		return () => {
+			document.removeEventListener('pointerdown', away);
+			document.removeEventListener('keydown', esc);
+		};
+	});
+	afterNavigate(() => (moreOpen = false));
 	// What build is live (/version.json, loaded with the page): the account menu names it, a snapshot with its branch
 	// off main and the release on prod.
 	const build = $derived((page.data.build as BuildInfo | null | undefined) ?? null);
@@ -101,17 +173,17 @@
 	}
 </script>
 
-<header class="bar">
+<header class="bar" bind:this={barEl}>
 	<a class="brand" href={homeHref}>
 		<span class="mark"><Logo size={22} /></span>
 		<span>Daidal</span>
 	</a>
 	{#if crumbs.length}
 		<span class="sep" aria-hidden="true"></span>
-		{#if narrow && up}
-			<!-- A phone has room for one step back and where you are: the arrow goes up a level (from a C4 Component to its
-			     Container, say), and the diagram's menu holds the rest. -->
-			<nav aria-label="Breadcrumb" class="crumbs compact">
+		{#if fit >= 4 && up}
+			<!-- Room for one step back and where you are: the arrow goes up a level (from a C4 Component to its Container,
+			     say), and the diagram's menu holds the rest. -->
+			<nav aria-label="Breadcrumb" class="crumbs compact tight" bind:this={navEl}>
 				<a class="up" href={up.href} aria-label="Up to {up.label}" title="Up to {up.label}" data-testid="crumb-up">
 					<Icon name="caretLeft" size={16} />
 					{#if up.kind?.level}{@render pips(up.kind.level)}{/if}
@@ -119,15 +191,42 @@
 				{@render crumb(crumbs[crumbs.length - 1])}
 			</nav>
 		{:else}
-			<nav aria-label="Breadcrumb" class="crumbs">
+			<nav aria-label="Breadcrumb" class="crumbs" class:tight={fit >= 2} bind:this={navEl}>
 				{#each crumbs as c, i (i)}
-					{#if i > 0}<span aria-hidden="true" class="slash">/</span>{/if}
-					{@render crumb(c)}
+					{#if fit >= 3 && folded.length && i >= 1 && i <= folded.length}
+						{#if i === 1}
+							<span aria-hidden="true" class="slash">/</span>
+							<button
+								type="button"
+								class="more"
+								bind:this={moreEl}
+								aria-haspopup="menu"
+								aria-expanded={moreOpen}
+								aria-label="Show {folded.length} more {folded.length === 1 ? 'level' : 'levels'}"
+								title={folded.map(f => f.label).join(' / ')}
+								data-testid="crumb-more"
+								onclick={toggleMore}><Icon name="dots" size={16} /></button
+							>
+						{/if}
+					{:else}
+						{#if i > 0}<span aria-hidden="true" class="slash">/</span>{/if}
+						{@render crumb(c)}
+					{/if}
 				{/each}
 			</nav>
 		{/if}
+		{#if moreOpen && fit >= 3 && folded.length}
+			<div class="more-menu" role="menu" aria-label="More levels" style:top="{morePos.top}px" style:left="{morePos.left}px">
+				{#each folded as f (f.href ?? f.label)}
+					<a role="menuitem" href={f.href}>
+						{#if f.kind?.level}{@render pips(f.kind.level)}{/if}
+						<span>{f.label}</span>
+					</a>
+				{/each}
+			</div>
+		{/if}
 	{/if}
-	<div class="user" bind:this={userEl}>
+	<div class="user" class:initial={fit >= 1} bind:this={userEl}>
 		<button type="button" class="who" aria-expanded={open} aria-haspopup={narrow ? 'dialog' : 'menu'} aria-label="Account: {me.name || me.email}" onclick={() => (open = !open)}>
 			<span class="avatar" aria-hidden="true">{(me.name || me.email).slice(0, 1).toUpperCase()}</span>
 			<span class="name">{me.name || me.email}</span>
@@ -290,6 +389,12 @@
 	.who:hover {
 		background: color-mix(in srgb, var(--color-text) 8%, transparent);
 	}
+	.who .name {
+		white-space: nowrap;
+	}
+	.user.initial .name {
+		display: none;
+	}
 	.avatar {
 		width: 24px;
 		height: 24px;
@@ -451,18 +556,16 @@
 		clip-path: inset(50%);
 		white-space: nowrap;
 	}
-	@media (max-width: 600px) {
-		/* A phone's bar has no room for the name: the pips say the level, and the diagram menu names the kind. */
-		.kind.named .pips + .kind-label {
-			position: absolute;
-			width: 1px;
-			height: 1px;
-			overflow: hidden;
-			clip-path: inset(50%);
-		}
-		.kind.named {
-			padding: 3px 5px;
-		}
+	/* A tight bar has no room for the kind's name: the pips say the level, and the diagram menu names the kind. */
+	.tight .kind.named .pips + .kind-label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+	.tight .kind.named {
+		padding: 3px 5px;
 	}
 	.crumb-btn {
 		display: inline-flex;
@@ -478,6 +581,11 @@
 		font: inherit;
 		cursor: pointer;
 	}
+	/* Until the bar is down to its last step the diagram's name keeps its width, so running out of room shows as
+	   overflow and the bar gives up something else instead. */
+	.crumbs:not(.compact) .crumb-btn {
+		flex: none;
+	}
 	.crumb-btn span {
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -489,35 +597,95 @@
 	.crumb-btn:hover {
 		background: color-mix(in srgb, var(--color-text) 7%, transparent);
 	}
-	@media (max-width: 600px) {
-		/* A phone's bar: one step up and where you are, each big enough to tap. */
-		.crumbs.compact {
-			flex: 1 1 auto;
-			gap: 2px;
-		}
-		.up {
+	/* The tightest bar: one step up and where you are. */
+	.crumbs.compact {
+		flex: 1 1 auto;
+		gap: 2px;
+	}
+	.compact .crumb-btn {
+		flex: 0 1 auto;
+	}
+	.up,
+	.more {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+		flex: none;
+		min-width: 32px;
+		height: 32px;
+		padding: 0 6px;
+		border: none;
+		border-radius: 8px;
+		background: transparent;
+		color: var(--color-neutral-400);
+		cursor: pointer;
+	}
+	.up {
+		margin-left: -8px;
+	}
+	.up:hover,
+	.up:active,
+	.more:hover,
+	.more[aria-expanded='true'] {
+		background: color-mix(in srgb, var(--color-text) 8%, transparent);
+		color: var(--color-text);
+	}
+	.more-menu {
+		position: fixed;
+		z-index: 40;
+		min-width: 200px;
+		max-width: calc(100vw - 16px);
+		padding: 6px;
+		border-radius: 10px;
+		background: var(--color-surface);
+		border: 1px solid var(--color-divider);
+		box-shadow: var(--shadow-md);
+		display: flex;
+		flex-direction: column;
+	}
+	.more-menu a {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 40px;
+		padding: 0 10px;
+		border-radius: 7px;
+		font-size: 14px;
+		color: var(--color-text);
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	.more-menu a span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.more-menu a:hover {
+		background: color-mix(in srgb, var(--color-text) 8%, transparent);
+	}
+	/* A finger, on a tablet as on a phone: every way in the bar is big enough to tap. */
+	@media (pointer: coarse) {
+		.crumbs a,
+		.crumb-btn {
 			display: inline-flex;
 			align-items: center;
-			justify-content: center;
-			gap: 4px;
-			flex: none;
+			min-height: 40px;
+		}
+		.up,
+		.more {
 			min-width: 40px;
 			height: 40px;
-			margin-left: -8px;
-			padding: 0 6px;
-			border-radius: 8px;
-			color: var(--color-neutral-400);
 		}
-		.up:hover,
-		.up:active {
-			background: color-mix(in srgb, var(--color-text) 8%, transparent);
-			color: var(--color-text);
-		}
+	}
+	/* A phone keeps them as big when the pointer reports fine (a stylus, a desktop emulating one). */
+	@media (max-width: 600px) {
 		.crumb-btn {
 			min-height: 40px;
 		}
-		.compact .crumb-btn {
-			flex: 0 1 auto;
+		.up,
+		.more {
+			min-width: 40px;
+			height: 40px;
 		}
 	}
 </style>

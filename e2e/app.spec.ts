@@ -1500,6 +1500,44 @@ test.describe("the app at /app", () => {
     expect(console_.links).toEqual([{ diagram: made }]);
   });
 
+  test("fits a deep C4 breadcrumb on a tablet: nothing cut off, the levels it folds a tap away", async ({ page, request }) => {
+    // An 11-inch iPad held upright.
+    await page.setViewportSize({ width: 820, height: 1180 });
+    const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+    const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+    const id = (name: string) => list.find(d => d.name === name)!.id;
+    const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
+
+    await page.goto(`/app/d/${id("postings-components")}`);
+    const menu = crumbs.getByRole("button", { name: /postings-components/ });
+    await expect(menu).toBeVisible();
+    // The bar gives things up until it fits: nothing overflows, and the diagram's name shows whole.
+    await expect.poll(() => crumbs.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    expect(await menu.locator("span").first().evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    const nav = (await crumbs.boundingBox())!;
+    const box = (await menu.boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(nav.x + nav.width + 1);
+    await expect(page.getByRole("button", { name: /^Account/ })).toBeInViewport({ ratio: 1 });
+
+    // The workspace and the level just above stay as links; the one between is in view or a tap away.
+    await expect(crumbs.getByRole("link", { name: "Ledger C4", exact: true })).toBeVisible();
+    await expect(crumbs.getByRole("link", { name: "ledger-containers", exact: true })).toBeVisible();
+    const between = crumbs.getByRole("link", { name: "ledger-context", exact: true });
+    if (await between.isVisible()) await between.click();
+    else {
+      await crumbs.getByRole("button", { name: "Show 1 more level" }).click();
+      await page.getByRole("menu", { name: "More levels" }).getByRole("menuitem", { name: "ledger-context" }).click();
+    }
+    await expect(page).toHaveURL(new RegExp(`/app/d/${id("ledger-context")}`));
+
+    // At a desktop's width it all shows again.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/app/d/${id("postings-components")}`);
+    await expect(crumbs.getByRole("link")).toHaveText(["Ledger C4", "ledger-context", "ledger-containers"]);
+    await expect(crumbs.getByTestId("crumb-more")).toHaveCount(0);
+  });
+
   test("draws a C4 Code node with members and a path as a code block, edited from its details", async ({ page, request }) => {
     const res = await request.post("/api/workspaces/import", { data: c4Backup() });
     const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
