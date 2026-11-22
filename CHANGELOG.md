@@ -32,7 +32,7 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   it, so later integrations draw the same picture.
 
 ### Changed
-- Connections draw heavier: every weight scales up by 1.4 (Medium goes from 1.4 to about 2), dashes with it.
+- Connections draw heavier: every weight scales up by 1.4 (Medium goes from 1.4 to about 2), dashes and arrowheads with it. Container borders scale the same way and draw in a stronger colour, so they read on the light theme too.
   Saved weights don't change.
 - **Present** moved out of the strip above the canvas; it stays in the diagram's sheet (press the diagram's name).
 - The product is now called **Daidal** (formerly Skope), everywhere a person reads it: the app, its docs, error
@@ -43,5 +43,5 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   `skope` for now.
 
 ### Fixed
-- A node card no longer lets long text spill out of it: the type and the name keep to one line, and the subtitle
-  wraps over as many lines as the card's height leaves, then ends in an ellipsis (hover shows it in full).
+- A node card no longer lets long text spill out of it: the type keeps to one line, and the name and subtitle wrap
+  over as many lines as the card's height leaves, then end in an ellipsis (hover shows it in full).
