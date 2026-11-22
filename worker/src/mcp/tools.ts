@@ -81,6 +81,15 @@ export interface Tool {
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 const num = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+/** What add_node and update_node were given of a code block's or a table's fields: members, functions, language, columns. */
+function codeFields(args: Row): NodeChange {
+  const change: NodeChange = {};
+  if (Array.isArray(args.members)) change.members = list(args.members);
+  if (Array.isArray(args.functions)) change.functions = toFunctions(args.functions);
+  if (typeof args.language === "string") change.language = toLanguage(args.language);
+  if (Array.isArray(args.columns)) change.columns = withColumnIds(toColumns(args.columns));
+  return change;
+}
 const need = (args: Row, key: string): string => {
   const v = str(args[key]).trim();
   if (!v) throw new ToolError(`${key} is required`);
@@ -571,10 +580,7 @@ export const TOOLS: Tool[] = [
           const made = addNode(doc, type, at);
           const tagged = tagKeys(made.doc, list(args.tags));
           const change: NodeChange = { name, ...(str(args.subtitle) ? { subtitle: str(args.subtitle) } : {}), ...(str(args.notes) ? { notes: str(args.notes) } : {}) };
-          if (Array.isArray(args.members)) change.members = list(args.members);
-          if (Array.isArray(args.functions)) change.functions = toFunctions(args.functions);
-          if (typeof args.language === "string") change.language = toLanguage(args.language);
-          if (Array.isArray(args.columns)) change.columns = withColumnIds(toColumns(args.columns));
+          Object.assign(change, codeFields(args));
           if (str(args.path)) change.path = str(args.path);
           if (tagged.keys.length) change.tags = tagged.keys;
           return just(updateNode(tagged.doc, made.id, change), { node: made.id });
@@ -625,10 +631,7 @@ export const TOOLS: Tool[] = [
           let next = doc;
           const change: NodeChange = {};
           for (const key of ["name", "subtitle", "notes", "path"] as const) if (typeof args[key] === "string") change[key] = args[key];
-          if (Array.isArray(args.members)) change.members = list(args.members);
-          if (Array.isArray(args.functions)) change.functions = toFunctions(args.functions);
-          if (typeof args.language === "string") change.language = toLanguage(args.language);
-          if (Array.isArray(args.columns)) change.columns = withColumnIds(toColumns(args.columns));
+          Object.assign(change, codeFields(args));
           if (type) change.type = type;
           if (Array.isArray(args.flags)) change.flags = list(args.flags);
           if (links) change.links = links;

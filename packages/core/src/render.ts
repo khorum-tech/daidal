@@ -262,11 +262,12 @@ function nodeMarkup(scene: Scene, shown: (id: string) => number | null): string 
 			}
 			const dash = op < 1 ? ' stroke-dasharray="4 3"' : '';
 			if (n.isNote) return [g(noteMarkup(n, dash))];
-			if (n.c4) return [g(c4Markup(n, dash, n.tags[0] ? tagColor.get(n.tags[0]) : undefined))];
+			const tag = n.tags[0] ? tagColor.get(n.tags[0]) : undefined;
+			if (n.c4) return [g(c4Markup(n, dash, tag))];
 			const icon = ICON_PATHS[n.icon] ?? ICON_PATHS.cube;
-			if (n.table) return [g(tableMarkup(n, dash, icon, n.tags[0] ? tagColor.get(n.tags[0]) : undefined))];
-			if (n.code) return [g(codeMarkup(n, dash, icon, n.tags[0] ? tagColor.get(n.tags[0]) : undefined))];
-			const dot = n.tags[0] && tagColor.get(n.tags[0]) ? `<circle cx="${n.x + n.w - 16}" cy="${n.y + 18}" r="3.5" fill="${esc(tagColor.get(n.tags[0])!)}"/>` : '';
+			if (n.table) return [g(tableMarkup(n, dash, icon, tag))];
+			if (n.code) return [g(codeMarkup(n, dash, icon, tag))];
+			const dot = tag ? `<circle cx="${n.x + n.w - 16}" cy="${n.y + 18}" r="3.5" fill="${esc(tag)}"/>` : '';
 			const sub = n.sub.trim() ? `<text x="${n.x + 13}" y="${n.y + 66}" font-size="11.5" fill="${C.muted}">${esc(fit(n.sub, n.w - 26, 11.5))}</text>` : '';
 			return [
 				g(

@@ -132,7 +132,12 @@ function node(raw: unknown, i: number): DocNode {
 		else delete out.language;
 	}
 	if (n.path != null) out.path = asText(n.path);
-	const cols = n.columns == null ? [] : columns(n.columns, i);
+	return withColumns(out, n.columns, i);
+}
+
+/** [out] with the columns a config gave it, checked; none when the list is empty or missing. */
+function withColumns(out: DocNode, raw: unknown, i: number): DocNode {
+	const cols = raw == null ? [] : columns(raw, i);
 	if (cols.length) out.columns = cols;
 	else delete out.columns;
 	return out;
