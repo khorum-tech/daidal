@@ -224,8 +224,6 @@ test.describe("the app at /app", () => {
     await page.locator("header .who").click();
     // The open dropdown's copy: the phone sheet keeps its own, closed, in the page.
     await expect(page.getByRole("menu").getByTestId("build-version")).toHaveText(new RegExp(`^Version ${build.release.replaceAll(".", "\\.")}`));
-    // The stage badge is for stage builds only.
-    await expect(page.getByTestId("stage-badge")).toHaveCount(0);
   });
 
   test("sends the security headers, and the app runs under its Content-Security-Policy", async ({ page, request }) => {

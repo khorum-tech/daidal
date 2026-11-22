@@ -152,9 +152,9 @@ table above.
 
 ## Which branch is on stage
 
-Every build says what it is (`scripts/build-info.mjs`). On stage the header shows a **Stage** badge with the PR,
-branch and commit that's live (a phone shows just the commit); hover it for the full version and build time, or press it to
-open `/version`. The account menu names the version on every site.
+Every build says what it is (`scripts/build-info.mjs`). The account menu ends with the version on every site: on
+stage the branch and commit that's live, on prod the release and its commit. Hover it for the full version, the PR and
+the build time.
 
 - `/version` (and `/version.json`) answers with the build as JSON, never cached: `version`, `branch`, `commit`,
   `pr`, `channel` (`prod`, `stage` or `local`) and `builtAt`. Every static file also carries an `x-daidal-version`
@@ -163,6 +163,8 @@ open `/version`. The account menu names the version on every site.
   `0.4.0-SNAPSHOT+fix-card-text.1a2b3c4` (the branch with anything but letters, digits and hyphens made a hyphen).
 - The deploy jobs pass the branch, commit, PR and channel in as `DAIDAL_*` variables; stage checks out a bare commit,
   so git alone can't name the branch. A local build asks git and reads as `local`.
+  A stage deploy started by hand runs main's copy of the workflow; when that doesn't pass them, the build takes the
+  branch from the run's inputs and counts the stage job as `stage`.
 
 ## Testing on stage
 

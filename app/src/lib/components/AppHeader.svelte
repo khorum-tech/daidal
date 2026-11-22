@@ -38,8 +38,8 @@
 			kind?: { label: string; level?: number; hint: string };
 		}[];
 	} = $props();
-	// What build is live (/version.json, loaded with the page). On stage a badge says which branch; the account menu
-	// always names the version.
+	// What build is live (/version.json, loaded with the page): the account menu names it, a snapshot with its branch
+	// off main and the release on prod.
 	const build = $derived((page.data.build as BuildInfo | null | undefined) ?? null);
 	let open = $state(false);
 	let userEl = $state<HTMLElement>();
@@ -141,16 +141,6 @@
 				{:else}<span aria-current="page">{c.label}</span>{/if}
 			{/each}
 		</nav>
-	{/if}
-	{#if build?.channel === 'stage'}
-		<a class="stage-badge" href="/version" target="_blank" rel="noopener" title={buildTitle(build)} data-testid="stage-badge">
-			<span class="stage-label">Stage</span>
-			{#if build.pr}<span class="stage-pr">#{build.pr}</span>{/if}
-			<span class="stage-branch">{build.branch}</span>
-			{#if build.shortCommit}<code>{build.shortCommit}</code>{/if}
-		</a>
-	{:else}
-		<span class="readonly tag tag-outline" title={build ? `Daidal is new: tell us what's missing. ${buildTitle(build)}` : "Daidal is new: tell us what's missing"}>Preview</span>
 	{/if}
 	<div class="user" bind:this={userEl}>
 		<button type="button" class="who" aria-expanded={open} aria-haspopup={narrow ? 'dialog' : 'menu'} aria-label="Account: {me.name || me.email}" onclick={() => (open = !open)}>
@@ -256,52 +246,12 @@
 	.slash {
 		color: var(--color-neutral-700);
 	}
-	.readonly {
-		margin-left: auto;
-		font-size: 10px;
-		flex: none;
-	}
 	.user {
 		position: relative;
-	}
-	/* Stage only: which branch is live, so two PRs taking turns on stage can't be mixed up. */
-	.stage-badge {
 		margin-left: auto;
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		min-width: 0;
-		max-width: 340px;
-		flex: 0 1 auto;
-		padding: 2px 8px;
-		border: 1px solid var(--color-accent-2);
-		border-radius: 999px;
-		font-size: 11px;
-		color: var(--color-text);
-		text-decoration: none;
-		white-space: nowrap;
 	}
-	.stage-badge:hover {
-		background: color-mix(in srgb, var(--color-accent-2) 14%, transparent);
-	}
-	.stage-label {
-		font-weight: 600;
-		color: var(--color-accent-2);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		font-size: 10px;
-	}
-	.stage-branch {
-		min-width: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-	.stage-badge code,
 	.version {
 		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-	}
-	.stage-badge code {
-		color: var(--color-neutral-400);
 	}
 	.who {
 		display: flex;
@@ -335,19 +285,8 @@
 			padding: 0 12px;
 		}
 		.brand > span:last-child,
-		.readonly,
-		.stage-pr,
-		.stage-branch,
 		.who .name {
 			display: none;
-		}
-		/* On a phone the badge keeps the label and the commit, and pushes the user menu right itself. */
-		.stage-badge ~ .user {
-			margin-left: 0;
-		}
-		/* The read-only tag usually pushes the user menu right; without it the menu does it itself. */
-		.user {
-			margin-left: auto;
 		}
 	}
 	.menu {

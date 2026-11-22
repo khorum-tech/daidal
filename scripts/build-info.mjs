@@ -54,11 +54,9 @@ export function buildInfo({ env = {}, git = {}, event = {}, release = "0.0.0", n
   const shortCommit = commit.slice(0, 7);
   // The deploy workflow names the channel. A stage deploy started by hand runs main's copy of the workflow, which
   // may be older than this build and not name it, so the stage job itself also counts as stage.
-  const channel = ["prod", "stage"].includes(env.DAIDAL_CHANNEL)
-    ? env.DAIDAL_CHANNEL
-    : env.GITHUB_ACTIONS === "true" && env.GITHUB_JOB === "stage"
-      ? "stage"
-      : "local";
+  const stageJob = env.GITHUB_ACTIONS === "true" && env.GITHUB_JOB === "stage";
+  let channel = stageJob ? "stage" : "local";
+  if (["prod", "stage"].includes(env.DAIDAL_CHANNEL)) channel = env.DAIDAL_CHANNEL;
   const pr = /^\d+$/.test(String(env.DAIDAL_PR ?? "")) ? Number(env.DAIDAL_PR) : null;
   return {
     name: "daidal",
