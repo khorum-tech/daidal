@@ -42,16 +42,17 @@
 	};
 	const linkTitle = $derived(node.links.map(l => l.label || hostOf(l.url)).join(' · '));
 
-	// A card's name and subtitle wrap and use the room its height gives them, then end in an ellipsis: a tall card
-	// (a C4 Code function with its calls listed under it) shows them all, a short one keeps its old single lines
-	// and nothing spills out under the card. Sizes match the styles below: 1 px border and 11 px padding above and
-	// below, a 15 px head, the name's 7 px gap and 18 px lines, the subtitle's 3 px gap and 14 px lines.
-	const room = $derived(node.h - 2 - 22 - 15);
+	// A card's name and subtitle wrap as they always have and use the room its height gives them, down to its
+	// bottom border (the bottom padding included, as wrapped text always could), then end in an ellipsis rather than
+	// spill out under the card. Sizes match the styles below: 1 px border and 11 px padding at the top, a 15 px head,
+	// the name's 7 px gap and 18 px lines, the subtitle's 3 px gap and 14 px lines, 1 px border at the bottom.
+	const room = $derived(node.h - 1 - 11 - 15 - 1);
 	const hasSub = $derived(!!node.sub.trim());
-	const nameLines = $derived(
-		Math.max(1, Math.min(wrapText(node.name, node.w - 28, 15).length, Math.floor((room - 7 - (hasSub ? 17 : 0)) / 18)))
-	);
-	const subLines = $derived(Math.max(1, Math.floor((room - 7 - nameLines * 18 - 3) / 14)));
+	// The name may take every line it has room for beside one of subtitle; the subtitle gets what the name leaves,
+	// by an estimate of the name's lines (wrapText measures roughly, so the name's own clamp doesn't use it).
+	const nameLines = $derived(Math.max(1, Math.floor((room - 7 - (hasSub ? 17 : 0)) / 18)));
+	const nameUses = $derived(Math.min(nameLines, wrapText(node.name, node.w - 28, 15).length));
+	const subLines = $derived(Math.max(1, Math.floor((room - 7 - nameUses * 18 - 3) / 14)));
 </script>
 
 <button
@@ -349,8 +350,6 @@
 		flex: none;
 	}
 	.sub {
-		flex: 0 1 auto;
-		min-height: 0;
 		font-size: 11.5px;
 		line-height: 14px;
 		color: var(--color-neutral-500);
