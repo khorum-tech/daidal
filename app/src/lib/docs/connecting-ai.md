@@ -13,7 +13,7 @@ Daidal has an MCP server, so an AI assistant (Claude Code, Claude Desktop, claud
 | Where | MCP address |
 |-------|-------------|
 | Daidal | `https://skope.khorum-oss.org/mcp` |
-| Stage | `https://skope-stage.khorum-oss.org/mcp` |
+| Stage | `https://daidal-stage.khorum.org/mcp` |
 | On your computer (`wrangler dev`) | `http://localhost:8787/mcp` |
 
 Your initial → **AI access** shows the address for the Daidal you're on.
@@ -72,6 +72,10 @@ If you have the diagram open while an assistant changes it, the strip above the 
 - “Tag everything that faces the internet as Public, and save a view called Public surface.”
 
 Asking it to take a snapshot first gives you something to look back at, in [History](/app/docs/history).
+
+## Drawing diagrams in the chat
+
+The `daidal-diagram` skill teaches Claude to write a [config](/app/docs/config) and draw it inline in the chat, with the same renderer Daidal uses, so you can see a diagram before it goes anywhere and paste the config straight in. With this connector added too, it can draw a diagram from your workspace without opening the app. It lives in the repository under [`skills/daidal-diagram`](https://github.com/khorum-tech/daidal/tree/main/skills/daidal-diagram); `skills/README.md` there says how to add it to Claude.
 
 ## When it doesn't work
 

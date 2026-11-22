@@ -13,9 +13,10 @@ and the references, assets and examples it points to.
   under Skills in Claude's settings.
 - **Claude Code:** copy the folder into `~/.claude/skills/` (for you) or `.claude/skills/` (for one project).
 
-`daidal-diagram` draws in Claude's inline visuals, so it needs the core bundle published to npm at the version its
-widget pins (`assets/widget.html`; `scripts/daidal-skill.test.mjs` keeps that in step with `packages/core`). Before
-then the widget says it can't load the renderer and shows the config as text.
+`daidal-diagram` draws in Claude's inline visuals with the core bundle from an npm CDN, at the version its widget
+pins (`assets/widget.html`). `scripts/daidal-skill.test.mjs` keeps that pin in step
+with `packages/core`, so when core's version moves on, publish the new version before handing out the updated
+skill: until it's on npm, the widget says it can't load the renderer and shows the config as text.
 
 ## Licence
 

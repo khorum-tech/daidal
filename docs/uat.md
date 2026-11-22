@@ -11,7 +11,7 @@ see: how it looks and feels, Safari on a real iPhone, and the whole flow end to 
 
 ## How to run it
 
-**Where:** stage, https://skope-stage.khorum-oss.org/app/, signed in as the stage owner. Stage resets to the data
+**Where:** stage, https://daidal-stage.khorum.org/app/, signed in as the stage owner. Stage resets to the data
 below on every push to any PR, so start a run right after a deploy and don't push while it runs. Stage shows
 whichever PR pushed last: check the PR's stage comment names the commit you're testing.
 
@@ -52,8 +52,8 @@ Journal DB and Balance Cache, which doesn't move its contents).
 
 | ID | Do | Expect | On | Result |
 |----|----|--------|----|--------|
-| HOME-0 | Open https://skope-stage.khorum-oss.org/ (the bare site), then https://skope-stage.khorum-oss.org/prototype | The bare site lands on the app at `/app/`; `/prototype` is a 404 (the prototype is retired) | D P | |
-| HOME-1 | Open https://skope-stage.khorum-oss.org/app/ in a fresh private window | Cloudflare Access asks you to sign in; after it, the home page shows your **Personal** workspace | D P | |
+| HOME-0 | Open https://daidal-stage.khorum.org/ (the bare site), then https://daidal-stage.khorum.org/prototype | The bare site lands on the app at `/app/`; `/prototype` is a 404 (the prototype is retired) | D P | |
+| HOME-1 | Open https://daidal-stage.khorum.org/app/ in a fresh private window | Cloudflare Access asks you to sign in; after it, the home page shows your **Personal** workspace | D P | |
 | HOME-2 | Look at the workspace list | Your workspaces (Personal, Platform team) and the shared one (Payments, "Shared by priya@example.com") | D P | |
 | HOME-3 | Open **Platform team** | Three cards, each with a thumbnail of its layout, its kind, "9 nodes · 9 connections" (or its own counts), tag colour dots and when it was updated | D P | |
 | HOME-4 | Look at the two copies' cards | **edge-ingress (platform copy)** says "Follows edge-ingress"; **ledger-platform (DR drill)** says "Follows ledger-platform · paused" | D P | |
