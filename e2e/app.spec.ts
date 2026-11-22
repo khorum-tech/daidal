@@ -204,6 +204,23 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("menuitem", { name: /prototype/i })).toHaveCount(0);
   });
 
+  test("says which build is live: /version, and the account menu", async ({ page, request }) => {
+    const res = await request.get("/version");
+    expect(res.status()).toBe(200);
+    expect(res.headers()["cache-control"]).toBe("no-store");
+    const build = await res.json();
+    // A test build is a local one, a snapshot unless it's main, named after its branch and commit.
+    expect(build.channel).toBe("local");
+    expect(build.version.startsWith(build.release)).toBe(true);
+    expect(build.version.includes("-SNAPSHOT")).toBe(build.branch !== "main");
+
+    await page.goto("/app/");
+    await page.locator("header .who").click();
+    await expect(page.getByTestId("build-version")).toHaveText(new RegExp(`^Version ${build.release.replaceAll(".", "\\.")}`));
+    // The stage badge is for stage builds only.
+    await expect(page.getByTestId("stage-badge")).toHaveCount(0);
+  });
+
   test("sends the security headers, and the app runs under its Content-Security-Policy", async ({ page, request }) => {
     // A static file, an app route the Worker answers with the app's page, and the API.
     for (const path of ["/app/", "/app/d/anything", "/api/me"]) {

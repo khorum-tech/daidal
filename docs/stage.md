@@ -150,6 +150,20 @@ table above.
 **When a feature adds a table or something to a diagram, extend `stage/diagrams.ts` (and `APP_TABLES` in
 `stage/seed.ts`, children first) so stage shows it.** Keep names original and addresses on `example.com`.
 
+## Which branch is on stage
+
+Every build says what it is (`scripts/build-info.mjs`). On stage the header shows a **Stage** badge with the PR,
+branch and commit that's live (a phone shows just the commit); hover it for the full version and build time, or press it to
+open `/version`. The account menu names the version on every site.
+
+- `/version` (and `/version.json`) answers with the build as JSON, never cached: `version`, `branch`, `commit`,
+  `pr`, `channel` (`prod`, `stage` or `local`) and `builtAt`. Every static file also carries an `x-daidal-version`
+  header. Both sit behind Access like the rest of the site, so check them signed in.
+- A build of `main` is the release: `0.4.0+1a2b3c4`. Anything else is a snapshot named after its branch:
+  `0.4.0-SNAPSHOT+fix-card-text.1a2b3c4` (the branch with anything but letters, digits and hyphens made a hyphen).
+- The deploy jobs pass the branch, commit, PR and channel in as `DAIDAL_*` variables; stage checks out a bare commit,
+  so git alone can't name the branch. A local build asks git and reads as `local`.
+
 ## Testing on stage
 
 [`uat.md`](uat.md) is the hand-run checklist for stage: every feature on a desktop and an iPhone, written against
