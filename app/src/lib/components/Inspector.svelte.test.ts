@@ -341,7 +341,7 @@ describe("the inspector and a table's columns", () => {
 		expect(calls).toEqual(['end']);
 	});
 
-	it('sets a key, moves a column and removes one', async () => {
+	it('sets a key on a column', async () => {
 		const { changes } = await editingTable({
 			columns: [
 				{ id: 'c1', name: 'id', type: 'uuid', key: 'pk' },
@@ -359,8 +359,26 @@ describe("the inspector and a table's columns", () => {
 			label: 'Make customer_id a foreign key',
 			group: undefined
 		});
+	});
+
+	it('moves a column and removes one', async () => {
+		const { changes } = await editingTable({
+			columns: [
+				{ id: 'c1', name: 'id', type: 'uuid', key: 'pk' },
+				{ id: 'c2', name: 'customer_id', type: 'uuid', key: 'fk' }
+			]
+		});
 		await page.getByRole('button', { name: 'Move customer_id up' }).click();
-		expect(changes.at(-1)!.change.columns!.map(c => c.name)).toEqual(['customer_id', 'id']);
+		expect(changes.at(-1)).toEqual({
+			change: {
+				columns: [
+					{ id: 'c2', name: 'customer_id', type: 'uuid', key: 'fk' },
+					{ id: 'c1', name: 'id', type: 'uuid', key: 'pk' }
+				]
+			},
+			label: 'Move customer_id up',
+			group: undefined
+		});
 		await page.getByRole('button', { name: 'Remove column id' }).click();
 		expect(changes.at(-1)).toEqual({ change: { columns: [{ id: 'c2', name: 'customer_id', type: 'uuid', key: 'fk' }] }, label: 'Remove id', group: undefined });
 	});
