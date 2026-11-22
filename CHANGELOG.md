@@ -18,11 +18,11 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   `/version` answers with the build as JSON, and every static file carries an `x-daidal-version` header.
 - An in-app docs page, **C4 and drill-down**: the four levels, linking them, moving between them, and what the
   header shows.
-- `@khorum/daidal-core` can be published to npm: `npm run build:core` builds a single ES module browser bundle
-  with its types, and the hand-run `publish-core` workflow publishes it as an npm trusted publisher, with no npm
-  token (a dry run unless ticked).
+- `@khorum/daidal-core` is on npm (0.1.0, published 2026-11-22): `npm run build:core` builds a single ES module
+  browser bundle with its types, and the hand-run `publish-core` workflow publishes it as an npm trusted publisher,
+  with no npm token (a dry run unless ticked). It loads from jsDelivr, unpkg and esm.sh too.
 - A Claude skill, `skills/daidal-diagram`, that draws a Daidal config inline in Claude with the core bundle from an
-  npm CDN, and shows a diagram from your workspace through the Daidal connector. It works once the bundle is published.
+  npm CDN, and shows a diagram from your workspace through the Daidal connector.
 - Public source release under the Functional Source License (FSL-1.1-ALv2).
 - Root README, SECURITY, CONTRIBUTING, CODE_OF_CONDUCT and TRADEMARKS.
 - A Contributor License Agreement (`CLA.md`), signed with a comment on your first pull request.

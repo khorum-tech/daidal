@@ -21,4 +21,4 @@ Violabs Software LLC. The license in `LICENSE.md` covers the software; it does n
 
 ## Questions
 
-Open a discussion in this repository or contact the maintainer listed on the khorum-oss organisation profile.
+Open a discussion in this repository or contact the maintainer listed on the khorum-tech organisation profile.

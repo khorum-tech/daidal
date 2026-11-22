@@ -1,10 +1,11 @@
 # Stage
 
-Code owners' pull requests take turns on **https://skope-stage.khorum-oss.org**: a deploy puts that
-branch there and resets its database to the invented stage diagrams in [`stage/diagrams.ts`](../stage/diagrams.ts).
+Code owners' pull requests take turns on **https://daidal-stage.khorum.org** (the old address,
+`skope-stage.khorum-oss.org`, still answers): a deploy puts that branch there and resets its database to the invented stage diagrams in [`stage/diagrams.ts`](../stage/diagrams.ts).
 The `stage` job in [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) does it, after `test` passes.
 
-- **One shared stage, in turn.** A Worker `skope-stage`, a D1 `skope-stage`, one hostname. The **oldest open PR**
+- **One shared stage, in turn.** A Worker `skope-stage`, a D1 `skope-stage`, one site (its hostnames are
+  `STAGE_HOSTS` in [`scripts/stage-config.mjs`](../scripts/stage-config.mjs)). The **oldest open PR**
   (lowest number, opened by a code owner, not a draft) has it, and its pushes redeploy it. A newer PR doesn't deploy; its stage comment
   says it's waiting and which PR has stage. **A merge or close deploys nothing**: stage keeps
   showing what it had. The next PR in line takes stage on its own next push (merge `main` into it, say), or a code
@@ -42,8 +43,8 @@ Until the two repository variables and the secret below are set, the `stage` job
 
 1. **Create the database.** Run `npx wrangler d1 create skope-stage` and copy the `database_id` it prints.
 2. **Create the Access application.** In Cloudflare Zero Trust, go to *Access → Applications → Add an application
-   → Self-hosted*. Set the domain to `skope-stage.khorum-oss.org`, and add one **Allow** policy that includes only
-   your own sign-in email. Save it, open it again and copy its **Application Audience (AUD) tag**.
+   → Self-hosted*. Set the domain to `daidal-stage.khorum.org` (add `skope-stage.khorum-oss.org` as a second
+   domain while that address is kept), and add one **Allow** policy that includes only your own sign-in email. Save it, open it again and copy its **Application Audience (AUD) tag**.
 3. **Set the GitHub Actions settings.** In *Settings → Environments → New environment*, make one named `stage`.
    Leave *Deployment branches* open to all branches (every PR branch deploys) and add no required reviewers. Put
    these in it (repository-level settings work too; the `Prod` environment's are never visible to stage):
@@ -97,7 +98,7 @@ Stage runs pull-request code, so it must not hold prod's keys:
   domain).
 - Cloudflare can't limit a token to one Worker or one database, so a stage token in the **same account** as prod
   could still reach prod. The real separation is a **separate Cloudflare account for stage** (its own D1, Worker and
-  Access app; `skope-stage.khorum-oss.org` can stay on the zone through a custom hostname, or move to a domain in
+  Access app; `daidal-stage.khorum.org` can stay on the zone through a custom hostname, or move to a domain in
   that account). Until then, `scripts/stage-config.mjs` still refuses to run if the stage database id or AUD
   equals prod's, or if `wrangler.jsonc` gains a key it does not know.
 - Deploy jobs install with `--ignore-scripts`, so no dependency runs code while a token is in reach, and checkouts

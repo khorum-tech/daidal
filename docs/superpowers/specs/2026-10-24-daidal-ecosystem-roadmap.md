@@ -3,6 +3,12 @@
 Date: 2026-10-24
 Status: draft
 
+Progress (2026-11-22): step 1 has landed as `packages/core` and is published on npm as `@khorum/daidal-core`
+(0.1.0), one dependency-free ES module that also loads from jsDelivr, unpkg and esm.sh. It reads YAML with its own
+small reader rather than the `yaml` package, and has no auto-layout yet: unplaced nodes fall into a grid. The first
+integration on it is a Claude skill, `skills/daidal-diagram`, that draws a config inline in the chat. Step 6's links
+and refs have landed with the C4 work (`2026-11-05-daidal-kinds-c4-and-repo-aware-ai.md`).
+
 ## Goal
 
 Daidal today is a diagram editor with a backend (see

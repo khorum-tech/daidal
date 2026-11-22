@@ -4,6 +4,10 @@ A release is a version number, a dated entry in [`CHANGELOG.md`](../CHANGELOG.md
 release. Under the license, each release becomes Apache-2.0 two years after it ships, so the tag's date matters.
 Releasing does not deploy: prod follows `main` ([stage.md](stage.md)).
 
+The npm package `@khorum/daidal-core` has a version of its own, in `packages/core/package.json`, and its own
+hand-run workflow; a release here doesn't touch it. How to publish it is in
+[`packages/core/README.md`](../packages/core/README.md#publishing).
+
 ## As you work
 
 Add a line under `## [Unreleased]` in `CHANGELOG.md` in the pull request that makes the change, under **Added**,
