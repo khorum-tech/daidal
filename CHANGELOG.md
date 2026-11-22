@@ -13,6 +13,10 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 - **Colours** in Appearance: five dark palettes (Nocturne, Midnight, Plum, Graphite, Ink) and four light ones
   (Paper, Lilac, Sand, Mist). Each theme keeps its own, picking one
   switches to its theme, and every accent stays in the logo's purple family.
+- Each build says what it is. The account menu names the version: the release and its commit on prod
+  (`0.1.0 · 1a2b3c4`), a snapshot with its branch anywhere else (`0.1.0-SNAPSHOT · fix/card-text · 1a2b3c4`). On
+  stage a badge in the header shows the PR, branch and commit that's live. `/version` answers with the build as JSON,
+  and every static file carries an `x-daidal-version` header.
 - An in-app docs page, **C4 and drill-down**: the four levels, linking them, moving between them, and what the
   header shows.
 - `@khorum/daidal-core` can be published to npm: `npm run build:core` builds a single ES module browser bundle
