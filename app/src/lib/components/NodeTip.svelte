@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { SceneNode, SceneTag } from '@khorum/daidal-core/model';
+	import { signatureParts } from '@khorum/daidal-core/code';
 	import Icon from './Icon.svelte';
 
 	/**
@@ -45,6 +46,14 @@
 	{#if node.members.length}
 		<ul class="code members">
 			{#each node.members as m, i (i)}<li>{m}</li>{/each}
+		</ul>
+	{/if}
+	{#if node.functions.length}
+		<ul class="code functions" aria-label="Functions">
+			{#each node.functions as f, i (i)}
+				{@const p = signatureParts(f, node.language)}
+				<li>{p.lead}<span class="fn-name">{f.name}</span>{p.rest}{#if f.notes}<span class="fn-note">{f.notes}</span>{/if}</li>
+			{/each}
 		</ul>
 	{/if}
 	{#if node.tags.length}
@@ -149,6 +158,16 @@
 	}
 	.code.members {
 		color: var(--color-text);
+	}
+	.fn-name {
+		color: var(--color-text);
+	}
+	.fn-note {
+		display: block;
+		font-family: var(--font-body);
+		font-size: 11.5px;
+		line-height: 1.45;
+		margin-bottom: 3px;
 	}
 	.desc {
 		margin: 9px 0 0;

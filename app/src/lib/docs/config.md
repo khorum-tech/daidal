@@ -73,7 +73,9 @@ boundaries:
 | `type` | A type, written slugged: `web-app`, `api-gateway`, `ai-agent`, or one of your workspace's |
 | `icon` | An icon from the library, in place of the type's |
 | `subtitle`, `notes` | Text |
-| `members` | A list of what it exposes, one a line on its card: a class's methods, a file's exports, a table's columns. Makes the card a code block |
+| `members` | A list of what it holds, one a line on its card: a class's fields, a file's exports, a table's columns. Makes the card a code block |
+| `functions` | A list of what it can do, each a map of `name`, `params` (a list of `{ name, type }`), `returns` and `notes`, or a signature such as `check(batch: Batch): Verdict`. Drawn as signatures under the members. Makes the card a code block |
+| `language` | What a code block is written in: `java`, `kotlin`, `typescript`, `javascript`, `python`, `ruby`, `go`, `rust`, `csharp` or `swift`. Its functions read as that language writes them; without one, in a neutral form (`check(batch: Batch) → Verdict`) |
 | `path` | Where it lives: a file path, or a link to the source. Also makes the card a code block |
 | `flags` | Any of `db`, `cache`, `mq` |
 | `tags` | Tag keys |

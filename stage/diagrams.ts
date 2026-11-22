@@ -288,16 +288,19 @@ const postingsComponents = c4("postings-components", "postings-components", "c4-
   boundaries: [{ id: "scope", label: "Postings Service", layout: { x: 300, y: 80, w: 610, h: 380 }, ref: "ledger-containers#postings" }],
 });
 
-// The Code level: code blocks, each a class, function or table with what it exposes (members) and where it lives (path).
+// The Code level: code blocks, each a class, function or table with what it holds (members), what it does (functions) and where it lives (path).
 const balanceCode = c4("balance-code", "balance-code", "c4-code", {
   nodes: [
     node("checker", "BalanceChecker", "class", 340, 120, ["internal"], {
       layout: { x: 340, y: 120, w: 250 },
       subtitle: "Rejects a batch that does not balance.",
       path: "postings/src/balance/BalanceChecker.kt",
-      members: ["check(batch): Verdict", "explain(batch): List<Imbalance>"],
+      functions: [
+        { name: "check", params: [{ name: "batch", type: "Batch" }], returns: "Verdict", notes: "Balanced or not, per currency." },
+        { name: "explain", params: [{ name: "batch", type: "Batch" }], returns: "List<Imbalance>", notes: "Which currencies are out, and by how much." },
+      ],
     }),
-    node("sum", "sumByCurrency", "function", 690, 120, ["internal"], { layout: { x: 690, y: 120, w: 250 }, subtitle: "Debits less credits, per currency.", path: "postings/src/balance/sums.kt", members: ["sumByCurrency(lines): Map<Currency, Money>"] }),
+    node("sum", "sumByCurrency", "function", 690, 120, ["internal"], { layout: { x: 690, y: 120, w: 250 }, subtitle: "Debits less credits, per currency.", path: "postings/src/balance/sums.kt", language: "kotlin", functions: [{ name: "sumByCurrency", params: [{ name: "lines", type: "List<Line>" }], returns: "Map<Currency, Money>" }] }),
     node("verdict", "Verdict", "class", 340, 340, ["internal"], { layout: { x: 340, y: 340, w: 250 }, subtitle: "What a check found.", path: "postings/src/balance/Verdict.kt", members: ["Balanced", "Unbalanced(imbalances)"] }),
     node("batch", "posting_batches", "table", 690, 340, ["internal"], {
       layout: { x: 690, y: 340, w: 250 },

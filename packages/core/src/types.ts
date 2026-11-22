@@ -45,16 +45,37 @@ export interface DocNode {
 	layout?: { x: number; y: number; w?: number; h?: number };
 	notes?: string;
 	/**
-	 * What it exposes, one per line of its card: a class's methods, a file's exports, a table's columns. With `path`,
-	 * this makes the card a code block.
+	 * What it holds or exposes besides its functions, one per line of its card: a class's fields, a file's exports,
+	 * a table's columns. With `functions` or `path`, this makes the card a code block.
 	 */
 	members?: string[];
+	/** What it can be asked to do: a class's methods, a module's functions. Each makes a line of its code block. */
+	functions?: DocFunction[];
+	/**
+	 * The language its code is in (java, kotlin, typescript, javascript, python, ruby, go, rust, csharp, swift):
+	 * its functions read as that language writes them. Without one they read in a neutral form.
+	 */
+	language?: string;
 	/** Where it lives: a file path, or a link to the source. */
 	path?: string;
 	/** Web pages ({ url }) and diagrams to zoom into ({ diagram, view? }), in one list. */
 	links?: NodeLink[];
 	/** "<diagram id>#<node id>": this node is the same thing as that node in another diagram. */
 	ref?: string;
+}
+
+/** One of a code block's functions: its name, its parameters, what it returns, and a note on what it does. */
+export interface DocFunction {
+	name: string;
+	params?: DocParam[];
+	returns?: string;
+	notes?: string;
+}
+
+/** A function's parameter: its name, and its type when it has one. */
+export interface DocParam {
+	name: string;
+	type?: string;
 }
 
 /** A node's link: a web page by its url, or another diagram in the workspace (and one of its views) to zoom into. */

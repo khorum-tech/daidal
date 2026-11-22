@@ -1,6 +1,7 @@
 import { edgePath, type Box } from './geometry';
 import { ICON_PATHS } from './icons';
-import { borderWidth, bounds, C4, CODE, codeLines, fitMono, c4Desc, c4Kind, c4Name, c4Text, c4Top, isHidden, MARKER, NOTE, noteLines, wrapText, type Scene, type SceneNode } from './model';
+import { signatureParts } from './code';
+import { borderWidth, bounds, C4, CODE, codeSections, fitMono, c4Desc, c4Kind, c4Name, c4Text, c4Top, isHidden, MARKER, NOTE, noteLines, wrapText, type Scene, type SceneNode } from './model';
 
 /**
  * A diagram as a standalone SVG image, drawn from the scene the way the canvas draws it: containers, connections
@@ -171,13 +172,36 @@ function codeMarkup(n: SceneNode, dash: string, icon: string, tag: string | unde
 		y += CODE.pathTop;
 		out.push(row(fitMono(n.path, w, CODE.pathSize, true), CODE.pathLine, ` font-family="${MONO}" font-size="${CODE.pathSize}" fill="${C.faint}"`));
 	}
-	const { shown, more } = codeLines(n.members);
-	if (shown.length) {
+	const sigs = n.functions.map(f => signatureParts(f, n.language));
+	const parts = codeSections(n.members, sigs.map(s => s.lead + s.name + s.rest));
+	const rule = () => {
 		y += CODE.ruleTop;
 		out.push(`<line x1="${n.x}" y1="${y + 0.5}" x2="${n.x + n.w}" y2="${y + 0.5}" stroke="${C.border}"/>`);
 		y += 1 + CODE.ruleBottom;
-		for (const m of shown) out.push(row(fitMono(m, w, CODE.size), CODE.line, ` font-family="${MONO}" font-size="${CODE.size}" fill="${C.text}"`));
-		if (more) out.push(row(`+${more} more`, CODE.line, ` font-size="11" fill="${C.muted}"`));
+	};
+	const more = (count: number) => row(`+${count} more`, CODE.line, ` font-size="11" fill="${C.muted}"`);
+	const mono = ` font-family="${MONO}" font-size="${CODE.size}"`;
+	if (parts.members.shown.length || parts.members.more) {
+		rule();
+		for (const m of parts.members.shown) out.push(row(fitMono(m, w, CODE.size), CODE.line, `${mono} fill="${C.text}"`));
+		if (parts.members.more) out.push(more(parts.members.more));
+	}
+	if (parts.functions.shown.length || parts.functions.more) {
+		rule();
+		// A signature's name in the text colour, what comes before it (a return type, the word that starts a
+		// definition) and after it (parameters, return type) quieter, as the canvas card draws it.
+		parts.functions.shown.forEach((sig, i) => {
+			const line = fitMono(sig, w, CODE.size);
+			const leadLen = Math.min(sigs[i].lead.length, line.length);
+			const lead = line.slice(0, leadLen);
+			const name = line.slice(leadLen, leadLen + sigs[i].name.length);
+			const rest = line.slice(leadLen + sigs[i].name.length);
+			const quiet = (t: string) => (t ? `<tspan fill="${C.muted}">${esc(t)}</tspan>` : '');
+			const t = `<text x="${x}" y="${y + CODE.line / 2}" dominant-baseline="middle" xml:space="preserve"${mono} fill="${C.text}">${quiet(lead)}${esc(name)}${quiet(rest)}</text>`;
+			y += CODE.line;
+			out.push(t);
+		});
+		if (parts.functions.more) out.push(more(parts.functions.more));
 	}
 	return out.join('');
 }

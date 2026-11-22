@@ -5,6 +5,29 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- **Functions on code blocks.** A code block's functions have their own fields: a name, parameters on one line
+  (`batch: Batch, strict: Boolean`), what it returns and a note, added with **+ Add function**. The card draws them as
+  signatures (`check(batch: Batch): Verdict`) under their own rule, below the members, the two sharing its six lines.
+  Documents keep them as `functions: [{ name, params: [{ name, type }], returns, notes }]`; a config may also give a
+  function as a signature, which reads into the same entry, and exports always write the entry. Members now stand
+  for what a block holds (fields, columns, exports). A box that lists functions as text in its members, subtitle or
+  notes offers to move them into fields. The MCP tools (`add_node`, `update_node`, `get_diagram`), the SVG and PNG
+  exports, the hover card, change review, the C4 Code template and the stage data carry them. Older diagrams load
+  as they were. `@khorum/daidal-core` moves to 0.2.0 to carry them, and the Claude skill pins 0.2.0 and documents
+  `functions`; publish 0.2.0 before handing out the updated skill.
+- **Functions read in their code's language.** A code block can say what it is written in (Java, Kotlin,
+  TypeScript, JavaScript, Python, Ruby, Go, Rust, C# or Swift) with **Written in**, and its functions then read as
+  that language writes them: `Verdict check(Batch batch)` in Java, `fun check(batch: Batch): Verdict` in Kotlin,
+  `func check(batch Batch) Verdict` in Go. With no language they read in a neutral form,
+  `check(batch: Batch) → Verdict`, in place of the TypeScript-looking one. Documents keep each function the same
+  whatever the language, as `language` on the node; the config format, the MCP tools, the exports and the Claude
+  skill carry it. Each parameter now has its own name and type fields, stacked so a function's fields fit a phone or
+  a tablet held upright without scrolling sideways.
+- **Core and exports stay in step with the document format.** A contract test sets every field of the format and
+  checks that the config export reads back unchanged, that the SVG shows what a field-by-field ledger says it shows,
+  and that the npm bundle draws an exported config exactly as the app does; the MCP outline and backups get the same
+  check. A field added to the format fails the typecheck until the ledgers say what each output does with it. CI
+  refuses a pull request that changes what core ships without moving core's version past npm's.
 - **Code blocks.** A node with `members` (what a class, file or table exposes, a line each) or a `path` (where it
   lives) draws as a code block: the name in monospace, the subtitle as one line of purpose, the path, then the
   members under a rule. The block grows to fit, and shows six lines or five and a count of the rest. The node's
@@ -35,6 +58,7 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   it, so later integrations draw the same picture.
 
 ### Changed
+- Stage deploys every push to a code owner's PR, drafts included, so it shows the last PR pushed; there is no line to wait in. A hold by hand is off by default and ends by itself after 12 hours or when its branch merges, and a push that doesn't deploy says why on the run and the PR. The PR's stage comment names the version the account menu shows.
 - Connections draw heavier: every weight scales up by 1.4 (Medium goes from 1.4 to about 2), dashes and arrowheads with it. Container borders scale the same way and draw in a stronger colour, so they read on the light theme too.
   Saved weights don't change.
 - The header drops the **Preview** tag, leaving the breadcrumbs and the account menu.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE } from './fixtures';
 import { catalogue } from './icons';
-import { bounds, CODE, codeHeight, codeLines, fitMono, EDGE_SCALE, C4, C4_PERSON_H, c4Desc, c4Height, c4Top, docLinks, zoomsOf, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
+import { bounds, CODE, codeHeight, codeLines, codeSections, fitMono, EDGE_SCALE, C4, C4_PERSON_H, c4Desc, c4Height, c4Top, docLinks, zoomsOf, ICON_CARD, iconScene, isColor, isHidden, NODE_H, noteHeight, noteLines, parseAnchor, slug, tagGroups, tagsOn, toScene, typeName, wrapText } from './model';
 
 describe('typeName', () => {
 	it("turns a slug back into the prototype's own type name", () => {
@@ -247,6 +247,26 @@ describe('code blocks', () => {
 		expect(codeLines(names(CODE.max))).toEqual({ shown: names(CODE.max), more: 0 });
 		expect(codeLines(names(CODE.max + 3))).toEqual({ shown: names(CODE.max - 1), more: 4 });
 		expect(only({ members: names(40) }).h).toBe(only({ members: names(CODE.max) }).h);
+	});
+
+	it('reads its functions, and draws a node with only functions as a code block', () => {
+		const n = only({ functions: [{ name: 'check', params: [{ name: 'batch', type: 'Batch' }], returns: 'Verdict' }, 'reset()', { name: '' }] });
+		expect(n).toMatchObject({ code: true, functions: [{ name: 'check', params: [{ name: 'batch', type: 'Batch' }], returns: 'Verdict' }, { name: 'reset' }] });
+		expect(only({ functions: 'nonsense' as unknown as [] }).functions).toEqual([{ name: 'nonsense' }]);
+		expect(only({ functions: [] }).code).toBe(false);
+	});
+
+	it('gives functions their own part under a second rule, the two sharing the block\'s lines', () => {
+		const bare = codeHeight('', '', ['id: uuid']);
+		expect(only({ members: ['id: uuid'], functions: ['a()'] }).h).toBe(bare + CODE.ruleTop + 1 + CODE.ruleBottom + CODE.line);
+		const names = (n: number, p = 'm') => Array.from({ length: n }, (_, i) => `${p}${i}`);
+		expect(codeSections(names(2), names(3, 'f'))).toEqual({ members: { shown: names(2), more: 0 }, functions: { shown: names(3, 'f'), more: 0 } });
+		// Both too long: half each, each counting the rest.
+		expect(codeSections(names(8), names(8, 'f'))).toEqual({ members: { shown: names(2), more: 6 }, functions: { shown: names(2, 'f'), more: 6 } });
+		// One short: the other takes what it leaves.
+		expect(codeSections(names(8), names(1, 'f'))).toEqual({ members: { shown: names(4), more: 4 }, functions: { shown: names(1, 'f'), more: 0 } });
+		expect(codeSections([], names(9, 'f'))).toEqual({ members: { shown: [], more: 0 }, functions: { shown: names(5, 'f'), more: 4 } });
+		expect(only({ members: names(40), functions: names(40, 'f') }).h).toBe(only({ members: names(3), functions: names(3, 'f') }).h);
 	});
 
 	it('cuts monospace text to fit, from the start for a path', () => {

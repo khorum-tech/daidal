@@ -1,35 +1,36 @@
 # Stage
 
-Code owners' pull requests take turns on **https://daidal-stage.khorum.org** (the old address,
+Every push to a code owner's pull request goes on **https://daidal-stage.khorum.org** (the old address,
 `skope-stage.khorum-oss.org`, still answers): a deploy puts that branch there and resets its database to the invented stage diagrams in [`stage/diagrams.ts`](../stage/diagrams.ts).
 The `stage` job in [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) does it, after `test` passes.
 
-- **One shared stage, in turn.** A Worker `skope-stage`, a D1 `skope-stage`, one site (its hostnames are
-  `STAGE_HOSTS` in [`scripts/stage-config.mjs`](../scripts/stage-config.mjs)). The **oldest open PR**
-  (lowest number, opened by a code owner, not a draft) has it, and its pushes redeploy it. A newer PR doesn't deploy; its stage comment
-  says it's waiting and which PR has stage. **A merge or close deploys nothing**: stage keeps
-  showing what it had. The next PR in line takes stage on its own next push (merge `main` into it, say), or a code
-  owner puts it there by hand.
-  A draft never takes stage: mark it ready for review to put it in line. Nor does a bot's PR (Dependabot's): its
-  runs get none of stage's secrets, so it would hold stage without deploying.
-- **Only code owners' PRs auto-deploy.** The line holds only PRs opened by someone named in
+- **One shared stage, the last PR pushed.** A Worker `skope-stage`, a D1 `skope-stage`, one site (its hostnames are
+  `STAGE_HOSTS` in [`scripts/stage-config.mjs`](../scripts/stage-config.mjs)). Each push to a PR opened by a code
+  owner, draft or not, deploys it, so stage shows whichever PR was pushed last. Its stage comment says what's live
+  and the version the account menu shows. **A merge or close deploys nothing**: stage keeps showing what it had
+  until the next push. A bot's PR (Dependabot's) never deploys: its runs get none of stage's secrets.
+- **Never silent.** When a push doesn't deploy (stage is held, or the PR isn't a code owner's), the run says why
+  as a warning and the PR's stage comment says the same.
+- **Only code owners' PRs auto-deploy.** Only PRs opened by someone named in
   [`.github/CODEOWNERS`](../.github/CODEOWNERS), as that file stands **on `main`** (a PR can't add its own
-  author). Anyone else's PR says on its stage comment that a code owner can put it there by hand. Name people in
+  author) deploy by themselves. Anyone else's PR says on its stage comment that a code owner can put it there by hand. Name people in
   CODEOWNERS (`@user`); the stage job doesn't read teams. With no CODEOWNERS on `main`, nothing auto-deploys.
 - **Or by hand, with a hold.** **Actions → deploy → Run workflow** (leave *Use workflow from* on `main`), name a
-  **branch**, and run. Tests run on that branch; then that exact commit goes on stage whatever the line says.
+  **branch**, and run. Tests run on that branch; then that exact commit goes on stage.
   Only code owners get past the check. The options:
-  - *Hold* (on by default): stage stays on that branch. No PR push moves it, and each PR's stage
-    comment says stage is held. Stacked PRs can't overwrite what you're testing.
+  - *Hold* (off by default): stage stays on that branch while you test it. No PR push moves it, and each PR's
+    stage comment says stage is held. A hold can't get stuck: it ends by itself after **12 hours**, or once the
+    held branch is merged into `main` or deleted.
   - *Reset data* (on by default): untick it to deploy the code and keep what's in stage's database (migrations
     still run).
-  - *Release*: run it again with *release* ticked (branch ignored) to end the hold. The PR first in line deploys
-    straight away. Deploying another branch by hand also replaces the hold, or clears it if *hold* is unticked.
+  - *Release*: run it again with *release* ticked (branch ignored) to end the hold. Stage deploys
+    straight away: the open PR pushed most recently goes on stage. Deploying another branch by hand also replaces
+    the hold, or clears it if *hold* is unticked.
 
   The hold lives as a GitHub deployment on a `stage-hold` environment (GitHub creates it the first time; it
-  needs no settings). Its latest status reads *success* while held and *inactive* once released.
+  needs no settings). Its latest status reads *success* while held and *inactive* once it ends.
 - **Not a security boundary.** A same-repository PR runs its own copy of the workflow, so anyone with write access
-  could edit these checks away on their branch. The code-owner gate keeps the line tidy. The real guard on stage's
+  could edit these checks away on their branch. The code-owner gate keeps stage tidy. The real guard on stage's
   token stays the `stage` environment's settings, plus who you give write access to.
 - **Only the owner signs in.** Stage has its own Access application, narrower than prod's.
 - **Stage data is throwaway.** It holds only the invented data, never a real backup, and every deploy resets it.
@@ -54,8 +55,8 @@ Until the two repository variables and the secret below are set, the `stage` job
      It is a secret so GitHub masks it in this public repository's logs, and only the seed step gets it.
    - Secret `STAGE_CLOUDFLARE_API_TOKEN`, stage's own Cloudflare token (see *Tokens* below), and
      `STAGE_CLOUDFLARE_ACCOUNT_ID`, the account it works in (a secret or a variable). Stage never uses prod's token.
-4. **Push to a PR.** If it's first in line, the job applies the migrations, resets the data, deploys, and posts one
-   comment on the PR with the link; otherwise the comment says it's waiting. Later runs update that same comment.
+4. **Push to a PR.** The job applies the migrations, resets the data, deploys, and posts one
+   comment on the PR with the link and the version; otherwise the comment says why not. Later runs update that same comment.
 
 ## Prod's settings
 

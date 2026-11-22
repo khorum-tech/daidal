@@ -1,6 +1,7 @@
 import type { DocBoundary, DocEdge, DocNode, DocTag, DaidalDoc, Snapshot } from '../types';
 import { removeBoundary, removeNode } from '@khorum/daidal-core/edit';
 import { toScene } from '@khorum/daidal-core/model';
+import { languageLabel } from '@khorum/daidal-core/code';
 
 /**
  * Reviewing what a lead diagram changed, for a follower: the prototype's diffSnaps and applyOne (web/index.html)
@@ -55,6 +56,8 @@ function nodeEdit(o: DocNode, n: DocNode, os: SceneNode, ns: SceneNode) {
 		['flags', sorted(o.flags) !== sorted(n.flags), `flags → ${(n.flags ?? []).join(', ') || 'none'}`],
 		['notes', os.desc !== ns.desc, 'notes'],
 		['members', os.members.join('\n') !== ns.members.join('\n'), 'members'],
+		['functions', !same(os.functions, ns.functions), 'functions'],
+		['language', os.language !== ns.language, `language → ${languageLabel(ns.language)}`],
 		['path', os.path !== ns.path, `path → ${ns.path || '—'}`],
 		['links', !same(o.links, n.links), 'links']
 	];

@@ -61,7 +61,7 @@ dependencies. Install it with `npm install @khorum/daidal-core`, or load it from
 
 ```html
 <script type="module">
-  import { renderConfig } from 'https://cdn.jsdelivr.net/npm/@khorum/daidal-core@0.1.0/daidal-core.js';
+  import { renderConfig } from 'https://cdn.jsdelivr.net/npm/@khorum/daidal-core@0.2.0/daidal-core.js';
   const { svg } = renderConfig(`
 nodes:
   - { id: web, name: Web app, type: service }

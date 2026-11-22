@@ -50,11 +50,16 @@ document as YAML or JSON, written and read as the prototype does (`packages/core
 drops or opens a `.daidal.yaml` / `.daidal.json` file, and applies it, replacing the diagram or merging it in (nodes by
 id), as one undo step. A config that can't be read says why, with the line, and changes nothing. Anyone can copy or
 download it.
-**Code blocks** (`packages/core/src/model.ts` `CODE`, `codeHeight`): a node with `members` or a `path` draws as a
-compartment card: its name in monospace, its subtitle, its path cut from the start, then its members a line each
-under a rule, six at most with a count of the rest. The height comes from the content, the same in the canvas card
-(`NodeCard.svelte`) and the export (`render.ts` `codeMarkup`). The inspector offers both fields in a C4 Code
-diagram and on any node that already has them.
+**Code blocks** (`packages/core/src/model.ts` `CODE`, `codeHeight`, `codeSections`; `code.ts`): a node with
+`members`, `functions` or a `path` draws as a compartment card: its name in monospace, its subtitle, its path cut from
+the start, then its members a line each under a rule, then its functions as signatures under another, the two
+sharing six lines, each counting what it leaves out. The height comes from the content, the same in the canvas card
+(`NodeCard.svelte`) and the export (`render.ts` `codeMarkup`). The inspector offers the fields in a C4 Code diagram
+and on any node that already has them: members one a line, a language picker, and a card per function (name,
+parameters a row each with a name and a type, returns, note), stacked so nothing scrolls sideways on a phone or a
+tablet, plus a button that moves functions written as text into rows. `language` changes only how signatures read
+(`code.ts` `signatureParts`: Java and C# put types first, Kotlin starts with `fun`, Go with `func`, and so on); with
+none they read `check(batch: Batch) → Verdict`.
 
 **Profile** and **Appearance** (in the menu under your name) save your name and title to your account, and set how this
 browser shows Daidal (`src/lib/appearance.svelte.ts`, kept in the browser like the prototype's): a dark, light or

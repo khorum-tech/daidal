@@ -1,0 +1,33 @@
+# Ledger postings: a C4 code diagram, with code blocks
+diagram:
+  kind: c4-code
+nodes:
+  - id: checker
+    name: BalanceChecker
+    type: class
+    subtitle: Says whether a batch balances
+    path: postings/src/balance/BalanceChecker.kt
+    language: kotlin
+    members: ["rules: List<Rule>"]
+    functions:
+      - name: check
+        params:
+          - { name: batch, type: Batch }
+        returns: Verdict
+        notes: Balanced or not, per currency.
+      - "explain(batch: Batch): List<Imbalance>"
+    x: 60
+    y: 80
+    w: 300
+  - id: batch
+    name: Batch
+    type: class
+    path: postings/src/model/Batch.kt
+    language: kotlin
+    members: ["id: BatchId", "lines: List<Line>"]
+    functions: ["total(currency: Currency): Money"]
+    x: 460
+    y: 80
+    w: 300
+edges:
+  - { from: checker, to: batch, label: reads }
