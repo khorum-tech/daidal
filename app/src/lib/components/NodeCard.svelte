@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { c4Desc, c4Kind, c4Name, noteLines, type SceneNode, type SceneTag } from '@khorum/daidal-core/model';
+	import { c4Desc, c4Kind, c4Name, noteLines, wrapText, type SceneNode, type SceneTag } from '@khorum/daidal-core/model';
 	import { FLAGS } from '@khorum/daidal-core/icons';
 	import Icon from './Icon.svelte';
 
@@ -41,6 +41,17 @@
 		}
 	};
 	const linkTitle = $derived(node.links.map(l => l.label || hostOf(l.url)).join(' · '));
+
+	// A card's name and subtitle wrap and use the room its height gives them, then end in an ellipsis: a tall card
+	// (a C4 Code function with its calls listed under it) shows them all, a short one keeps its old single lines
+	// and nothing spills out under the card. Sizes match the styles below: 1 px border and 11 px padding above and
+	// below, a 15 px head, the name's 7 px gap and 18 px lines, the subtitle's 3 px gap and 14 px lines.
+	const room = $derived(node.h - 2 - 22 - 15);
+	const hasSub = $derived(!!node.sub.trim());
+	const nameLines = $derived(
+		Math.max(1, Math.min(wrapText(node.name, node.w - 28, 15).length, Math.floor((room - 7 - (hasSub ? 17 : 0)) / 18)))
+	);
+	const subLines = $derived(Math.max(1, Math.floor((room - 7 - nameLines * 18 - 3) / 14)));
 </script>
 
 <button
@@ -105,8 +116,8 @@
 				<span class="links" title={linkTitle}><Icon name="globe" size={11} />{node.links.length}</span>
 			{/if}
 		</span>
-		<span class="name" title={node.name}>{node.name}</span>
-		{#if node.sub.trim()}<span class="sub" title={node.sub}>{node.sub}</span>{/if}
+		<span class="name" title={node.name} style:--lines={nameLines}>{node.name}</span>
+		{#if hasSub}<span class="sub" title={node.sub} style:--lines={subLines}>{node.sub}</span>{/if}
 	{/if}
 </button>
 
@@ -324,17 +335,24 @@
 		margin-top: 7px;
 		line-height: 1.2;
 	}
-	/* The name and the subtitle each keep to one line and end in an ellipsis when they don't fit, as in the export
-	   (render.ts fit()): a card has a fixed height, so wrapped text would spill out under it. The whole text is in
-	   the node's details, and under the pointer. */
+	/* The name and the subtitle wrap, up to the lines the card's height has room for (--lines, worked out above),
+	   and end in an ellipsis past that: a card has a fixed height, so more would spill out under it. The whole
+	   text is in the node's details, and under the pointer. */
 	.name,
 	.sub {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: var(--lines, 1);
+		line-clamp: var(--lines, 1);
 		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		overflow-wrap: anywhere;
+		flex: none;
 	}
 	.sub {
+		flex: 0 1 auto;
+		min-height: 0;
 		font-size: 11.5px;
+		line-height: 14px;
 		color: var(--color-neutral-500);
 		margin-top: 3px;
 	}
