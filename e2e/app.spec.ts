@@ -216,7 +216,8 @@ test.describe("the app at /app", () => {
 
     await page.goto("/app/");
     await page.locator("header .who").click();
-    await expect(page.getByTestId("build-version")).toHaveText(new RegExp(`^Version ${build.release.replaceAll(".", "\\.")}`));
+    // The open dropdown's copy: the phone sheet keeps its own, closed, in the page.
+    await expect(page.getByRole("menu").getByTestId("build-version")).toHaveText(new RegExp(`^Version ${build.release.replaceAll(".", "\\.")}`));
     // The stage badge is for stage builds only.
     await expect(page.getByTestId("stage-badge")).toHaveCount(0);
   });
