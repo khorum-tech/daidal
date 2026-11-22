@@ -9,7 +9,7 @@ const PROD = `{
   "compatibility_date": "2026-10-01",
   "workers_dev": false,
   "preview_urls": false,
-  "routes": [{ "pattern": "skope.khorum-oss.org", "custom_domain": true }],
+  "routes": [{ "pattern": "daidal.khorum.org", "custom_domain": true }, { "pattern": "skope.khorum-oss.org", "custom_domain": true }],
   // a comment with "quotes" and a URL: https://example.com/x
   "dev": { "host": "localhost" },
   /* a block comment */
@@ -57,7 +57,7 @@ describe("stage-config", () => {
 
   it("never carries a prod name, hostname, database or AUD over, and keeps workers.dev and previews off", () => {
     const text = stageConfigText(PROD.replace('"workers_dev": false', '"workers_dev": true'), STAGE_ENV);
-    for (const prodValue of ['"skope"', "skope.khorum-oss.org", "prod-db-id", "prod-aud"]) expect(text).not.toContain(prodValue);
+    for (const prodValue of ['"skope"', "daidal.khorum.org", "skope.khorum-oss.org", "prod-db-id", "prod-aud"]) expect(text).not.toContain(prodValue);
     const config = parseJsonc(text);
     expect(config.workers_dev).toBe(false);
     expect(config.preview_urls).toBe(false);

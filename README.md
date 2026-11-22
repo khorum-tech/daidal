@@ -17,9 +17,9 @@ Say it *DYE-dal* — after Daidalos, the architect who could still find his way 
 
 > **Status:** source-available (fair source), early. The hosted instance is invite-only while sign-in moves off
 > Cloudflare Access. Self-hosting works today on a Cloudflare account. The name changed from *Skope* on 2026-11-08.
-> The hosted site's address (`skope.khorum-oss.org`) and the Cloudflare Worker and D1 database names still say
-> `skope`, by choice; stage answers at `daidal-stage.khorum.org`. Files saved before the rename still open and
-> import.
+> The hosted site is at `daidal.khorum.org` (the old `skope.khorum-oss.org` still answers) and stage at
+> `daidal-stage.khorum.org`; the Cloudflare Worker and D1 database names still say `skope`, by choice. Files saved
+> before the rename still open and import.
 
 <!-- TODO: hero GIF — a diagram being edited, then Claude adding a node through MCP. docs/media/hero.gif -->
 

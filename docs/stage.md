@@ -67,7 +67,7 @@ tests, which need neither), so nothing account-specific is in the repository. Th
 | Name | What | Where to find it |
 |------|------|------------------|
 | `PROD_D1_ID` (a secret, so logs mask it) | prod's database id | Cloudflare → Storage & databases → D1 → **`skope`** → Database ID |
-| `PROD_ACCESS_AUD` (a secret, so logs mask it) | prod's Access AUD tag | Zero Trust → Access → Applications → **skope.khorum-oss.org** → AUD tag |
+| `PROD_ACCESS_AUD` (a secret, so logs mask it) | prod's Access AUD tag | Zero Trust → Access → Applications → prod's app (**daidal.khorum.org**, formerly **skope.khorum-oss.org**) → AUD tag |
 | `CLOUDFLARE_API_TOKEN` (secret) | prod's Cloudflare token | see *Tokens* |
 | `CLOUDFLARE_ACCOUNT_ID` (secret or variable) | the account | the dashboard URL, or a zone's Overview → API |
 

@@ -60,7 +60,7 @@ claude mcp add --transport http daidal http://localhost:8787/mcp --header "Autho
 
 ## Turning it on (Cloudflare dashboard, once per site)
 
-Do stage first (`daidal-stage.khorum.org`), try the clients there, then prod (`skope.khorum-oss.org`).
+Do stage first (`daidal-stage.khorum.org`), try the clients there, then prod (`daidal.khorum.org`).
 
 1. In Zero Trust, **Access controls → Applications**, find the site's existing self-hosted application, **⋯ → Edit**.
    Don't create a new one, and don't add a bypass.

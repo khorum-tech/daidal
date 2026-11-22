@@ -16,7 +16,7 @@ in the release notes unless you prefer otherwise.
 ## Scope
 
 - The code in this repository: the Worker (`worker/`), the app (`app/`), the migrations and the CI workflow.
-- The hosted instance at `skope.khorum-oss.org`, within reason: no denial-of-service, no testing against other
+- The hosted instance at `daidal.khorum.org` (and its old address, `skope.khorum-oss.org`), within reason: no denial-of-service, no testing against other
   people's workspaces, no automated scanning that generates load.
 
 Out of scope: the Cloudflare platform itself, third-party dependencies (report upstream, then tell us), and anything

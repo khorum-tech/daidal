@@ -5,7 +5,7 @@ relies on. Reviewed 2026-11-03; update this page with any change to sign-in, tok
 
 ## Who can reach it
 
-1. **Cloudflare Access** stands in front of the whole site (`skope.khorum-oss.org`, and stage). Nobody reaches the
+1. **Cloudflare Access** stands in front of the whole site (`daidal.khorum.org`, the old `skope.khorum-oss.org`, and stage). Nobody reaches the
    Worker without passing its policy; a request without a sign-in, or with only a Daidal access token, gets Access's
    own 401 or login page. There is no `workers.dev` or preview address (`workers_dev` and `preview_urls` are off),
    so nothing gets round Access.

@@ -12,7 +12,7 @@ Daidal has an MCP server, so an AI assistant (Claude Code, Claude Desktop, claud
 
 | Where | MCP address |
 |-------|-------------|
-| Daidal | `https://skope.khorum-oss.org/mcp` |
+| Daidal | `https://daidal.khorum.org/mcp` |
 | Stage | `https://daidal-stage.khorum.org/mcp` |
 | On your computer (`wrangler dev`) | `http://localhost:8787/mcp` |
 
@@ -22,7 +22,7 @@ Your initial → **AI access** shows the address for the Daidal you're on.
 
 Online, an assistant signs in through the same Cloudflare Access sign-in you use, so it needs no token.
 
-- **Claude Code:** run `claude mcp add --transport http daidal https://skope.khorum-oss.org/mcp`, then open `/mcp` in Claude Code and choose **Authenticate**. A browser window opens on the sign-in.
+- **Claude Code:** run `claude mcp add --transport http daidal https://daidal.khorum.org/mcp`, then open `/mcp` in Claude Code and choose **Authenticate**. A browser window opens on the sign-in.
 - **claude.ai, Claude Desktop and Claude mobile:** in Settings → Connectors, add a custom connector with the address, and sign in when it asks. A connector added on claude.ai is there on Desktop and mobile too.
 
 This needs Managed OAuth turned on for Daidal's Access application, a one-time setup in Cloudflare (see `docs/mcp.md` in the repository). Until then, use a token.
