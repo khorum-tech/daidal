@@ -5,6 +5,11 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- **Code blocks.** A node with `members` (what a class, file or table exposes, a line each) or a `path` (where it
+  lives) draws as a code block: the name in monospace, the subtitle as one line of purpose, the path, then the
+  members under a rule. The block grows to fit, and shows six lines or five and a count of the rest. The node's
+  details edit both in a C4 Code diagram; the config format, the MCP tools (`add_node`, `update_node`,
+  `get_diagram`) and the SVG and PNG exports carry them. The C4 Code template and the stage data use them.
 - **Colours** in Appearance: five dark palettes (Nocturne, Midnight, Plum, Graphite, Ink) and four light ones
   (Paper, Lilac, Sand, Mist). Each theme keeps its own, picking one
   switches to its theme, and every accent stays in the logo's purple family.

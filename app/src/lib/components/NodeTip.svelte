@@ -41,6 +41,12 @@
 	{#if !full}<p class="name">{node.name}</p>{/if}
 	{#if node.sub.trim()}<p class="sub">{node.sub}</p>{/if}
 	{#if node.desc.trim()}<p class="desc">{node.desc}</p>{/if}
+	{#if node.path}<p class="code">{node.path}</p>{/if}
+	{#if node.members.length}
+		<ul class="code members">
+			{#each node.members as m, i (i)}<li>{m}</li>{/each}
+		</ul>
+	{/if}
 	{#if node.tags.length}
 		<div class="tags">
 			{#each node.tags as k (k)}
@@ -130,6 +136,19 @@
 		margin: 2px 0 0;
 		font-size: 11.5px;
 		color: var(--color-neutral-500);
+	}
+	.code {
+		margin: 8px 0 0;
+		padding: 0;
+		list-style: none;
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 11.5px;
+		line-height: 1.6;
+		color: var(--color-neutral-400);
+		overflow-wrap: anywhere;
+	}
+	.code.members {
+		color: var(--color-text);
 	}
 	.desc {
 		margin: 9px 0 0;

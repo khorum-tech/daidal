@@ -1484,6 +1484,38 @@ test.describe("the app at /app", () => {
     expect(console_.links).toEqual([{ diagram: made }]);
   });
 
+  test("draws a C4 Code node with members and a path as a code block, edited from its details", async ({ page, request }) => {
+    const res = await request.post("/api/workspaces/import", { data: c4Backup() });
+    const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;
+    const list = (await (await request.get(`/api/diagrams?workspace=${encodeURIComponent(ws)}`)).json()) as { id: string; name: string }[];
+    const code = list.find(d => d.name === "balance-code")!.id;
+    await page.goto(`/app/d/${code}`);
+
+    // The members, a line each, with the ones past the limit counted; the card holds them all.
+    const table = page.getByRole("button", { name: "Table: posting_batches" });
+    await expect(table.locator(".member")).toHaveCount(5);
+    await expect(table).toContainText("+3 more");
+    const fits = (card: typeof table) => card.evaluate(el => el.scrollHeight <= el.clientHeight + 1);
+    expect(await fits(table)).toBe(true);
+
+    const checker = page.getByRole("button", { name: "Class: BalanceChecker" });
+    await expect(checker.locator(".code-path")).toHaveText("postings/src/balance/BalanceChecker.kt");
+    await checker.click();
+    const inspector = page.getByRole("region", { name: "Selected node" });
+    const before = (await checker.boundingBox())!.height;
+    await inspector.getByLabel("Members").fill("check(batch): Verdict\nexplain(batch): List<Imbalance>\nreset()");
+    await expect(checker.locator(".member")).toHaveText(["check(batch): Verdict", "explain(batch): List<Imbalance>", "reset()"]);
+    expect((await checker.boundingBox())!.height).toBeGreaterThan(before);
+    expect(await fits(checker)).toBe(true);
+    await inspector.getByLabel("Path").fill("");
+    await expect(checker.locator(".code-path")).toHaveCount(0);
+    await expect(page.getByTestId("save-status")).toContainText("Saved");
+    const doc = (await (await request.get(`/api/diagrams/${code}`)).json()).doc as { nodes: { id: string; members?: string[]; path?: string }[] };
+    const saved = doc.nodes.find(n => n.id === "checker")!;
+    expect(saved.members).toEqual(["check(batch): Verdict", "explain(batch): List<Imbalance>", "reset()"]);
+    expect(saved).not.toHaveProperty("path");
+  });
+
   test("makes the C4 level above a node as a new diagram, which zooms back down", async ({ page, request }) => {
     const res = await request.post("/api/workspaces/import", { data: c4Backup() });
     const ws = ((await res.json()) as { workspaces: { id: string }[] }).workspaces[0].id;

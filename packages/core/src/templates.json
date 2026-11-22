@@ -434,14 +434,19 @@
 					"id": "ctl",
 					"name": "OrderController",
 					"type": "class",
-					"subtitle": "handlers/orders.ts",
-					"notes": "Maps HTTP to the service.",
+					"subtitle": "Maps HTTP to the service.",
+					"path": "handlers/orders.ts",
+					"members": [
+						"create(req)",
+						"cancel(req)",
+						"show(req)"
+					],
 					"tags": [
 						"core"
 					],
 					"layout": {
 						"x": 60,
-						"y": 140,
+						"y": 100,
 						"w": 200
 					}
 				},
@@ -449,14 +454,19 @@
 					"id": "svc",
 					"name": "OrderService",
 					"type": "class",
-					"subtitle": "services/orders.ts",
-					"notes": "place(), cancel(), total().",
+					"subtitle": "The rules for placing an order.",
+					"path": "services/orders.ts",
+					"members": [
+						"place(order)",
+						"cancel(id)",
+						"total(id)"
+					],
 					"tags": [
 						"core"
 					],
 					"layout": {
 						"x": 380,
-						"y": 140,
+						"y": 100,
 						"w": 200
 					}
 				},
@@ -464,14 +474,17 @@
 					"id": "price",
 					"name": "priceOrder",
 					"type": "function",
-					"subtitle": "pricing.ts",
-					"notes": "Applies discounts and tax.",
+					"subtitle": "Applies discounts and tax.",
+					"path": "pricing.ts",
+					"members": [
+						"priceOrder(lines)"
+					],
 					"tags": [
 						"core"
 					],
 					"layout": {
 						"x": 380,
-						"y": 340,
+						"y": 360,
 						"w": 200
 					}
 				},
@@ -479,14 +492,19 @@
 					"id": "tbl",
 					"name": "orders",
 					"type": "table",
-					"subtitle": "orders, order_lines",
-					"notes": "One row per order.",
+					"subtitle": "One row per order.",
+					"members": [
+						"id: uuid",
+						"customer_id: uuid",
+						"status: text",
+						"placed_at: timestamptz"
+					],
 					"tags": [
 						"external"
 					],
 					"layout": {
 						"x": 700,
-						"y": 140,
+						"y": 100,
 						"w": 200
 					}
 				},
@@ -494,14 +512,14 @@
 					"id": "f",
 					"name": "schema.sql",
 					"type": "file",
-					"subtitle": "migrations/",
-					"notes": "Creates the orders tables.",
+					"subtitle": "Creates the orders tables.",
+					"path": "migrations/schema.sql",
 					"tags": [
 						"external"
 					],
 					"layout": {
 						"x": 700,
-						"y": 340,
+						"y": 360,
 						"w": 200
 					}
 				}

@@ -39,6 +39,9 @@ Any other top-level key is an error, and so is giving both `edges` and `connecti
 - `name`: shown on the card; the id if there's none.
 - `type`: one of the types below; `service` if there's none.
 - `subtitle`: an optional second line (in C4, the technology).
+- `members`: an optional list of what a class, file or table exposes, one a line (`[parse(text), emit()]`). With
+  `path` (where it lives: a file path or a link), it draws the card as a code block. Use both in `c4-code` diagrams,
+  with the `subtitle` as one line of purpose.
 - `notes`: optional; a C4 card shows it as its description, a note as its body.
 - `tags`: optional, keys from `tags`.
 - `x`, `y`: where the card's top-left corner goes. `w` and `h` are optional (190 and 88 by default).

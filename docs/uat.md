@@ -199,6 +199,8 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 
 | ID | Do | Expect | On | Result |
 |----|----|--------|----|--------|
+| CODE-1 | Ledger C4 → postings-components → double-click **Balance Checker** | A C4 Code diagram of code blocks: monospace names, a purpose line, a path, members under a rule; `posting_batches` ends in **+3 more**; nothing spills | D P | |
+| CODE-2 | Select **BalanceChecker**, add a line to **Members**, clear **Path** | The block grows by a line and the path row goes; undo brings both back | D P | |
 | PRES-1 | The diagram's name at the top, then **Present** | Full screen (desktop), read-only, only the canvas and a bar with the name, the view and Exit | D P | |
 | PRES-2 | Hover a node (on the phone, tap it) | Its card shows (docked at the bottom on the phone) | D P | |
 | PRES-3 | Switch the view from the bar | The canvas follows | D P | |

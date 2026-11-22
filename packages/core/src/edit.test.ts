@@ -100,6 +100,14 @@ describe('duplicateNode', () => {
 });
 
 describe('updateNode', () => {
+	it("sets a code block's members and path, and drops them once emptied", () => {
+		const set = updateNode(base(), 'api', { members: ['get()', 'put()'], path: 'src/api.ts' });
+		expect(set.nodes!.find(n => n.id === 'api')).toMatchObject({ members: ['get()', 'put()'], path: 'src/api.ts' });
+		const cleared = updateNode(set, 'api', { members: [], path: '' }).nodes!.find(n => n.id === 'api')!;
+		expect(cleared).not.toHaveProperty('members');
+		expect(cleared).not.toHaveProperty('path');
+	});
+
 	it('changes the given fields and slugs the type', () => {
 		const next = updateNode(base(), 'api', { name: 'Gateway', type: 'API Gateway', subtitle: 'edge', flags: ['cache'] });
 		expect(next.nodes![0]).toMatchObject({ name: 'Gateway', type: 'api-gateway', subtitle: 'edge', flags: ['cache'] });

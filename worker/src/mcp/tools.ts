@@ -269,6 +269,8 @@ function outline(d: Diagram, me: string, workspace?: string): Row {
       name: n.name,
       type: n.type,
       ...(n.sub ? { subtitle: n.sub } : {}),
+      ...(n.members.length ? { members: n.members } : {}),
+      ...(n.path ? { path: n.path } : {}),
       ...(n.tags.length ? { tags: n.tags } : {}),
       ...(n.ownIcon ? { icon: n.ownIcon } : {}),
       ...(n.zooms.length ? { zoomsInto: n.zooms } : {}),
@@ -484,6 +486,8 @@ export const TOOLS: Tool[] = [
         type: { type: "string", description: "A type from list_types; Service if left out" },
         subtitle: { type: "string" },
         notes: { type: "string" },
+        members: { type: "array", items: { type: "string" }, description: "What it exposes, one a line on its card (a class's methods, a file's exports, a table's columns): makes the card a code block" },
+        path: { type: "string", description: "Where it lives: a file path, or a link to the source" },
         tags: { type: "array", items: { type: "string" }, description: "Tag keys or labels; new ones are made" },
         near: NODE("Place it beside this node"),
         x: { type: "number" },
@@ -510,6 +514,8 @@ export const TOOLS: Tool[] = [
           const made = addNode(doc, type, at);
           const tagged = tagKeys(made.doc, list(args.tags));
           const change: NodeChange = { name, ...(str(args.subtitle) ? { subtitle: str(args.subtitle) } : {}), ...(str(args.notes) ? { notes: str(args.notes) } : {}) };
+          if (Array.isArray(args.members)) change.members = list(args.members);
+          if (str(args.path)) change.path = str(args.path);
           if (tagged.keys.length) change.tags = tagged.keys;
           return just(updateNode(tagged.doc, made.id, change), { node: made.id });
         },
@@ -520,7 +526,7 @@ export const TOOLS: Tool[] = [
   {
     name: "update_node",
     title: "Change a node",
-    description: "Changes what you name on a node: name, type, subtitle, notes, tags (replaces them), flags (db, cache, mq), links (web pages, or diagrams to zoom into; replaces them), its own icon (null for its type's), or where it sits (x, y).",
+    description: "Changes what you name on a node: name, type, subtitle, notes, members and path (a code block's), tags (replaces them), flags (db, cache, mq), links (web pages, or diagrams to zoom into; replaces them), its own icon (null for its type's), or where it sits (x, y).",
     readOnly: false,
     inputSchema: schema(
       {
@@ -530,6 +536,8 @@ export const TOOLS: Tool[] = [
         type: { type: "string" },
         subtitle: { type: "string" },
         notes: { type: "string" },
+        members: { type: "array", items: { type: "string" }, description: "What it exposes, one a line on its card (a class's methods, a file's exports, a table's columns): makes the card a code block" },
+        path: { type: "string", description: "Where it lives: a file path, or a link to the source" },
         tags: { type: "array", items: { type: "string" } },
         flags: { type: "array", items: { type: "string", enum: ["db", "cache", "mq"] } },
         links: {
@@ -553,7 +561,8 @@ export const TOOLS: Tool[] = [
           const id = nodeOf(doc, args.node);
           let next = doc;
           const change: NodeChange = {};
-          for (const key of ["name", "subtitle", "notes"] as const) if (typeof args[key] === "string") change[key] = args[key];
+          for (const key of ["name", "subtitle", "notes", "path"] as const) if (typeof args[key] === "string") change[key] = args[key];
+          if (Array.isArray(args.members)) change.members = list(args.members);
           if (type) change.type = type;
           if (Array.isArray(args.flags)) change.flags = list(args.flags);
           if (links) change.links = links;

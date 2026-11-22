@@ -46,6 +46,10 @@ export interface SceneNode {
 	ownIcon: string | null;
 	sub: string;
 	desc: string;
+	/** What it exposes, a line each, and where it lives; with either, [code] and the card draws as a code block. */
+	members: string[];
+	path: string;
+	code: boolean;
 	flags: string[];
 	tags: string[];
 	/** Its web links. */
@@ -252,6 +256,35 @@ function c4About(role: C4Role, n: DocNode): string {
 	return role === 'person' || role === 'system' || role === 'external' ? (n.subtitle ?? '') : '';
 }
 
+/**
+ * A code block: a card that lists what a class, file or table exposes. Under the type row come its name in
+ * monospace, its subtitle as one line of purpose, its path, then a rule and its members, a line each; past
+ * [CODE.max] the last line counts the rest. The canvas card and the exported SVG both draw from these sizes.
+ */
+export const CODE = { padX: 13, padY: 11, head: 14, nameTop: 7, nameSize: 13.5, nameLine: 18, subTop: 2, subLine: 16, pathTop: 1, pathSize: 10.5, pathLine: 14, ruleTop: 8, ruleBottom: 6, size: 11.5, line: 17, max: 6 } as const;
+
+/** The member lines a code block shows: all of them up to [CODE.max], else one fewer and a count of the rest. */
+export function codeLines(members: string[]): { shown: string[]; more: number } {
+	if (members.length <= CODE.max) return { shown: members, more: 0 };
+	return { shown: members.slice(0, CODE.max - 1), more: members.length - (CODE.max - 1) };
+}
+
+/** The height a code block needs for its subtitle, path and members. */
+export function codeHeight(sub: string, path: string, members: string[]): number {
+	const { shown, more } = codeLines(members);
+	const lines = shown.length + (more ? 1 : 0);
+	return Math.ceil(
+		2 * CODE.padY + 2 + CODE.head + CODE.nameTop + CODE.nameLine + (sub.trim() ? CODE.subTop + CODE.subLine : 0) + (path ? CODE.pathTop + CODE.pathLine : 0) + (lines ? CODE.ruleTop + 1 + CODE.ruleBottom + lines * CODE.line : 0)
+	);
+}
+
+/** Text cut to fit [w] in a monospace face at [size], ending in an ellipsis; [fromStart] keeps the end (a path's file). */
+export function fitMono(text: string, w: number, size: number, fromStart = false): string {
+	const max = Math.max(1, Math.floor(w / (size * 0.6)));
+	if (text.length <= max) return text;
+	return fromStart ? `…${text.slice(text.length - (max - 1))}` : `${text.slice(0, max - 1)}…`;
+}
+
 function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind: Kind): SceneNode {
 	const lay = n.layout ?? { x: 60 + (i % 4) * 280, y: 80 + Math.floor(i / 4) * 160 };
 	const type = typeName(n.type, cats);
@@ -262,7 +295,11 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind:
 	const h = num(lay.h, NODE_H);
 	const name = String(n.name ?? n.id);
 	let drawnH = h;
+	const members = (Array.isArray(n.members) ? n.members : []).map(m => String(m).trim()).filter(Boolean);
+	const path = typeof n.path === 'string' ? n.path.trim() : '';
+	const code = !c4 && type !== 'Note' && type !== 'Text' && (members.length > 0 || path !== '');
 	if (c4) drawnH = Math.max(h, c4Height(c4.role, name, c4.line, c4.desc, w));
+	else if (code) drawnH = Math.max(h, codeHeight(n.subtitle ?? '', path, members));
 	else if (type === 'Note') drawnH = Math.max(h, noteHeight(name, n.notes ?? '', w));
 	return {
 		id: String(n.id),
@@ -272,6 +309,9 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind:
 		ownIcon,
 		sub: n.subtitle ?? '',
 		desc: n.notes ?? '',
+		members,
+		path,
+		code,
 		flags: Array.isArray(n.flags) ? n.flags : [],
 		tags: (Array.isArray(n.tags) ? n.tags : []).filter(t => tagKeys.has(t)),
 		links: (Array.isArray(n.links) ? n.links : []).filter(l => l && typeof l.url === 'string').map(l => ({ ...(l.label ? { label: l.label } : {}), url: l.url! })),

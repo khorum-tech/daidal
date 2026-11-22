@@ -247,7 +247,7 @@ export function priyaBackup() {
   };
 }
 
-// ---- Ledger C4: a linked C4 set, Context → Containers → Components. Each level's scope container has a ref to the
+// ---- Ledger C4: a linked C4 set, Context → Containers → Components → Code. Each level's scope container has a ref to the
 // node above it, and that node links down (links[].diagram). Ids here are the file's; the importer renames them. ----
 
 const c4Tags = { people: tag("People", P[0], "Who"), internal: tag("Ours", P[1], "Who"), external: tag("Theirs", P[5], "Who") };
@@ -280,7 +280,7 @@ const postingsComponents = c4("postings-components", "postings-components", "c4-
   nodes: [
     node("console", "Ledger Console", "web-app", 40, 220, ["internal"], { ref: "ledger-containers#console" }),
     node("api", "Postings API", "component", 340, 140, ["internal"], { subtitle: "HTTP handlers" }),
-    node("balance", "Balance Checker", "component", 340, 320, ["internal"], { subtitle: "Rejects unbalanced batches" }),
+    node("balance", "Balance Checker", "component", 340, 320, ["internal"], { subtitle: "Rejects unbalanced batches", links: [{ diagram: "balance-code" }] }),
     node("writer", "Journal Writer", "component", 640, 230, ["internal"], { subtitle: "Append-only" }),
     node("journal", "Journal DB", "database", 980, 230, ["internal"], { ref: "ledger-containers#journal" }),
   ],
@@ -288,7 +288,28 @@ const postingsComponents = c4("postings-components", "postings-components", "c4-
   boundaries: [{ id: "scope", label: "Postings Service", layout: { x: 300, y: 80, w: 610, h: 380 }, ref: "ledger-containers#postings" }],
 });
 
-/** What the stage owner also imports: the Ledger C4 workspace, a linked Context → Containers → Components set. */
+// The Code level: code blocks, each a class, function or table with what it exposes (members) and where it lives (path).
+const balanceCode = c4("balance-code", "balance-code", "c4-code", {
+  nodes: [
+    node("checker", "BalanceChecker", "class", 340, 120, ["internal"], {
+      layout: { x: 340, y: 120, w: 250 },
+      subtitle: "Rejects a batch that does not balance.",
+      path: "postings/src/balance/BalanceChecker.kt",
+      members: ["check(batch): Verdict", "explain(batch): List<Imbalance>"],
+    }),
+    node("sum", "sumByCurrency", "function", 690, 120, ["internal"], { layout: { x: 690, y: 120, w: 250 }, subtitle: "Debits less credits, per currency.", path: "postings/src/balance/sums.kt", members: ["sumByCurrency(lines): Map<Currency, Money>"] }),
+    node("verdict", "Verdict", "class", 340, 340, ["internal"], { layout: { x: 340, y: 340, w: 250 }, subtitle: "What a check found.", path: "postings/src/balance/Verdict.kt", members: ["Balanced", "Unbalanced(imbalances)"] }),
+    node("batch", "posting_batches", "table", 690, 340, ["internal"], {
+      layout: { x: 690, y: 340, w: 250 },
+      subtitle: "One row per submitted batch.",
+      members: ["id: uuid", "submitted_by: text", "currency: char(3)", "debits: numeric", "credits: numeric", "status: text", "checked_at: timestamptz", "posted_at: timestamptz"],
+    }),
+  ],
+  edges: [edge("checker", "sum", "calls"), edge("checker", "verdict", "returns"), edge("checker", "batch", "reads")],
+  boundaries: [{ id: "scope", label: "Balance Checker", layout: { x: 300, y: 60, w: 680, h: 500 }, ref: "postings-components#balance" }],
+});
+
+/** What the stage owner also imports: the Ledger C4 workspace, a linked Context → Containers → Components → Code set. */
 export function c4Backup() {
   return {
     format: "daidal-backup",
@@ -300,6 +321,7 @@ export function c4Backup() {
           { id: "ledger-context", doc: ledgerContext, updated: day("11-03") },
           { id: "ledger-containers", doc: ledgerContainers, updated: day("11-04") },
           { id: "postings-components", doc: postingsComponents, updated: day("11-05") },
+          { id: "balance-code", doc: balanceCode, updated: day("11-06") },
         ],
       },
     ],
