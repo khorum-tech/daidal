@@ -18,6 +18,13 @@ export const EDGE_WEIGHT = 1.4;
  * diagrams gain the heavier lines without being rewritten.
  */
 export const EDGE_SCALE = 1.4;
+/**
+ * An arrowhead's size in diagram units, grown by EDGE_SCALE with the lines it ends, so a head keeps the same
+ * proportion to its line it always had (the canvas and the export both draw it at this size).
+ */
+export const MARKER = { w: 9 * EDGE_SCALE, h: 8 * EDGE_SCALE } as const;
+/** A container's border as drawn: its document width times EDGE_SCALE, as connections are. */
+export const borderWidth = (bw: number) => bw * EDGE_SCALE;
 /** The prototype's canvas is a 1240 × 800 sheet; content may spill past it. */
 export const SHEET_W = 1240;
 export const SHEET_H = 800;

@@ -1,6 +1,6 @@
 import { edgePath, type Box } from './geometry';
 import { ICON_PATHS } from './icons';
-import { bounds, C4, c4Desc, c4Kind, c4Name, c4Text, c4Top, isHidden, NOTE, noteLines, wrapText, type Scene, type SceneNode } from './model';
+import { borderWidth, bounds, C4, c4Desc, c4Kind, c4Name, c4Text, c4Top, isHidden, MARKER, NOTE, noteLines, wrapText, type Scene, type SceneNode } from './model';
 
 /**
  * A diagram as a standalone SVG image, drawn from the scene the way the canvas draws it: containers, connections
@@ -67,7 +67,7 @@ function boundaryMarkup(scene: Scene): string {
 	return scene.boundaries
 		.map(b => {
 			const dash = BORDER_DASH[b.bs];
-			const rect = `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="12" fill="none" stroke="${C.border}" stroke-width="${b.bw}"${dash}/>`;
+			const rect = `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="12" fill="none" stroke="${C.line}" stroke-width="${borderWidth(b.bw)}"${dash}/>`;
 			if (!b.label) return rect;
 			const { x, y, anchor } = labelAt(b);
 			const label = `<text x="${x}" y="${y}" text-anchor="${anchor}" dominant-baseline="middle" font-size="10" letter-spacing="1.2" fill="${C.faint}" paint-order="stroke" stroke="${C.bg}" stroke-width="6">${esc(b.label.toUpperCase())}</text>`;
@@ -197,8 +197,8 @@ export function toSvg(scene: Scene, { on, ghosted = true, edgeStyle = 'curved' }
 	const height = Math.ceil(box.h + 2 * PAD);
 	const markers = MARKERS.map(
 		([id, w, c]) =>
-			`<marker id="${id}" viewBox="0 0 7 6" markerWidth="9" markerHeight="8" refX="5.9" refY="3" markerUnits="userSpaceOnUse" orient="auto"><path d="M0.6,0.5L5.9,3L0.6,5.5" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/></marker>` +
-			`<marker id="${id.replace('arr', 'arrRev')}" viewBox="0 0 7 6" markerWidth="9" markerHeight="8" refX="1.1" refY="3" markerUnits="userSpaceOnUse" orient="auto"><path d="M6.4,0.5L1.1,3L6.4,5.5" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/></marker>`
+			`<marker id="${id}" viewBox="0 0 7 6" markerWidth="${MARKER.w}" markerHeight="${MARKER.h}" refX="5.9" refY="3" markerUnits="userSpaceOnUse" orient="auto"><path d="M0.6,0.5L5.9,3L0.6,5.5" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/></marker>` +
+			`<marker id="${id.replace('arr', 'arrRev')}" viewBox="0 0 7 6" markerWidth="${MARKER.w}" markerHeight="${MARKER.h}" refX="1.1" refY="3" markerUnits="userSpaceOnUse" orient="auto"><path d="M6.4,0.5L1.1,3L6.4,5.5" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/></marker>`
 	).join('');
 	const svg =
 		`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${x0} ${y0} ${width} ${height}" font-family="${FONT}">` +
