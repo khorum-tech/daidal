@@ -114,7 +114,8 @@ test.describe("the app at /app", () => {
     await groups.getByRole("link", { name: /Edge/ }).click();
     await expect(page).toHaveURL(/[?&]g=Edge/);
     await expect(page.getByTestId("diagram-count")).toHaveText("1 diagram in “Edge”");
-    await expect(page.getByRole("link", { name: /edge-ingress \(platform copy\)/ })).toContainText("Edge");
+    // The list is already down to one group, so its cards leave the group out.
+    await expect(page.getByRole("link", { name: /edge-ingress \(platform copy\)/ })).not.toContainText("Edge");
 
     await page.getByRole("button", { name: "Group “edge-ingress (platform copy)”" }).click();
     await page.getByRole("dialog", { name: "Group “edge-ingress (platform copy)”" }).getByRole("radio", { name: "Ledger", exact: true }).click();
