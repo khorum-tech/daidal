@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { readdirSync } from 'node:fs';
-import { docImages, docLinks, neighbours, PAGES, pageOf, parsePage, render } from './docs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { docImages, docLinks, fillAddresses, neighbours, PAGES, pageOf, parsePage, render, SITE } from './docs';
+import { DAIDAL_SITE } from './site';
 
 describe('the docs pages', () => {
 	it('each have a title, a summary and their own slug, in order', () => {
@@ -32,6 +33,45 @@ describe('the docs pages', () => {
 		expect(neighbours('getting-started').next).toBe(PAGES[1]);
 		expect(neighbours(PAGES.at(-1)!.slug).next).toBeUndefined();
 		expect(neighbours('nope')).toEqual({});
+	});
+});
+
+describe('the addresses in the docs', () => {
+	const other = {
+		url: 'https://diagrams.example.com',
+		stageUrl: '',
+		localUrl: 'http://localhost:9000',
+		repoUrl: 'https://git.example.com/daidal'
+	};
+
+	it('are written as placeholders in the pages, and all filled in', () => {
+		const dir = new URL('.', import.meta.url);
+		for (const file of readdirSync(dir).filter(f => f.endsWith('.md'))) {
+			const source = readFileSync(new URL(file, dir), 'utf8');
+			expect(source, file).not.toMatch(/khorum\.org|github\.com\/khorum-tech\/daidal|localhost:\d+/);
+		}
+		for (const p of PAGES) expect(p.body, p.slug).not.toMatch(/\{\{\w+\}\}/);
+	});
+
+	it('give this build’s MCP addresses and commands on Connecting AI', () => {
+		const body = pageOf('connecting-ai')!.body;
+		expect(body).toContain(`| Daidal | \`${SITE.url}/mcp\` |`);
+		if (SITE.stageUrl) expect(body).toContain(`| Stage | \`${SITE.stageUrl}/mcp\` |`);
+		else expect(body).not.toContain('| Stage |');
+		expect(body).toContain(`daidal ${SITE.url}/mcp\`, then`);
+		expect(body).toContain(`daidal ${SITE.localUrl}/mcp --header`);
+		expect(body).toContain(`](${SITE.repoUrl}/tree/main/skills/daidal-diagram)`);
+	});
+
+	it('follow another organisation’s settings, dropping a line whose address is empty', () => {
+		const text = ['| Daidal | `{{DAIDAL_URL}}/mcp` |', '| Stage | `{{DAIDAL_STAGE_URL}}/mcp` |', 'Local: {{DAIDAL_LOCAL_URL}}, repo {{DAIDAL_REPO_URL}}'].join('\n');
+		expect(fillAddresses(text, other)).toBe(
+			['| Daidal | `https://diagrams.example.com/mcp` |', 'Local: http://localhost:9000, repo https://git.example.com/daidal'].join('\n')
+		);
+	});
+
+	it('leave a name that isn’t an address as it is', () => {
+		expect(fillAddresses('{{NOT_A_SETTING}} and {{DAIDAL_URL}}', DAIDAL_SITE)).toBe('{{NOT_A_SETTING}} and https://daidal.khorum.org');
 	});
 });
 

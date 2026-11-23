@@ -7,7 +7,11 @@
 //   ---
 //
 // The slug is the file's name. Links between pages are written /app/docs/<slug>; docs.test.ts checks every one.
+//
+// Daidal's own addresses are written as placeholders, {{DAIDAL_URL}} and the rest (see site.ts), so a copy run
+// elsewhere shows its own. A line that uses an address left empty (no stage, say) is left out.
 import { Marked } from 'marked';
+import { DAIDAL_SITE, placeholders, type SiteUrls } from './site';
 
 export interface DocPage {
 	slug: string;
@@ -19,6 +23,25 @@ export interface DocPage {
 }
 
 const files = import.meta.glob('./*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+
+/** The addresses this build was given (vite.config.ts reads them from the environment). */
+declare const __DAIDAL_SITE__: SiteUrls | undefined;
+// Daidal's own wherever the build didn't define them (a tool that loads this file without vite.config.ts).
+export const SITE: SiteUrls = typeof __DAIDAL_SITE__ === 'undefined' ? DAIDAL_SITE : __DAIDAL_SITE__;
+
+/**
+ * [text] with each {{NAME}} placeholder replaced by its address in [site], and every line that uses an address
+ * left empty dropped. A name that isn't one of the addresses is left as it is (docs.test.ts finds any).
+ */
+export function fillAddresses(text: string, site: SiteUrls): string {
+	const values = placeholders(site);
+	const known = (name: string) => Object.hasOwn(values, name);
+	return text
+		.split('\n')
+		.filter(line => ![...line.matchAll(/\{\{(\w+)\}\}/g)].some(([, name]) => known(name) && !values[name]))
+		.map(line => line.replaceAll(/\{\{(\w+)\}\}/g, (whole, name: string) => (known(name) ? values[name] : whole)))
+		.join('\n');
+}
 
 /** [text] split into its header fields and the markdown after it. */
 export function parsePage(slug: string, text: string): DocPage {
@@ -40,7 +63,7 @@ export function parsePage(slug: string, text: string): DocPage {
 
 /** Every page, in reading order. */
 export const PAGES: DocPage[] = Object.entries(files)
-	.map(([path, text]) => parsePage(path.replace(/^\.\/|\.md$/g, ''), text))
+	.map(([path, text]) => parsePage(path.replace(/^\.\/|\.md$/g, ''), fillAddresses(text, SITE)))
 	.sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
 
 export const pageOf = (slug: string): DocPage | undefined => PAGES.find(p => p.slug === slug);
