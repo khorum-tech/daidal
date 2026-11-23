@@ -41,8 +41,8 @@ npx wrangler dev --var DEV_USER_EMAIL:you@example.com   # http://localhost:8787,
   (`packages/core/src/fixtures.ts`) and a line in the ledgers in `packages/core/src/contract.test.ts` and
   `worker/test/mcp.test.ts`; the typecheck fails until you do.
 - A change to what `packages/core/src` ships moves `packages/core/package.json`'s version past the one on npm, with
-  the pins that follow it (the script tests say where). CI checks this; publishing stays a separate, hand-run step
-  after the merge ([`packages/core/README.md`](packages/core/README.md#publishing)).
+  the pins that follow it (the script tests say where). CI checks this, and the merge publishes it: after the prod
+  deploy succeeds, `publish-core` puts the new version on npm ([`packages/core/README.md`](packages/core/README.md#publishing)).
 - Follow the code around you: TypeScript, no default exports, comments that say why rather than what.
 
 ## Reporting bugs

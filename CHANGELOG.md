@@ -5,6 +5,10 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- **Core publishes with the app.** After every successful prod deploy from main, `publish-core` puts the core
+  that commit shipped on npm when npm doesn't have its version yet, and stops cleanly when it does. A pull request
+  that changes core still has to move its version, so merging it deploys the app and publishes the package
+  together, with no manual run. Running `publish-core` by hand still works.
 - **Table blocks for database tables.** A node of type Table with columns draws as a table card: its name, then a
   row per column with a key badge (PK, FK or UQ), the column's name and its data type at the right, so every table
   in a workspace reads the same way. Past ten columns the last row counts the rest. The details panel edits columns

@@ -5,7 +5,7 @@ release. Under the license, each release becomes Apache-2.0 two years after it s
 Releasing does not deploy: prod follows `main` ([stage.md](stage.md)).
 
 The npm package `@khorum/daidal-core` has a version of its own, in `packages/core/package.json`, and its own
-hand-run workflow; a release here doesn't touch it. How to publish it is in
+workflow, which publishes a new version after the prod deploy that ships it; a release here doesn't touch it. How to publish it is in
 [`packages/core/README.md`](../packages/core/README.md#publishing).
 
 ## As you work

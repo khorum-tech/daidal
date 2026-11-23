@@ -80,8 +80,11 @@ package's `version`; move it on before each publish.
 
 ### Publishing
 
-The `publish-core` workflow publishes it, run by hand from main (Actions > publish-core > Run workflow). It is a dry run
-unless *Publish* is ticked, and it refuses a version npm already has. It holds no npm token: npm lets it publish as a
+The `publish-core` workflow publishes it by itself after every prod deploy: once `deploy` succeeds for a push to
+main, it publishes the core that commit shipped, unless npm already has that version, in which case it stops
+cleanly. So moving `version` on in a pull request is all a release of core takes; merging it deploys the app and
+publishes the package together. It can also be run by hand from main (Actions > publish-core > Run workflow), as a
+dry run unless *Publish* is ticked; by hand it refuses a version npm already has. It holds no npm token: npm lets it publish as a
 [trusted publisher](https://docs.npmjs.com/trusted-publishers), with an OIDC token GitHub mints for this repository and
 this workflow file alone.
 
@@ -97,7 +100,7 @@ npm only attaches a trusted publisher to a package it already knows, so before t
 
 Then run `publish-core` with *Publish* ticked to put out the real version. That's done: `0.1.0` is on npm as
 `latest`, and the placeholder stays under the `bootstrap` tag. For later versions, move `version` on in this
-package's `package.json`, merge, and run the workflow again; the bootstrap steps don't repeat. This version is the
+package's `package.json` and merge; the workflow publishes after the deploy, and the bootstrap steps don't repeat. This version is the
 package's own, separate from the app's releases ([`docs/releasing.md`](https://github.com/khorum-tech/daidal/blob/main/docs/releasing.md)).
 
 `npm test` here runs its tests in Node; `npm run typecheck` checks it against ES2022 alone, with no DOM or Node types.
