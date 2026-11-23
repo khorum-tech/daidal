@@ -3,16 +3,25 @@ name: publish-core
 # Publishes the shared core package (@khorum/daidal-core, see scripts/build-core.mjs for the name) to npm, so
 # integrations and npm CDNs (jsDelivr, unpkg, esm.sh) can load its browser bundle.
 #
-# Run by hand only, from main: Actions > publish-core > Run workflow. It is a dry run unless "Publish" is ticked: the
-# dry run builds, tests and packs the package and shows what would go to npm, and publishes nothing. The version is
-# packages/core/package.json's; a version npm already has is refused. Nothing here deploys: prod deploys from main
-# (deploy.yml) whether or not the package is published.
+# Runs by itself after every prod deploy: when deploy.yml finishes successfully for a push to main, this publishes
+# the core that commit shipped, if npm doesn't have its version yet, and otherwise stops cleanly with a note. So the
+# app and the package go out together, and nobody has to remember a manual step. A pull request that changes core
+# without moving its version is refused before it can merge (deploy.yml, "Core changes carry a new core version").
+#
+# It can still be run by hand, from main: Actions > publish-core > Run workflow. That run is a dry run unless
+# "Publish" is ticked: the dry run builds, tests and packs the package and shows what would go to npm, and publishes
+# nothing; a version npm already has is refused. The version is packages/core/package.json's. Nothing here deploys.
 #
 # No npm token, by design. It signs in to npm as a trusted publisher: GitHub mints an OIDC token for this run, and npm
 # lets it publish because the package names this repository and this workflow file (publish-core.yml) as its trusted
 # publisher. npm only attaches a trusted publisher to a package it already has, so the very first record comes from a
 # laptop, once: scripts/bootstrap-core.sh, described under Publishing in packages/core/README.md.
 on:
+  # After deploy.yml; the job below only goes on for a successful run of a push to main.
+  workflow_run:
+    workflows: [deploy]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       publish:
@@ -25,7 +34,11 @@ permissions:
 
 jobs:
   publish:
-    if: github.ref == 'refs/heads/main'
+    # By hand from main, or after a prod deploy: a push to main whose deploy run succeeded.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     concurrency: publish-core
     permissions:
@@ -36,6 +49,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # After a deploy, exactly the commit prod got; by hand, main as it is.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -49,20 +64,31 @@ jobs:
       - run: npm run test:core
       - run: npm run build:core
       - run: node --test scripts/build-core.test.mjs
+      # After a deploy, a version npm already has means core didn't change: nothing to publish, and no failure.
+      # By hand, it's refused, since asking to publish a version npm has is a mistake.
       - id: package
         name: Is this version new to npm?
+        env:
+          AUTO: ${{ github.event_name == 'workflow_run' }}
         run: |
           name="$(node -p "require('./packages/core/dist/package.json').name")"
           version="$(node -p "require('./packages/core/dist/package.json').version")"
           echo "name=$name" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if npm view "$name@$version" version > /dev/null 2>&1; then
+            if [ "$AUTO" = "true" ]; then
+              echo "::notice::npm already has $name@$version, so there is nothing to publish"
+              echo "new=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             echo "::error::npm already has $name@$version: move packages/core's version on first"
             exit 1
           fi
-      - name: What would be published
+          echo "new=true" >> "$GITHUB_OUTPUT"
+      - if: steps.package.outputs.new == 'true'
+        name: What would be published
         run: npm pack --dry-run ./packages/core/dist
-      - if: inputs.publish
+      - if: steps.package.outputs.new == 'true' && (github.event_name == 'workflow_run' || inputs.publish)
         name: Publish ${{ steps.package.outputs.name }}@${{ steps.package.outputs.version }}
         # Authenticates with the OIDC token `id-token: write` above lets it mint; there is no npm secret to set.
         run: npm publish ./packages/core/dist --provenance --access public
