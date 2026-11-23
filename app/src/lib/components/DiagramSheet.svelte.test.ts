@@ -5,8 +5,8 @@ import DiagramSheet from './DiagramSheet.svelte';
 import type { Workspace } from '../types';
 
 const workspaces: Workspace[] = [
-	{ id: 'p', name: 'Personal', ownerEmail: 'a@x.io', personal: true, members: ['a@x.io'], types: [] },
-	{ id: 't', name: 'Platform team', ownerEmail: 'a@x.io', personal: false, members: ['a@x.io', 'b@x.io'], types: [] }
+	{ id: 'p', name: 'Personal', ownerEmail: 'a@x.io', personal: true, members: ['a@x.io'], types: [], groups: [] },
+	{ id: 't', name: 'Platform team', ownerEmail: 'a@x.io', personal: false, members: ['a@x.io', 'b@x.io'], types: [], groups: [] }
 ];
 
 describe('the diagram sheet', () => {
@@ -24,6 +24,32 @@ describe('the diagram sheet', () => {
 
 		await render(DiagramSheet, { name: 'ledger', mine: false, workspaces, here: 't', onrename: () => {}, oncopy: async () => {}, ondelete: async () => {} });
 		expect(page.getByRole('region', { name: 'Linked diagrams' }).elements()).toHaveLength(0);
+	});
+
+	it("files it under one of its workspace's groups, a new one, or none, for its owner only", async () => {
+		const filed: (string | null)[] = [];
+		const grouped = workspaces.map(w => (w.id === 't' ? { ...w, groups: [{ name: 'Ledger C4', diagrams: 3 }] } : w));
+		const shown = await render(DiagramSheet, {
+			name: 'ledger',
+			mine: true,
+			workspaces: grouped,
+			here: 't',
+			group: null,
+			ongroup: async g => void filed.push(g),
+			onrename: () => {},
+			oncopy: async () => {},
+			ondelete: async () => {}
+		});
+		const picker = page.getByRole('group', { name: 'Group' });
+		await expect.element(picker.getByRole('radio', { name: 'No group' })).toHaveAttribute('aria-checked', 'true');
+		await picker.getByRole('radio', { name: 'Ledger C4' }).click();
+		await picker.getByLabelText('New group').fill('Payments');
+		await picker.getByRole('button', { name: 'Add' }).click();
+		await expect.poll(() => filed).toEqual(['Ledger C4', 'Payments']);
+		await shown.unmount();
+
+		await render(DiagramSheet, { name: 'ledger', mine: false, workspaces: grouped, here: 't', ongroup: async () => {}, onrename: () => {}, oncopy: async () => {}, ondelete: async () => {} });
+		expect(page.getByRole('group', { name: 'Group' }).elements()).toHaveLength(0);
 	});
 
 	it('lets the owner rename, copy and delete, after asking', async () => {

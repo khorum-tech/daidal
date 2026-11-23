@@ -196,7 +196,8 @@
 		const below = kind.child;
 		const node = nodeId ? scene.nodes.find(n => n.id === nodeId) : undefined;
 		if (!node || !below || !mine) return;
-		const made = await api.createDiagram({ workspace: data.diagram.workspaceId, name: node.name, doc: childDoc(current(), data.diagram.id, node.id, below) });
+		// The new level joins this diagram's group, so a C4 set stays together.
+		const made = await api.createDiagram({ workspace: data.diagram.workspaceId, name: node.name, group: diagramGroup, doc: childDoc(current(), data.diagram.id, node.id, below) });
 		const before = current();
 		const zooms = [...node.zooms, { diagram: made.id }];
 		apply(updateNode(before, node.id, { links: [...node.links, ...zooms] }), before, `Zoom into a new ${kindOf(below).label} diagram`);
@@ -213,7 +214,7 @@
 		const up = kind.parent;
 		if (!node || !up || !mine) return;
 		await working.saver.flush();
-		const made = await api.createDiagram({ workspace: data.diagram.workspaceId, name: node.name, doc: parentDoc(current(), data.diagram.id, node.id, up) });
+		const made = await api.createDiagram({ workspace: data.diagram.workspaceId, name: node.name, group: diagramGroup, doc: parentDoc(current(), data.diagram.id, node.id, up) });
 		void goto(`${resolve('/d/[id]', { id: made.id })}?${new URLSearchParams({ focus: data.diagram.id })}`);
 	}
 	/** A double-click (or ⌘↓) on a node: one diagram to zoom into goes there; several open the node's details to choose. */
@@ -754,6 +755,18 @@
 		const before = current();
 		apply(recolourTags(before, id, distinguishable([...p.colors], appearance.condition)), before, `Switch to the ${p.label} palette`);
 	}
+	// Its group, as filed from the diagram sheet: kept here rather than reloaded, so filing it leaves the working copy
+	// and its undo history as they are. A fresh load of the diagram starts from what the server says.
+	let diagramGroup = $state<string | null>(null);
+	$effect.pre(() => {
+		const g = data.diagram.group ?? null;
+		untrack(() => (diagramGroup = g));
+	});
+	async function fileUnder(to: string | null) {
+		const filed = await api.groupDiagram(data.diagram.id, to);
+		diagramGroup = filed.group;
+		notify(filed.group ? `In the group “${filed.group}”` : 'Out of its group');
+	}
 	async function moveTo(workspace: string) {
 		await working.saver.flush();
 		await api.moveDiagram(data.diagram.id, workspace);
@@ -929,7 +942,13 @@
 		// A duplicate is the diagram as it is now; a follower starts from its latest snapshot, as the server makes one.
 		const made = follow
 			? await api.createDiagram({ workspace, name, from: data.diagram.id, follow: true })
-			: await api.createDiagram({ workspace, name, doc: { ...current(), diagram: { ...current().diagram, name } } });
+			: await api.createDiagram({
+					workspace,
+					name,
+					// A duplicate beside it stays in its group; groups don't carry to another workspace.
+					group: workspace === data.diagram.workspaceId ? diagramGroup : null,
+					doc: { ...current(), diagram: { ...current().diagram, name } }
+				});
 		sheet = null;
 		await goto(resolve('/d/[id]', { id: made.id }));
 	}
@@ -1646,6 +1665,8 @@
 		onexport={exportImage}
 		onconfig={openConfig}
 		onmove={moveTo}
+		group={diagramGroup}
+		ongroup={fileUnder}
 		{linked}
 	/>
 </Sheet>

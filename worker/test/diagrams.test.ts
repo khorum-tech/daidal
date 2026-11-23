@@ -107,6 +107,45 @@ describe("diagrams", () => {
     expect((await call.get("d-left-behind@example.com", `/api/diagrams/${follower.id}`)).body.leadId).toBe(d.id);
   });
 
+  it("files diagrams under groups, lists by group, and keeps the revision and order as they are", async () => {
+    const owner = "d-groups@example.com";
+    const ws = await team(owner, "d-groups-member@example.com");
+    const { body: a } = await call.post(owner, "/api/diagrams", { workspace: ws, doc: doc("context"), group: "  Ledger C4  " });
+    expect(a.group).toBe("Ledger C4");
+    const { body: b } = await call.post(owner, "/api/diagrams", { workspace: ws, doc: doc("containers") });
+    const { body: c } = await call.post(owner, "/api/diagrams", { workspace: ws, doc: doc("scratch") });
+    expect(b.group).toBeNull();
+
+    // Only the owner files it; filing changes neither the revision nor "newest first".
+    expect((await call.put("d-groups-member@example.com", `/api/diagrams/${b.id}/group`, { group: "Mine" })).status).toBe(403);
+    expect((await call.put(owner, `/api/diagrams/${b.id}/group`, {})).status).toBe(400);
+    expect((await call.put(owner, `/api/diagrams/${b.id}/group`, { group: 7 })).status).toBe(400);
+    expect((await call.put(owner, `/api/diagrams/${b.id}/group`, { group: "x".repeat(101) })).status).toBe(400);
+    const filed = await call.put(owner, `/api/diagrams/${b.id}/group`, { group: "Ledger C4" });
+    expect(filed.body).toMatchObject({ id: b.id, group: "Ledger C4", rev: 1, updatedAt: b.updatedAt });
+    const ids = (body: { id: string }[]) => body.map(x => x.id).sort();
+    expect(ids((await call.get(owner, `/api/diagrams?workspace=${ws}`)).body)).toEqual([a.id, b.id, c.id].sort());
+    expect(ids((await call.get(owner, `/api/diagrams?workspace=${ws}&group=Ledger%20C4`)).body)).toEqual([a.id, b.id].sort());
+    expect(ids((await call.get(owner, `/api/diagrams?workspace=${ws}&group=`)).body)).toEqual([c.id]);
+    expect((await call.get(owner, `/api/diagrams?workspace=${ws}&group=Ledger%20C4&q=scratch`)).body).toEqual([]);
+
+    // A workspace lists its groups, with how many diagrams each holds, for every member.
+    const groupsOf = async (email: string) =>
+      ((await call.get(email, "/api/workspaces")).body as { id: string; groups: unknown }[]).find(w => w.id === ws)?.groups;
+    expect(await groupsOf("d-groups-member@example.com")).toEqual([{ name: "Ledger C4", diagrams: 2 }]);
+
+    // A clone beside it joins its group; elsewhere, or when it says so, it doesn't. null takes one out.
+    const other = await team(owner);
+    expect((await call.post(owner, "/api/diagrams", { workspace: ws, from: a.id })).body.group).toBe("Ledger C4");
+    expect((await call.post(owner, "/api/diagrams", { workspace: ws, from: a.id, group: null })).body.group).toBeNull();
+    expect((await call.post(owner, "/api/diagrams", { workspace: other, from: a.id })).body.group).toBeNull();
+    expect((await call.put(owner, `/api/diagrams/${a.id}/group`, { group: "" })).body.group).toBeNull();
+
+    // Groups belong to a workspace, so a move leaves it in none.
+    expect((await call.patch(owner, `/api/diagrams/${b.id}`, { workspace: other })).body).toMatchObject({ workspaceId: other, group: null });
+    expect(await groupsOf(owner)).toEqual([{ name: "Ledger C4", diagrams: 1 }]);
+  });
+
   it("names a follower's lead only for someone who can see it", async () => {
     const lead = await team("d-leadname@example.com");
     const { body: d } = await call.post("d-leadname@example.com", "/api/diagrams", { workspace: lead, name: "Upstream", doc: doc() });

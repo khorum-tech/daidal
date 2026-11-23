@@ -16,7 +16,7 @@ import * as workspaces from "./workspaces";
 
 const MAX_PROFILE_BODY = 64 * 1024;
 const WORKSPACE_PATH = /^\/api\/workspaces(?:\/([^/]+)(?:\/([^/]+)(?:\/([^/]+))?)?)?$/;
-const DIAGRAM_PATH = /^\/api\/diagrams(?:\/([^/]+)(?:\/(snapshots))?)?$/;
+const DIAGRAM_PATH = /^\/api\/diagrams(?:\/([^/]+)(?:\/(snapshots|group))?)?$/;
 const TOKENS_PATH = /^\/api\/me\/tokens(?:\/([^/]+))?$/;
 
 const notAllowed = (): never => {
@@ -72,16 +72,20 @@ function workspaceRoute(request: Request, db: D1Database, email: string, parts: 
 }
 
 function diagramRoute(request: Request, db: D1Database, email: string, url: URL, parts: RegExpMatchArray, now: number): Promise<Response> {
-  const [id, snapshots] = segments(parts);
+  const [id, section] = segments(parts);
   const method = request.method;
   if (!id) {
     if (method === "GET") return diagrams.listDiagrams(db, email, url);
     if (method === "POST") return diagrams.createDiagram(db, email, request, now);
     return notAllowed();
   }
-  if (snapshots) {
+  if (section === "snapshots") {
     if (method === "GET") return diagrams.listSnapshots(db, id, email);
     if (method === "POST") return diagrams.createSnapshot(db, id, email, request, now);
+    return notAllowed();
+  }
+  if (section === "group") {
+    if (method === "PUT") return diagrams.groupDiagram(db, id, email, request);
     return notAllowed();
   }
   if (method === "GET") return diagrams.getDiagram(db, id, email);

@@ -304,6 +304,21 @@ describe("the MCP server", () => {
     expect((await member.tool("add_node", { diagram: d.id, name: "X" })).error).toContain("owner");
   });
 
+  it("files diagrams under groups: create_diagram, group_diagram, and list_diagrams and list_workspaces show them", async () => {
+    const email = "mcp-groups@example.com";
+    const { tool } = await client(email);
+    const ws = personal(email);
+    const made = await tool("create_diagram", { workspace: ws, name: "context", group: "Ledger C4" });
+    expect(made.group).toBe("Ledger C4");
+    const loose = (await tool("create_diagram", { workspace: ws, name: "loose" })).diagram;
+    expect(await tool("group_diagram", { diagram: "loose", group: "Ledger C4" })).toEqual({ diagram: loose, name: "loose", group: "Ledger C4" });
+    const inGroup = (await tool("list_diagrams", { workspace: ws, group: "Ledger C4" })).diagrams.map((d: { name: string; group: string }) => `${d.name}:${d.group}`);
+    expect(inGroup.sort()).toEqual(["context:Ledger C4", "loose:Ledger C4"]);
+    expect((await tool("list_workspaces")).workspaces.find((w: { id: string }) => w.id === ws).groups).toEqual([{ name: "Ledger C4", diagrams: 2 }]);
+    expect((await tool("group_diagram", { diagram: loose, group: "" })).group).toBeNull();
+    expect((await tool("list_diagrams", { workspace: ws, group: "" })).diagrams.map((d: { name: string }) => d.name)).toEqual(["loose"]);
+  });
+
   it("never hands anyone's email to the AI: owners and authors are you or another member", async () => {
     const owner = "mcp-private-owner@example.com";
     const member = "mcp-private-member@example.com";
@@ -321,7 +336,7 @@ describe("the MCP server", () => {
       await tool("list_snapshots", { diagram: d.id }),
     ];
     expect(JSON.stringify(outputs)).not.toMatch(/mcp-private-(owner|third)@/);
-    expect(outputs[0].workspaces.find((w: { id: string }) => w.id === ws.id)).toEqual({ id: ws.id, name: "Quiet", personal: false, owner: "another member", types: [] });
+    expect(outputs[0].workspaces.find((w: { id: string }) => w.id === ws.id)).toEqual({ id: ws.id, name: "Quiet", personal: false, owner: "another member", types: [], groups: [] });
     expect(outputs[1].diagrams[0].owner).toBe("another member");
     expect(outputs[2].owner).toBe("another member");
     expect(outputs[3].snapshots[0].by).toBe("another member");

@@ -5,6 +5,7 @@
 	import { createApi } from '#lib/api.ts';
 	import AppHeader from '#lib/components/AppHeader.svelte';
 	import DiagramCard from '#lib/components/DiagramCard.svelte';
+	import GroupPicker from '#lib/components/GroupPicker.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import Sheet from '#lib/components/Sheet.svelte';
 	import WorkspaceSheet from '#lib/components/WorkspaceSheet.svelte';
@@ -21,6 +22,19 @@
 	const shared = $derived(data.workspaces.filter(w => w.ownerEmail !== data.me.email));
 	const wsHref = (w: Workspace) => `${resolve('/')}?ws=${encodeURIComponent(w.id)}`;
 	const now = Date.now();
+
+	// Groups: a workspace's diagrams can be filed under flat, named groups (a C4 set, a service, a team). The bar under
+	// the search keeps the list to one group (?g=<name>, or ?g= for those in none); with every diagram on show, the
+	// cards sit under a heading per group, the ones in no group last.
+	const groups = $derived(data.workspace?.groups ?? []);
+	const groupNames = $derived(groups.map(g => g.name));
+	const ungrouped = '';
+	function listHref(group: string | undefined, search = data.search) {
+		const params = new URLSearchParams({ ws: data.workspace?.id ?? '' });
+		if (search.trim()) params.set('q', search.trim());
+		if (group !== undefined) params.set('g', group);
+		return `${resolve('/')}?${params}`;
+	}
 
 	// The cards: the first lot comes with the page, Show more fetches the next. Searching reloads the page with ?q=
 	// (so a search can be shared or kept on a reload), a moment after typing stops.
@@ -41,7 +55,7 @@
 		if (!data.workspace) return;
 		loadingMore = true;
 		try {
-			const next = await api.diagrams(data.workspace.id, { search: data.search, limit: data.pageSize, offset: cards.length });
+			const next = await api.diagrams(data.workspace.id, { search: data.search, group: data.group, limit: data.pageSize, offset: cards.length });
 			later = [...later, ...next];
 			exhausted = next.length < data.pageSize;
 		} catch (err) {
@@ -56,17 +70,48 @@
 		clearTimeout(searchTimer);
 		searchTimer = setTimeout(() => {
 			if (!data.workspace) return;
-			const params = new URLSearchParams({ ws: data.workspace.id });
-			if (text.trim()) params.set('q', text.trim());
-			void goto(`${resolve('/')}?${params}`, { replace: true, reset: false });
+			void goto(listHref(data.group, text), { replace: true, reset: false });
 		}, 250);
 	}
 	const count = $derived(`${cards.length}${exhausted ? '' : '+'} ${cards.length === 1 && exhausted ? 'diagram' : 'diagrams'}`);
+	const countText = $derived(
+		[count, data.group === undefined ? '' : data.group ? `in “${data.group}”` : 'in no group', data.search ? `with “${data.search}”` : ''].filter(Boolean).join(' ')
+	);
+	// Headings only for the whole list, unsearched, in a workspace that has groups; a search or one group is a flat list,
+	// and then each card names its group.
+	const sections = $derived.by(() => {
+		if (data.group !== undefined || data.search || !groups.length) return null;
+		// A group made since the workspace list loaded (in another tab, say) still gets its heading, after the others.
+		const names = [...new Set([...groupNames, ...cards.flatMap(d => (d.group ? [d.group] : []))]), null];
+		return names.map(name => ({ name, cards: cards.filter(d => d.group === name) })).filter(s => s.cards.length);
+	});
+	const countOf = (name: string | null) => (name === null ? null : (groups.find(g => g.name === name)?.diagrams ?? 0));
+
+	// Filing a card under a group, from its folder button (owners only).
+	let filing = $state<ListedDiagram | null>(null);
+	let filingBusy = $state(false);
+	let filingFailed = $state('');
+	async function fileUnder(group: string | null) {
+		const d = filing;
+		if (!d) return;
+		filingBusy = true;
+		filingFailed = '';
+		try {
+			await api.groupDiagram(d.id, group);
+			filing = null;
+			await invalidateAll();
+		} catch (err) {
+			filingFailed = err instanceof Error ? err.message : "Couldn't change its group";
+		} finally {
+			filingBusy = false;
+		}
+	}
 
 	// A new, empty diagram in the workspace on show; it opens straight away, ready for + Add.
 	const api = createApi(fetch);
 	let creating = $state(false);
 	let newName = $state('');
+	let newGroup = $state('');
 	let template = $state<string | null>(null);
 	let examples = $state(false);
 	let busy = $state(false);
@@ -164,9 +209,12 @@
 		failed = '';
 		try {
 			const doc = fromTemplate(name, TEMPLATES.find(t => t.id === template) ?? null, examples);
-			const made = await api.createDiagram({ workspace: data.workspace.id, name, doc });
+			const typed = newGroup.trim();
+			const group = typed ? (groupNames.find(g => g.toLowerCase() === typed.toLowerCase()) ?? typed) : null;
+			const made = await api.createDiagram({ workspace: data.workspace.id, name, group, doc });
 			creating = false;
 			newName = '';
+			newGroup = '';
 			template = null;
 			examples = false;
 			await goto(resolve('/d/[id]', { id: made.id }));
@@ -177,6 +225,24 @@
 		}
 	}
 </script>
+
+{#snippet card(d: ListedDiagram, showGroup: boolean)}
+	<div class="card-wrap">
+		<DiagramCard diagram={d} href={resolve('/d/[id]', { id: d.id })} search={data.search} {now} {showGroup} />
+		{#if d.ownerEmail === data.me.email}
+			<button
+				type="button"
+				class="file"
+				aria-label="Group “{d.name}”"
+				title={d.group ? `In “${d.group}”: change its group` : 'Put it in a group'}
+				onclick={() => {
+					filingFailed = '';
+					filing = d;
+				}}><Icon name={d.group ? 'folderOpen' : 'folder'} size={15} /></button
+			>
+		{/if}
+	</div>
+{/snippet}
 
 <AppHeader me={data.me} homeHref={resolve('/')} crumbs={data.workspace ? [{ label: data.workspace.name }] : []} />
 
@@ -225,12 +291,19 @@
 		{#if data.workspace}
 			<div class="heading">
 				<h1>{data.workspace.name}</h1>
-				<span class="n" data-testid="diagram-count">{data.search ? `${count} with “${data.search}”` : count}</span>
+				<span class="n" data-testid="diagram-count">{countText}</span>
 				{#if data.workspace.ownerEmail !== data.me.email}<span class="tag tag-outline">Shared by {data.workspace.ownerEmail}</span>{/if}
 				<button type="button" class="btn btn-ghost manage" aria-label="Manage {data.workspace.name}" onclick={() => (managing = true)}>
 					<Icon name="members" size={14} />{data.workspace.ownerEmail === data.me.email ? 'Manage' : 'Members'}
 				</button>
-				<button type="button" class="btn btn-primary new" onclick={() => (creating = true)}>+ New diagram</button>
+				<button
+					type="button"
+					class="btn btn-primary new"
+					onclick={() => {
+						newGroup = data.group ?? '';
+						creating = true;
+					}}>+ New diagram</button
+				>
 			</div>
 			<label class="search">
 				<Icon name="magnifyingGlass" size={14} />
@@ -244,15 +317,47 @@
 					onkeydown={e => e.key === 'Escape' && search && searchFor('')}
 				/>
 			</label>
-			{#if cards.length}
-				<div class="grid">
-					{#each cards as d (d.id)}
-						<DiagramCard diagram={d} href={resolve('/d/[id]', { id: d.id })} search={data.search} {now} />
+			{#if groups.length}
+				<nav class="groups" aria-label="Groups">
+					<a class="group-chip" href={listHref(undefined)} aria-current={data.group === undefined ? 'page' : undefined}>All</a>
+					{#each groups as g (g.name)}
+						<a class="group-chip" href={listHref(g.name)} aria-current={data.group === g.name ? 'page' : undefined}>
+							<Icon name="folder" size={13} /><span class="group-name">{g.name}</span><span class="group-n">{g.diagrams}</span>
+						</a>
 					{/each}
-				</div>
+					<a class="group-chip" href={listHref(ungrouped)} aria-current={data.group === ungrouped ? 'page' : undefined}>No group</a>
+				</nav>
+			{/if}
+			{#if cards.length}
+				{#if sections}
+					{#each sections as section (section.name ?? '')}
+						<section class="group-section" aria-label={section.name ?? 'No group'}>
+							<h2 class="group-heading">
+								<a href={listHref(section.name ?? ungrouped)}>
+									<Icon name={section.name === null ? 'folders' : 'folder'} size={15} />
+									<span class="group-name">{section.name ?? 'No group'}</span>
+								</a>
+								{#if countOf(section.name) !== null}<span class="group-n">{countOf(section.name)}</span>{/if}
+							</h2>
+							<div class="grid">
+								{#each section.cards as d (d.id)}{@render card(d, false)}{/each}
+							</div>
+						</section>
+					{/each}
+				{:else}
+					<div class="grid">
+						{#each cards as d (d.id)}{@render card(d, data.group === undefined)}{/each}
+					</div>
+				{/if}
 				{#if !exhausted}
 					<button type="button" class="btn btn-secondary more" disabled={loadingMore} onclick={showMore}>{loadingMore ? 'Loading…' : 'Show more'}</button>
 				{/if}
+			{:else if data.group !== undefined && !data.search}
+				<div class="empty">
+					<span class="empty-icon"><Icon name="folder" size={30} /></span>
+					<h2>{data.group ? `Nothing in “${data.group}”` : 'Every diagram here is in a group'}</h2>
+					<p>File a diagram under a group from the folder button on its card, or from its name in the editor's header.</p>
+				</div>
 			{:else if data.search}
 				<div class="empty">
 					<span class="empty-icon"><Icon name="magnifyingGlass" size={30} /></span>
@@ -320,12 +425,28 @@
 		/>
 	</Sheet>
 {/if}
+<Sheet open={filing !== null} title={filing ? `Group “${filing.name}”` : 'Group'} onclose={() => (filing = null)}>
+	{#if filing}
+		<div class="filing">
+			<p class="where">Groups sort the cards in <strong>{data.workspace?.name}</strong>. Only you can file your own diagrams.</p>
+			<GroupPicker groups={groupNames} value={filing.group} disabled={filingBusy} onpick={fileUnder} />
+			{#if filingFailed}<p class="error" role="alert">{filingFailed}</p>{/if}
+		</div>
+	{/if}
+</Sheet>
 <Sheet open={creating} title="New diagram" onclose={() => (creating = false)}>
 	<form class="create" onsubmit={create}>
 		<label>
 			<span>Name</span>
 			<!-- svelte-ignore a11y_autofocus -->
 			<input class="input" maxlength="100" placeholder="e.g. checkout-platform" autofocus bind:value={newName} />
+		</label>
+		<label>
+			<span>Group <em>(optional)</em></span>
+			<input class="input" maxlength="100" placeholder="e.g. Ledger C4" list="workspace-groups" bind:value={newGroup} />
+			<datalist id="workspace-groups">
+				{#each groupNames as g (g)}<option value={g}></option>{/each}
+			</datalist>
 		</label>
 		<fieldset class="start">
 			<legend>Start from</legend>
@@ -456,6 +577,118 @@
 		margin: 22px auto 0;
 		font-size: 13px;
 	}
+	.groups {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin: -6px 0 18px;
+	}
+	.group-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		max-width: 240px;
+		min-height: 30px;
+		box-sizing: border-box;
+		padding: 4px 11px;
+		border: 1px solid var(--color-divider);
+		border-radius: 999px;
+		font-size: 12.5px;
+		color: var(--color-neutral-400);
+		text-decoration: none;
+	}
+	.group-chip:hover {
+		color: var(--color-text);
+		border-color: var(--color-neutral-600);
+	}
+	.group-chip[aria-current='page'] {
+		color: var(--color-text);
+		border-color: var(--color-accent);
+		background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+	}
+	.group-name {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.group-n {
+		font-size: 11px;
+		color: var(--color-neutral-500);
+	}
+	.group-section + .group-section {
+		margin-top: 26px;
+	}
+	.group-heading {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin: 0 0 12px;
+		font-size: 13.5px;
+		font-weight: 500;
+	}
+	.group-heading a {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		min-width: 0;
+		color: var(--color-text);
+		text-decoration: none;
+	}
+	.group-heading a:hover {
+		color: var(--color-accent);
+	}
+	.card-wrap {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+	}
+	.card-wrap > :global(.card) {
+		flex: 1;
+	}
+	.file {
+		position: absolute;
+		top: 8px;
+		right: 8px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border: 1px solid var(--color-divider);
+		border-radius: 8px;
+		background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+		color: var(--color-neutral-400);
+		cursor: pointer;
+		opacity: 0;
+		transition: opacity 0.15s;
+	}
+	.card-wrap:hover .file,
+	.file:focus-visible {
+		opacity: 1;
+	}
+	.file:hover {
+		color: var(--color-accent);
+		border-color: var(--color-accent-700);
+	}
+	/* No hover on a touch screen: the button stays in sight. */
+	@media (hover: none) {
+		.file {
+			opacity: 1;
+			width: 36px;
+			height: 36px;
+		}
+	}
+	.filing {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 12px 16px 18px;
+	}
+	.create label em {
+		font-style: normal;
+		color: var(--color-neutral-600);
+	}
 	.grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
@@ -579,6 +812,17 @@
 		}
 		.list {
 			padding: 18px 16px;
+		}
+		/* One scrolling row of group chips, so the cards stay near the top on a phone. */
+		.groups {
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			margin-right: -16px;
+			padding-right: 16px;
+			scrollbar-width: none;
+		}
+		.group-chip {
+			flex: none;
 		}
 	}
 	.heading .manage {

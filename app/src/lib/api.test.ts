@@ -10,6 +10,12 @@ describe('createApi', () => {
 		expect(fetchFn).toHaveBeenCalledWith('/api/diagrams?workspace=personal%3Aa%40example.com', { headers: { accept: 'application/json' } });
 		await createApi(fetchFn).diagrams('w', { search: ' cart ', limit: 60, offset: 120 });
 		expect(fetchFn).toHaveBeenLastCalledWith('/api/diagrams?workspace=w&q=cart&limit=60&offset=120', expect.anything());
+		await createApi(fetchFn).diagrams('w', { group: 'Ledger C4' });
+		expect(fetchFn).toHaveBeenLastCalledWith('/api/diagrams?workspace=w&group=Ledger+C4', expect.anything());
+		await createApi(fetchFn).diagrams('w', { group: '' });
+		expect(fetchFn).toHaveBeenLastCalledWith('/api/diagrams?workspace=w&group=', expect.anything());
+		await createApi(fetchFn).groupDiagram('a/b', null);
+		expect(fetchFn).toHaveBeenLastCalledWith('/api/diagrams/a%2Fb/group', expect.objectContaining({ method: 'PUT', body: '{"group":null}' }));
 		await createApi(fetchFn).snapshots('a/b');
 		expect(fetchFn).toHaveBeenLastCalledWith('/api/diagrams/a%2Fb/snapshots', expect.anything());
 	});

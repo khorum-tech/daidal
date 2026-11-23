@@ -15,6 +15,7 @@ const diagram = (over: Partial<ListedDiagram> = {}): ListedDiagram => ({
 	summary: cardSummary(SAMPLE),
 	leadName: null,
 	rev: 3,
+	group: null,
 	leadId: null,
 	syncedSnapshotId: null,
 	decided: {},
@@ -24,6 +25,13 @@ const diagram = (over: Partial<ListedDiagram> = {}): ListedDiagram => ({
 });
 
 describe('a diagram in the list', () => {
+	it('names its group only when asked to (a list not under group headings)', async () => {
+		const shown = await render(DiagramCard, { diagram: diagram({ group: 'Ledger C4' }), href: '#', now: NOW });
+		expect(page.getByText('Ledger C4').elements()).toHaveLength(0);
+		await shown.rerender({ showGroup: true });
+		await expect.element(page.getByText('Ledger C4')).toBeVisible();
+	});
+
 	it('links to the diagram and sums it up', async () => {
 		await render(DiagramCard, { diagram: diagram(), href: '/app/d/d1', now: NOW });
 		await expect.element(page.getByRole('link', { name: /checkout/ })).toHaveAttribute('href', '/app/d/d1');

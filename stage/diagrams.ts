@@ -213,6 +213,7 @@ export function ownerBackup() {
         diagrams: [
           {
             id: "edge-ingress",
+            group: "Edge",
             doc: ingress(4), // the working copy has an edit not yet snapshotted
             updated: day("10-20"),
             snapshots: [
@@ -222,7 +223,7 @@ export function ownerBackup() {
             ],
           },
           { id: "scratch", doc: scratch, updated: day("10-21") },
-          { id: "orders-schema", doc: ordersSchema, updated: day("11-22") },
+          { id: "orders-schema", group: "Data", doc: ordersSchema, updated: day("11-22") },
         ],
       },
       {
@@ -230,6 +231,7 @@ export function ownerBackup() {
         diagrams: [
           {
             id: "ledger-platform",
+            group: "Ledger",
             doc: ledger(2),
             updated: day("10-18"),
             snapshots: [
@@ -242,6 +244,7 @@ export function ownerBackup() {
             // Web Pool B) is already skipped; verdicts are keyed "<lead snapshot id>:<change>" (web/index.html diffSnaps).
             id: "ingress-platform",
             name: "edge-ingress (platform copy)",
+            group: "Edge",
             doc: ingress(2),
             updated: day("09-20"),
             follows: { diagram: "edge-ingress", synced: "ingress-2", decided: { "ingress-3:na:pool-b": "skipped" } },
@@ -250,6 +253,7 @@ export function ownerBackup() {
             // Up to date with its lead, but paused: new upstream changes won't be offered.
             id: "ledger-dr",
             name: "ledger-platform (DR drill)",
+            group: "Ledger",
             doc: ledger(2),
             updated: day("10-12"),
             follows: { diagram: "ledger-platform", synced: "ledger-2", paused: true },

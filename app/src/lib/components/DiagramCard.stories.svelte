@@ -15,6 +15,7 @@
 		summary: cardSummary(SAMPLE),
 		leadName: null,
 		rev: 3,
+		group: null,
 		leadId: null,
 		syncedSnapshotId: null,
 		decided: {},
@@ -34,5 +35,6 @@
 {/snippet}
 
 <Story name="Standalone" template={narrow} />
+<Story name="In a group, named" args={{ diagram: { ...diagram, group: 'Ledger C4' }, showGroup: true }} template={narrow} />
 <Story name="Following" args={{ diagram: { ...diagram, leadId: 'l', leadName: 'checkout-lead' } }} template={narrow} />
 <Story name="Lead out of reach, paused" args={{ diagram: { ...diagram, leadId: 'l', paused: true } }} template={narrow} />

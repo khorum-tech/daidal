@@ -18,12 +18,13 @@ stream, no session), in `worker/src/mcp/`. A client signs in one of two ways:
 
 | Read | Write |
 |---|---|
-| `list_workspaces`: yours, with members and their own types | `create_diagram`: blank, from a config, or from a template |
+| `list_workspaces`: yours, with members, their own types and groups | `create_diagram`: blank, from a config, or from a template |
 | `list_types`: the node types a workspace offers | `apply_config`: merge or replace from a YAML/JSON config |
-| `list_diagrams`: a workspace's diagrams, searchable | `add_node`, `update_node`, `remove_node` |
+| `list_diagrams`: a workspace's diagrams, searchable, by group | `add_node`, `update_node`, `remove_node` |
 | `get_diagram`: an outline, or the whole config | `connect`, `update_connection`, `remove_connection` |
 | `list_snapshots` | `add_container` (sized round nodes), `update_container` |
 | | `tag_nodes`, `save_view`, `take_snapshot` |
+| | `group_diagram`: file it under a group in its workspace |
 
 A tool acts as you, through the same API as the app:
 

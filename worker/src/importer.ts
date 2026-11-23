@@ -1,5 +1,5 @@
 import { ensureUserStatements, personalWorkspaceId } from "./db";
-import { decidedText, docName, docText, nameOf } from "./docs";
+import { decidedText, docName, docText, groupOf, nameOf } from "./docs";
 import { HttpError, isPlainObject, json, readJson } from "./http";
 import { slug } from "@khorum/daidal-core/model";
 import { summaryText } from "./summary";
@@ -17,7 +17,7 @@ import { requireMember } from "./workspaces";
  *       { "name": "Platform team", "personal": false,
  *         "types": [ { "name": "Billing Agent", "category": "AI", "icon": "robot" } ],
  *         "diagrams": [
- *           { "id": "ledger", "name": "…", "doc": { "version": 1, … }, "updated": "2026-10-01T…Z",
+ *           { "id": "ledger", "name": "…", "group": "Payments", "doc": { "version": 1, … }, "updated": "2026-10-01T…Z",
  *             "snapshots": [ { "id": "s1", "label": "…", "doc": { … }, "at": "2026-09-01T…Z" } ],
  *             "follows": { "diagram": "<file id>", "synced": "<its snapshot id>" | null, "paused": false, "decided": {} } } ] } ] }
  *
@@ -41,6 +41,7 @@ interface PlannedDiagram {
   id: string;
   workspace_id: string;
   name: string;
+  group_name: string | null;
   doc: string;
   summary: string;
   updated_at: number;
@@ -171,7 +172,7 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
       const where = `diagram ${local}`;
       const updated = time(d.updated, now);
       const doc = docText(d.doc, `${where}'s doc`);
-      diagrams.push({ id, workspace_id: workspaceId, name: nameOf(d.name ?? docName(d.doc), `${where}'s name`), doc, summary: "", updated_at: updated });
+      diagrams.push({ id, workspace_id: workspaceId, name: nameOf(d.name ?? docName(d.doc), `${where}'s name`), group_name: groupOf(d.group, `${where}'s group`), doc, summary: "", updated_at: updated });
       entry.diagrams += 1;
 
       const ids = new Map<string, string>();
@@ -238,7 +239,7 @@ export async function importWorkspaces(db: D1Database, email: string, request: R
   statements.push(
     ...chunked(
       db,
-      `INSERT INTO diagrams (id, workspace_id, owner_email, name, doc, summary, updated_at) SELECT ${cols(["id", "workspace_id"])}, ?1, ${cols(["name", "doc", "summary", "updated_at"])} FROM json_each(?2)`,
+      `INSERT INTO diagrams (id, workspace_id, owner_email, name, group_name, doc, summary, updated_at) SELECT ${cols(["id", "workspace_id"])}, ?1, ${cols(["name", "group_name", "doc", "summary", "updated_at"])} FROM json_each(?2)`,
       [email],
       diagrams,
     ),
@@ -283,7 +284,7 @@ export async function exportWorkspace(db: D1Database, workspace: string, email: 
 export async function workspaceBackup(db: D1Database, workspace: string, email: string): Promise<Record<string, unknown>> {
   const [ws, rows, snaps, types] = await db.batch<Record<string, string | number | null>>([
     db.prepare("SELECT id, name, owner_email FROM workspaces WHERE id = ?").bind(workspace),
-    db.prepare("SELECT id, name, doc, updated_at, lead_id, synced_snapshot_id, paused, decided FROM diagrams WHERE workspace_id = ? ORDER BY updated_at, rowid").bind(workspace),
+    db.prepare("SELECT id, name, group_name, doc, updated_at, lead_id, synced_snapshot_id, paused, decided FROM diagrams WHERE workspace_id = ? ORDER BY updated_at, rowid").bind(workspace),
     db
       .prepare(
         `SELECT s.id, s.diagram_id, s.label, s.doc, s.created_at FROM snapshots s JOIN diagrams d ON d.id = s.diagram_id
@@ -299,6 +300,7 @@ export async function workspaceBackup(db: D1Database, workspace: string, email: 
   const diagrams = rows.results.map(r => ({
     id: r.id,
     name: r.name,
+    ...(r.group_name ? { group: r.group_name } : {}),
     doc: JSON.parse(String(r.doc)),
     updated: iso(r.updated_at),
     snapshots: snaps.results

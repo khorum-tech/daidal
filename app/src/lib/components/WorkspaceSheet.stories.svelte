@@ -2,7 +2,7 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import WorkspaceSheet from './WorkspaceSheet.svelte';
 
-	const team = { id: 't', name: 'Platform team', ownerEmail: 'owner@x.io', personal: false, members: ['owner@x.io', 'pal@x.io'], types: [] };
+	const team = { id: 't', name: 'Platform team', ownerEmail: 'owner@x.io', personal: false, members: ['owner@x.io', 'pal@x.io'], types: [], groups: [] };
 	const noop = async () => {};
 
 	const { Story } = defineMeta({
@@ -14,5 +14,5 @@
 
 <Story name="Owner" />
 <Story name="Member" args={{ me: 'pal@x.io' }} />
-<Story name="Personal" args={{ workspace: { ...team, name: 'Personal', personal: true, members: ['owner@x.io'], types: [] } }} />
+<Story name="Personal" args={{ workspace: { ...team, name: 'Personal', personal: true, members: ['owner@x.io'], types: [], groups: [] } }} />
 <Story name="With types" args={{ workspace: { ...team, types: [{ name: 'Billing Agent', category: 'AI', icon: 'robot' }] } }} />

@@ -48,10 +48,14 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		deleteAccount: (confirm: string) =>
 			call<void>('/api/me', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirm }) }),
 		workspaces: () => get<Workspace[]>('/api/workspaces'),
-		/** A workspace's diagrams, newest first, as cards; [search] keeps those whose name or a node's name has it. */
-		diagrams: (workspace: string, page: { search?: string; limit?: number; offset?: number } = {}) => {
+		/**
+		 * A workspace's diagrams, newest first, as cards; [search] keeps those whose name or a node's name has it, and
+		 * [group] one group's diagrams ('' for those in no group).
+		 */
+		diagrams: (workspace: string, page: { search?: string; group?: string; limit?: number; offset?: number } = {}) => {
 			const params = new URLSearchParams({ workspace });
 			if (page.search?.trim()) params.set('q', page.search.trim());
+			if (page.group !== undefined) params.set('group', page.group);
 			if (page.limit !== undefined) params.set('limit', String(page.limit));
 			if (page.offset) params.set('offset', String(page.offset));
 			return get<ListedDiagram[]>(`/api/diagrams?${params}`);
@@ -67,7 +71,10 @@ export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => locati
 		 * A new diagram in [workspace]: from a document, or as a copy of the diagram [from] (its latest snapshot), which
 		 * with [follow] tracks that diagram's snapshots.
 		 */
-		createDiagram: (body: { workspace: string; name?: string; doc?: DaidalDoc; from?: string; follow?: boolean }) => send<Diagram>('/api/diagrams', 'POST', body),
+		createDiagram: (body: { workspace: string; name?: string; group?: string | null; doc?: DaidalDoc; from?: string; follow?: boolean }) =>
+			send<Diagram>('/api/diagrams', 'POST', body),
+		/** Files the diagram under a group in its workspace, or (null) takes it out of one, as its owner. */
+		groupDiagram: (id: string, group: string | null) => send<Diagram>(`/api/diagrams/${q(id)}/group`, 'PUT', { group }),
 		/** Moves the diagram, with its history, into another workspace of the owner's. */
 		moveDiagram: (id: string, workspace: string) => send<Diagram>(`/api/diagrams/${q(id)}`, 'PATCH', { workspace }),
 		/** Deletes the diagram and its history, as its owner. Its followers keep their copies. */

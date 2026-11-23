@@ -112,12 +112,12 @@ describe("POST /api/workspaces/import", () => {
     expect(parts.doc.boundaries[0].ref).toBe(`${id("top")}#gw`);
   });
 
-  it("round-trips through export: same diagrams, history and follows", async () => {
+  it("round-trips through export: same diagrams, groups, history and follows", async () => {
     const file = backup([
       {
         name: "Round trip",
         diagrams: [
-          { id: "a", doc: doc("a"), snapshots: [{ id: "a1", label: "one", doc: doc("a1"), at: "2026-08-01T00:00:00.000Z" }] },
+          { id: "a", group: "Ledger C4", doc: doc("a"), snapshots: [{ id: "a1", label: "one", doc: doc("a1"), at: "2026-08-01T00:00:00.000Z" }] },
           { id: "b", doc: doc("b"), follows: { diagram: "a", synced: "a1", paused: true } },
         ],
       },
@@ -128,11 +128,12 @@ describe("POST /api/workspaces/import", () => {
     const again = await call.post("i-round@example.com", "/api/workspaces/import", exported.body);
     expect(again.body.workspaces[0]).toMatchObject({ name: "Round trip", diagrams: 2, snapshots: 1 });
 
-    const strip = (f: { workspaces: { diagrams: { name: string; doc: unknown; snapshots: unknown[]; follows?: { paused: boolean } }[] }[] }) =>
-      f.workspaces[0].diagrams.map(d => ({ name: d.name, doc: d.doc, snapshots: d.snapshots.length, follows: d.follows?.paused }));
+    const strip = (f: { workspaces: { diagrams: { name: string; group?: string; doc: unknown; snapshots: unknown[]; follows?: { paused: boolean } }[] }[] }) =>
+      f.workspaces[0].diagrams.map(d => ({ name: d.name, group: d.group, doc: d.doc, snapshots: d.snapshots.length, follows: d.follows?.paused }));
     const reexported = await call.get("i-round@example.com", `/api/workspaces/${again.body.workspaces[0].id}/export`);
     expect(strip(reexported.body)).toEqual(strip(exported.body));
     expect(strip(exported.body).map(d => d.follows)).toEqual([undefined, true]);
+    expect(strip(exported.body).map(d => d.group)).toEqual(["Ledger C4", undefined]);
   });
 
   it("writes nothing when any part of the file is wrong", async () => {

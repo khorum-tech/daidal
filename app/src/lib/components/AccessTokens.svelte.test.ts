@@ -5,8 +5,8 @@ import AccessTokens from './AccessTokens.svelte';
 import type { AccessToken, Workspace } from '../types';
 
 const workspaces: Workspace[] = [
-	{ id: 'p', name: 'Personal', ownerEmail: 'a@x.io', personal: true, members: ['a@x.io'], types: [] },
-	{ id: 't', name: 'Platform team', ownerEmail: 'a@x.io', personal: false, members: ['a@x.io'], types: [] }
+	{ id: 'p', name: 'Personal', ownerEmail: 'a@x.io', personal: true, members: ['a@x.io'], types: [], groups: [] },
+	{ id: 't', name: 'Platform team', ownerEmail: 'a@x.io', personal: false, members: ['a@x.io'], types: [], groups: [] }
 ];
 const old: AccessToken = { id: 'k1', name: 'Old laptop', scope: 'read', workspaces: ['t'], createdAt: '2026-10-01T10:00:00Z', lastUsedAt: null };
 
