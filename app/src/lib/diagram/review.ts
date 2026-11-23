@@ -59,6 +59,7 @@ function nodeEdit(o: DocNode, n: DocNode, os: SceneNode, ns: SceneNode) {
 		['functions', !same(os.functions, ns.functions), 'functions'],
 		['language', os.language !== ns.language, `language → ${languageLabel(ns.language)}`],
 		['path', os.path !== ns.path, `path → ${ns.path || '—'}`],
+		['columns', !same(os.columns, ns.columns), 'columns'],
 		['links', !same(o.links, n.links), 'links']
 	];
 	const hits = tests.filter(([, differs]) => differs);

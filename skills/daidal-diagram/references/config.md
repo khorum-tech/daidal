@@ -39,8 +39,7 @@ Any other top-level key is an error, and so is giving both `edges` and `connecti
 - `name`: shown on the card; the id if there's none.
 - `type`: one of the types below; `service` if there's none.
 - `subtitle`: an optional second line (in C4, the technology).
-- `members`: an optional list of what a class, file or table holds, one a line (fields, exports, columns:
-  `["id: BatchId"]`). With `functions` or `path` (where it lives: a file path or a link), it draws the card as a code
+- `members`: an optional list of what a class or file holds, one a line (fields, exports: `["id: BatchId"]`). With `functions` or `path` (where it lives: a file path or a link), it draws the card as a code
   block. Use them in `c4-code` diagrams, with the `subtitle` as one line of purpose.
 - `functions`: an optional list of what it can do, drawn as signatures under the members. Each is a signature
   (`"check(batch: Batch): Verdict"`, double-quoted for its colon) or a map of `name`, `params` (a list of
@@ -48,6 +47,11 @@ Any other top-level key is an error, and so is giving both `edges` and `connecti
 - `language`: optional, what a code block is written in: `java`, `kotlin`, `typescript`, `javascript`, `python`,
   `ruby`, `go`, `rust`, `csharp` or `swift`. Its functions read as that language writes them (`Verdict check(Batch
   batch)` in Java); without it they read `check(batch: Batch) → Verdict`. Set it from the code's own language.
+- `columns`: a `table`'s columns, drawn as a table card: each column's key badge, name and data type. Each is a
+  line (`"PK id: uuid"`, `"customer_id: uuid FK"`, double-quoted for the colon) or a map of `name`, `type` (the
+  database's own word: `uuid`, `varchar(255)`, `timestamptz`) and `key` (`pk`, `fk` or `unique`; leave it out for
+  none). A map may also carry an `id` that stays put when the column is renamed. Give every table its columns this
+  way rather than as `members`, so all tables read the same.
 - `notes`: optional; a C4 card shows it as its description, a note as its body.
 - `tags`: optional, keys from `tags`.
 - `x`, `y`: where the card's top-left corner goes. `w` and `h` are optional (190 and 88 by default).

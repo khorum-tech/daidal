@@ -5,7 +5,8 @@ import { ICON_PATHS } from './icons';
 import { esc, toSvg } from './render';
 import { tagsOn, toScene } from './model';
 import { renderConfig } from './index';
-import type { DocFunction, DocNode, DaidalDoc } from './types';
+import { keyLabel } from './table';
+import type { DocColumn, DocFunction, DocNode, DaidalDoc } from './types';
 
 /**
  * The document contract: every field of the format reaches every output. EVERY_FIELD sets each field (its type makes
@@ -14,12 +15,16 @@ import type { DocFunction, DocNode, DaidalDoc } from './types';
  * nobody adds to the model without deciding what the renderer and the exports do with it.
  *
  * The canvas card (app/src/lib/components/NodeCard.svelte) and the SVG both lay code blocks out from model.ts
- * (codeSections, codeHeight, CODE), so a code block's size and lines agree wherever it is drawn.
+ * (codeSections, codeHeight, CODE) and table blocks from table.ts (tableRows, tableHeight, tableWidths, TABLE), so a
+ * block's size and lines agree wherever it is drawn.
+ *
+ * EVERY_FIELD's first node is a code block and its second a table block; the node ledger is checked against the code
+ * block, except where a field says it is drawn on the table (columns).
  */
 
 type Node = Full<DocNode>;
 /** What the SVG shows of a field: text or markup it must contain, or why it shows nothing. */
-type Shown<T> = { svg: (v: T) => string[] } | { notDrawn: string };
+type Shown<T> = { svg: (v: T) => string[]; on?: 'table' } | { notDrawn: string };
 
 const NODE_FIELDS: { [K in keyof DocNode]-?: Shown<Node> } = {
 	id: { notDrawn: 'an id is what connections refer to' },
@@ -36,6 +41,7 @@ const NODE_FIELDS: { [K in keyof DocNode]-?: Shown<Node> } = {
 	// EVERY_FIELD's code block is Kotlin: each function starts with Kotlin's "fun", drawn quieter than its name.
 	language: { svg: n => n.functions.map(f => `>fun </tspan>${esc(f.name)}<tspan`) },
 	path: { svg: n => [`>${esc(n.path)}<`] },
+	columns: { on: 'table', svg: n => n.columns.map(c => `>${esc(c.name)}<`) },
 	links: { notDrawn: 'links open from the canvas; an image has nothing to click' },
 	ref: { notDrawn: 'a ref ties the node to another diagram; it draws nothing' }
 };
@@ -47,6 +53,13 @@ const FUNCTION_FIELDS: { [K in keyof DocFunction]-?: Shown<Full<DocFunction>> } 
 	notes: { notDrawn: "a function's note shows as the canvas line's tooltip and in the details" }
 };
 
+const COLUMN_FIELDS: { [K in keyof DocColumn]-?: Shown<Full<DocColumn>> } = {
+	id: { notDrawn: "a column's id is what a later relationship between tables will point at" },
+	name: { svg: c => [`>${esc(c.name)}<`] },
+	type: { svg: c => [`>${esc(c.type)}<`] },
+	key: { svg: c => [`>${keyLabel(c.key)}<`] }
+};
+
 const LANGS: ConfigLang[] = ['yaml', 'json'];
 
 describe('the document contract', () => {
@@ -54,14 +67,26 @@ describe('the document contract', () => {
 	const scene = toScene(EVERY_FIELD);
 	const { svg } = toSvg(scene, { on: tagsOn(scene, null) });
 
+	const table = EVERY_FIELD.nodes[1];
+
 	it('draws every field of a code block that the ledger says the SVG shows', () => {
 		expect(scene.nodes[0].code).toBe(true);
 		for (const [field, shown] of Object.entries(NODE_FIELDS)) {
-			if ('svg' in shown) for (const s of shown.svg(node)) expect(svg, `node.${field}`).toContain(s);
+			if ('svg' in shown) for (const s of shown.svg(shown.on === 'table' ? table : node)) expect(svg, `node.${field}`).toContain(s);
 		}
 		for (const f of node.functions) {
 			for (const [field, shown] of Object.entries(FUNCTION_FIELDS)) {
 				if ('svg' in shown) for (const s of shown.svg(f)) expect(svg, `function ${f.name}.${field}`).toContain(s);
+			}
+		}
+	});
+
+	it('draws every field of a table block that the ledger says the SVG shows', () => {
+		expect(scene.nodes[1].table).toBe(true);
+		expect(scene.nodes[0].table).toBe(false);
+		for (const c of table.columns) {
+			for (const [field, shown] of Object.entries(COLUMN_FIELDS)) {
+				if ('svg' in shown) for (const s of shown.svg(c)) expect(svg, `column ${c.name}.${field}`).toContain(s);
 			}
 		}
 	});

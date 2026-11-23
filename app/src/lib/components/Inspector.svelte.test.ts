@@ -301,3 +301,109 @@ describe("the inspector and a code block's functions", () => {
 		await expect.element(page.getByText('Verdict check(Batch batch)')).toBeVisible();
 	});
 });
+
+describe("the inspector and a table's columns", () => {
+	const tableNode = (node: object) => toScene({ version: 1, nodes: [{ id: 'orders', name: 'orders', type: 'table', ...node }] }).nodes[0];
+	async function editingTable(node: object) {
+		const changes: { change: NodeChange; label: string; group?: string }[] = [];
+		const calls: string[] = [];
+		await render(Inspector, {
+			node: tableNode(node),
+			tags: {},
+			editable: true,
+			onchange: (change, label, group) => changes.push({ change, label, group }),
+			onfieldend: () => calls.push('end')
+		});
+		return { changes, calls };
+	}
+
+	it('adds a column from its fields, with an id, as one undo step', async () => {
+		const { changes, calls } = await editingTable({ columns: [{ id: 'c1', name: 'id', type: 'uuid', key: 'pk' }] });
+		await expect.element(page.getByRole('heading', { name: 'Columns' })).toBeVisible();
+		await page.getByRole('button', { name: '+ Add column' }).click();
+		const name = page.getByLabelText('Column name').last();
+		await expect.element(name).toHaveFocus();
+		await name.fill('placed_at');
+		await page.getByLabelText('Data type of placed_at').fill('timestamptz');
+		expect(changes.at(-1)).toEqual({
+			change: {
+				columns: [
+					{ id: 'c1', name: 'id', type: 'uuid', key: 'pk' },
+					{ id: 'c2', name: 'placed_at', type: 'timestamptz' }
+				]
+			},
+			label: 'Edit columns',
+			group: 'orders:columns'
+		});
+		expect(new Set(changes.map(c => c.group))).toEqual(new Set(['orders:columns']));
+		expect(calls).toEqual([]);
+		await page.getByLabelText('Name', { exact: true }).click();
+		expect(calls).toEqual(['end']);
+	});
+
+	it('sets a key on a column', async () => {
+		const { changes } = await editingTable({
+			columns: [
+				{ id: 'c1', name: 'id', type: 'uuid', key: 'pk' },
+				{ id: 'c2', name: 'customer_id', type: 'uuid' }
+			]
+		});
+		await page.getByLabelText('Key of customer_id').selectOptions('fk');
+		expect(changes.at(-1)).toEqual({
+			change: {
+				columns: [
+					{ id: 'c1', name: 'id', type: 'uuid', key: 'pk' },
+					{ id: 'c2', name: 'customer_id', type: 'uuid', key: 'fk' }
+				]
+			},
+			label: 'Make customer_id a foreign key',
+			group: undefined
+		});
+	});
+
+	it('moves a column and removes one', async () => {
+		const { changes } = await editingTable({
+			columns: [
+				{ id: 'c1', name: 'id', type: 'uuid', key: 'pk' },
+				{ id: 'c2', name: 'customer_id', type: 'uuid', key: 'fk' }
+			]
+		});
+		await page.getByRole('button', { name: 'Move customer_id up' }).click();
+		expect(changes.at(-1)).toEqual({
+			change: {
+				columns: [
+					{ id: 'c2', name: 'customer_id', type: 'uuid', key: 'fk' },
+					{ id: 'c1', name: 'id', type: 'uuid', key: 'pk' }
+				]
+			},
+			label: 'Move customer_id up',
+			group: undefined
+		});
+		await page.getByRole('button', { name: 'Remove column id' }).click();
+		expect(changes.at(-1)).toEqual({ change: { columns: [{ id: 'c2', name: 'customer_id', type: 'uuid', key: 'fk' }] }, label: 'Remove id', group: undefined });
+	});
+
+	it('offers to make members written as lines into columns', async () => {
+		const { changes } = await editingTable({ members: ['id: uuid', 'total: decimal'] });
+		await page.getByRole('button', { name: 'Make the 2 lines written under members into columns' }).click();
+		expect(changes.at(-1)).toEqual({
+			change: {
+				columns: [
+					{ id: 'c1', name: 'id', type: 'uuid' },
+					{ id: 'c2', name: 'total', type: 'decimal' }
+				],
+				members: []
+			},
+			label: 'Make lines into columns',
+			group: undefined
+		});
+	});
+
+	it('lists them read-only with their keys and types', async () => {
+		await render(Inspector, { node: tableNode({ columns: [{ name: 'id', type: 'uuid', key: 'pk' }, { name: 'placed_at', type: 'timestamptz' }] }), tags: {} });
+		await expect.element(page.getByRole('heading', { name: 'Columns' })).toBeVisible();
+		await expect.element(page.getByTitle('Primary key')).toHaveTextContent('PK');
+		await expect.element(page.getByText('placed_at')).toBeVisible();
+		await expect.element(page.getByText('timestamptz')).toBeVisible();
+	});
+});

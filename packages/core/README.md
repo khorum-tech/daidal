@@ -34,7 +34,7 @@ draw a diagram:
 
 ```html
 <script type="module">
-  import { renderConfig } from 'https://cdn.jsdelivr.net/npm/@khorum/daidal-core@0.2.0/daidal-core.js';
+  import { renderConfig } from 'https://cdn.jsdelivr.net/npm/@khorum/daidal-core@0.3.0/daidal-core.js';
   const { svg } = renderConfig(`
 nodes:
   - { id: web, name: Web app, type: service }
@@ -44,7 +44,7 @@ edges: []
 </script>
 ```
 
-unpkg (`https://unpkg.com/@khorum/daidal-core@0.2.0/daidal-core.js`) and esm.sh serve the same file. Pin a version:
+unpkg (`https://unpkg.com/@khorum/daidal-core@0.3.0/daidal-core.js`) and esm.sh serve the same file. Pin a version:
 before 1.0.0 a minor version may change the output.
 
 `renderConfig(text, { view, ghosted, edgeStyle })` reads a YAML or JSON config and returns `{ svg, width, height, doc }`;

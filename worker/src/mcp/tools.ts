@@ -28,6 +28,7 @@ import { catalogue, isNodeIcon, typeKey, type TypeCats } from "@khorum/daidal-co
 import { KINDS, kindOf, type KindId } from "@khorum/daidal-core/kinds";
 import { toScene } from "@khorum/daidal-core/model";
 import { LANGUAGES, signature, toFunctions, toLanguage } from "@khorum/daidal-core/code";
+import { COLUMN_KEYS, columnText, toColumns, withColumnIds } from "@khorum/daidal-core/table";
 import { fromTemplate, TEMPLATES } from "@khorum/daidal-core/templates";
 import type { CustomType, DocEdge, DocNode, DaidalDoc } from "@khorum/daidal-core/types";
 
@@ -80,6 +81,15 @@ export interface Tool {
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 const num = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+/** What add_node and update_node were given of a code block's or a table's fields: members, functions, language, columns. */
+function codeFields(args: Row): NodeChange {
+  const change: NodeChange = {};
+  if (Array.isArray(args.members)) change.members = list(args.members);
+  if (Array.isArray(args.functions)) change.functions = toFunctions(args.functions);
+  if (typeof args.language === "string") change.language = toLanguage(args.language);
+  if (Array.isArray(args.columns)) change.columns = withColumnIds(toColumns(args.columns));
+  return change;
+}
 const need = (args: Row, key: string): string => {
   const v = str(args[key]).trim();
   if (!v) throw new ToolError(`${key} is required`);
@@ -274,6 +284,7 @@ function outline(d: Diagram, me: string, workspace?: string): Row {
       ...(n.functions.length ? { functions: n.functions.map(f => signature(f, n.language)) } : {}),
       ...(n.language ? { language: n.language } : {}),
       ...(n.path ? { path: n.path } : {}),
+      ...(n.columns.length ? { columns: n.columns.map(columnText) } : {}),
       ...(n.tags.length ? { tags: n.tags } : {}),
       ...(n.ownIcon ? { icon: n.ownIcon } : {}),
       ...(n.zooms.length ? { zoomsInto: n.zooms } : {}),
@@ -342,6 +353,27 @@ const FUNCTIONS = {
           params: { type: "array", items: { anyOf: [{ type: "string" }, { type: "object", properties: { name: { type: "string" }, type: { type: "string" } }, required: ["name"], additionalProperties: false }] } },
           returns: { type: "string" },
           notes: { type: "string", description: "What it does" },
+        },
+        required: ["name"],
+        additionalProperties: false,
+      },
+    ],
+  },
+};
+/** A table's columns, as add_node and update_node take them: replaces the table's columns. */
+const COLUMNS = {
+  type: "array",
+  description: "A Table's columns, a row each on its card (makes the Table a table block); replaces its columns. Each is a line like \"PK id: uuid\" or \"customer_id: uuid FK\", or { name, type, key }, where type is the data type (uuid, varchar(255), timestamptz…) and key is pk, fk or unique. Keep a column's id when you change it",
+  items: {
+    anyOf: [
+      { type: "string" },
+      {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "Stays the same through renames; left out on a new column" },
+          name: { type: "string" },
+          type: { type: "string", description: "The data type, in the database's own words" },
+          key: { type: "string", enum: COLUMN_KEYS.map(k => k.id) },
         },
         required: ["name"],
         additionalProperties: false,
@@ -508,7 +540,7 @@ export const TOOLS: Tool[] = [
   {
     name: "add_node",
     title: "Add a node",
-    description: "Adds a node, placed in free space (near another node if you say so). type is a display name from list_types, say Service or AI Agent.",
+    description: "Adds a node, placed in free space (near another node if you say so). type is a display name from list_types, say Service or AI Agent. A database table is type Table with columns.",
     readOnly: false,
     inputSchema: schema(
       {
@@ -517,9 +549,10 @@ export const TOOLS: Tool[] = [
         type: { type: "string", description: "A type from list_types; Service if left out" },
         subtitle: { type: "string" },
         notes: { type: "string" },
-        members: { type: "array", items: { type: "string" }, description: "What it holds besides its functions, one a line on its card (a class's fields, a file's exports, a table's columns): makes the card a code block" },
+        members: { type: "array", items: { type: "string" }, description: "What it holds besides its functions, one a line on its card (a class's fields, a file's exports; a table's columns go in columns): makes the card a code block" },
         functions: FUNCTIONS,
         language: LANGUAGE,
+        columns: COLUMNS,
         path: { type: "string", description: "Where it lives: a file path, or a link to the source" },
         tags: { type: "array", items: { type: "string" }, description: "Tag keys or labels; new ones are made" },
         near: NODE("Place it beside this node"),
@@ -547,9 +580,7 @@ export const TOOLS: Tool[] = [
           const made = addNode(doc, type, at);
           const tagged = tagKeys(made.doc, list(args.tags));
           const change: NodeChange = { name, ...(str(args.subtitle) ? { subtitle: str(args.subtitle) } : {}), ...(str(args.notes) ? { notes: str(args.notes) } : {}) };
-          if (Array.isArray(args.members)) change.members = list(args.members);
-          if (Array.isArray(args.functions)) change.functions = toFunctions(args.functions);
-          if (typeof args.language === "string") change.language = toLanguage(args.language);
+          Object.assign(change, codeFields(args));
           if (str(args.path)) change.path = str(args.path);
           if (tagged.keys.length) change.tags = tagged.keys;
           return just(updateNode(tagged.doc, made.id, change), { node: made.id });
@@ -561,7 +592,7 @@ export const TOOLS: Tool[] = [
   {
     name: "update_node",
     title: "Change a node",
-    description: "Changes what you name on a node: name, type, subtitle, notes, members, functions, language and path (a code block's), tags (replaces them), flags (db, cache, mq), links (web pages, or diagrams to zoom into; replaces them), its own icon (null for its type's), or where it sits (x, y).",
+    description: "Changes what you name on a node: name, type, subtitle, notes, members, functions, language and path (a code block's), columns (a table's), tags (replaces them), flags (db, cache, mq), links (web pages, or diagrams to zoom into; replaces them), its own icon (null for its type's), or where it sits (x, y).",
     readOnly: false,
     inputSchema: schema(
       {
@@ -571,9 +602,10 @@ export const TOOLS: Tool[] = [
         type: { type: "string" },
         subtitle: { type: "string" },
         notes: { type: "string" },
-        members: { type: "array", items: { type: "string" }, description: "What it holds besides its functions, one a line on its card (a class's fields, a file's exports, a table's columns): makes the card a code block" },
+        members: { type: "array", items: { type: "string" }, description: "What it holds besides its functions, one a line on its card (a class's fields, a file's exports; a table's columns go in columns): makes the card a code block" },
         functions: FUNCTIONS,
         language: LANGUAGE,
+        columns: COLUMNS,
         path: { type: "string", description: "Where it lives: a file path, or a link to the source" },
         tags: { type: "array", items: { type: "string" } },
         flags: { type: "array", items: { type: "string", enum: ["db", "cache", "mq"] } },
@@ -599,9 +631,7 @@ export const TOOLS: Tool[] = [
           let next = doc;
           const change: NodeChange = {};
           for (const key of ["name", "subtitle", "notes", "path"] as const) if (typeof args[key] === "string") change[key] = args[key];
-          if (Array.isArray(args.members)) change.members = list(args.members);
-          if (Array.isArray(args.functions)) change.functions = toFunctions(args.functions);
-          if (typeof args.language === "string") change.language = toLanguage(args.language);
+          Object.assign(change, codeFields(args));
           if (type) change.type = type;
           if (Array.isArray(args.flags)) change.flags = list(args.flags);
           if (links) change.links = links;

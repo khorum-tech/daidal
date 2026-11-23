@@ -10,6 +10,8 @@
 	import Icon from './Icon.svelte';
 	import IconPicker from './IconPicker.svelte';
 	import TypePicker from './TypePicker.svelte';
+	import ColumnsEditor from './ColumnsEditor.svelte';
+	import { COLUMN_KEYS, toKey } from '@khorum/daidal-core/table';
 
 	/**
 	 * What a selected node holds. Read-only by default; with [editable] on, it is the prototype's inspector: name,
@@ -125,7 +127,10 @@
 	function typed(field: 'name' | 'subtitle' | 'notes' | 'path', label: string) {
 		return (e: Event) => onchange?.({ [field]: (e.currentTarget as HTMLInputElement).value }, label, `${node.id}:${field}`);
 	}
-	const codeFields = $derived(!node.c4 && !node.isNote && !node.isText && (kind.id === 'c4-code' || node.code));
+	/** A Table's own fields: its columns, in every kind of diagram. A table has columns in place of a code block's. */
+	const tableFields = $derived(!node.isNote && !node.isText && node.type === 'Table');
+	const codeFields = $derived(!tableFields && !node.c4 && !node.isNote && !node.isText && (kind.id === 'c4-code' || node.code));
+	const keyOf = (k: unknown) => COLUMN_KEYS.find(c => c.id === toKey(k));
 	/** The members box: a name a line. */
 	function membersTyped(e: Event) {
 		const members = (e.currentTarget as HTMLTextAreaElement).value.split('\n').map(m => m.trim()).filter(Boolean);
@@ -320,6 +325,15 @@
 {/snippet}
 
 {#snippet code()}
+	{#if node.columns.length}
+		<h3>Columns</h3>
+		<ul class="col-list">
+			{#each node.columns as c, i (c.id ?? i)}
+				{@const key = keyOf(c.key)}
+				<li>{#if key}<abbr class="col-key" title={key.title}>{key.label}</abbr>{/if}<span class="col-name">{c.name}</span>{#if c.type}<span class="col-type">{c.type}</span>{/if}</li>
+			{/each}
+		</ul>
+	{/if}
 	{#if node.path}
 		<p class="path">{#if /^https?:\/\//i.test(node.path)}<a href={node.path} target="_blank" rel="noopener noreferrer">{node.path}</a>{:else}{node.path}{/if}</p>
 	{/if}
@@ -348,6 +362,10 @@
 		<input id="node-sub" class="input" value={node.sub} placeholder="Subtitle: owner, replicas, region…" oninput={typed('subtitle', 'Edit subtitle')} onblur={() => onfieldend?.()} />
 		<label class="sr" for="node-notes">Notes</label>
 		<textarea id="node-notes" class="input notes" rows="3" value={node.desc} placeholder="What this does, and anything worth knowing." oninput={typed('notes', 'Edit notes')} onblur={() => onfieldend?.()}></textarea>
+		{#if tableFields}
+			<h3>Columns</h3>
+			<ColumnsEditor nodeId={node.id} columns={node.columns} members={node.members} onchange={(change, label, group) => onchange?.(change, label, group)} {onfieldend} />
+		{/if}
 		{#if codeFields}
 			<!-- A code block's own fields: offered in a C4 Code diagram, and wherever a node already has them. -->
 			<label class="sr" for="node-members">Members</label>
@@ -839,6 +857,39 @@
 		margin-top: 6px;
 		white-space: normal;
 		text-align: left;
+	}
+	.col-list {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 12px;
+		line-height: 1.7;
+	}
+	.col-list li {
+		display: flex;
+		align-items: baseline;
+		gap: 8px;
+		min-width: 0;
+	}
+	.col-list .col-key {
+		flex: none;
+		width: 20px;
+		font-family: var(--font-body);
+		font-size: 9px;
+		font-weight: 700;
+		color: var(--color-accent-300);
+		text-decoration: none;
+	}
+	.col-list .col-name {
+		flex: 1;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	.col-list .col-type {
+		color: var(--color-neutral-500);
+		overflow-wrap: anywhere;
+		text-align: right;
 	}
 	.fn-list {
 		margin: 0;

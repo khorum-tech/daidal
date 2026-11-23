@@ -3,6 +3,7 @@ import { NEW_TAG_GROUP, TAG_COLORS } from './edit';
 import { isColor, slug } from './model';
 import { parseYaml, yamlLines, YamlError } from './yaml';
 import { LANGUAGES, toFunctions, toLanguage } from './code';
+import { COLUMN_KEYS, toColumns, toKey } from './table';
 
 /**
  * A diagram as a config file (the prototype's config dock): the saved document as YAML or JSON, and back. Reading a
@@ -131,7 +132,29 @@ function node(raw: unknown, i: number): DocNode {
 		else delete out.language;
 	}
 	if (n.path != null) out.path = asText(n.path);
+	return withColumns(out, n.columns, i);
+}
+
+/** [out] with the columns a config gave it, checked; none when the list is empty or missing. */
+function withColumns(out: DocNode, raw: unknown, i: number): DocNode {
+	const cols = raw == null ? [] : columns(raw, i);
+	if (cols.length) out.columns = cols;
+	else delete out.columns;
 	return out;
+}
+
+/** A table's columns as a config gives them: lines ("PK id: uuid") or maps with a name, and a type and key if any. */
+function columns(raw: unknown, i: number): NonNullable<DocNode['columns']> {
+	if (typeof raw !== 'string' && !Array.isArray(raw) && (typeof raw !== 'object' || raw === null)) throw new ConfigError(`nodes[${i}].columns: a list of columns, each a line or a map with a name`);
+	const entries = Array.isArray(raw) ? raw : [raw];
+	entries.forEach((c, j) => {
+		if (!c || typeof c !== 'object' || Array.isArray(c)) return;
+		const o = c as Record<string, unknown>;
+		if (!asText(o.name ?? '').trim()) throw new ConfigError(`nodes[${i}].columns[${j}]: every column needs a name`);
+		const key = o.key == null ? '' : asText(o.key).trim();
+		if (key && !toKey(key)) throw new ConfigError(`nodes[${i}].columns[${j}].key: "${key}" isn't one of ${COLUMN_KEYS.map(k => k.id).join(', ')}`);
+	});
+	return toColumns(raw);
 }
 
 /** Refuses a tag colour that isn't a colour: it would go into styles and exported SVG. */

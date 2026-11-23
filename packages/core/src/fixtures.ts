@@ -34,8 +34,8 @@ export const SAMPLE: DaidalDoc = {
 export type Full<T> = T extends (infer U)[] ? Full<U>[] : T extends object ? { [K in keyof T]-?: Full<T[K]> } : T;
 
 /**
- * A diagram that sets every field of the document format, with a code block whose members and functions are all
- * filled in. Typed as Full<DaidalDoc>, so a field added to DocNode, DocFunction, DocEdge or any other part of the
+ * A diagram that sets every field of the document format: a code block whose members and functions are all filled
+ * in, and a table block whose columns are. Typed as Full<DaidalDoc>, so a field added to DocNode, DocFunction, DocEdge or any other part of the
  * format fails the typecheck until it is given a value here, and then the contract tests (contract.test.ts) check
  * that the config export, the config reader and the SVG renderer all handle it.
  */
@@ -62,8 +62,33 @@ export const EVERY_FIELD: Full<DaidalDoc> = {
 			],
 			language: 'kotlin',
 			path: 'postings/src/balance/BalanceChecker.kt',
+			// A class keeps columns it is given, but only a Table draws them (the table below).
+			columns: [{ id: 'c1', name: 'checked_at', type: 'timestamptz', key: 'unique' }],
 			links: [{ label: 'Source', url: 'example.com/checker', diagram: 'ledger', view: 'Core' }],
 			ref: 'ledger#checker'
+		},
+		{
+			id: 'batches',
+			name: 'posting_batches',
+			type: 'table',
+			icon: 'table',
+			subtitle: 'One row per batch of postings',
+			flags: ['db'],
+			tags: ['core'],
+			layout: { x: 60, y: 200, w: 300, h: 88 },
+			notes: 'Written once, never updated.',
+			members: ['partitioned by month'],
+			functions: [{ name: 'close_batch', params: [{ name: 'batch_id', type: 'uuid' }], returns: 'void', notes: 'A stored procedure.' }],
+			language: 'python',
+			path: 'migrations/0007_batches.sql',
+			columns: [
+				{ id: 'c1', name: 'id', type: 'uuid', key: 'pk' },
+				{ id: 'c2', name: 'ledger_id', type: 'uuid', key: 'fk' },
+				{ id: 'c3', name: 'reference', type: 'varchar(64)', key: 'unique' },
+				{ id: 'c4', name: 'total', type: 'decimal(19,4)', key: 'pk' }
+			],
+			links: [{ label: 'Schema', url: 'example.com/batches', diagram: 'ledger', view: 'Core' }],
+			ref: 'ledger#batches'
 		}
 	],
 	edges: [{ from: 'checker', to: 'zone', label: 'lives in', showLabel: true, line: 'dashed', direction: 'forward', width: 2, route: 'angled', anchors: { from: 'right:0.5', to: 'left:0.5' } }],

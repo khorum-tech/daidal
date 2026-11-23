@@ -46,4 +46,5 @@ export { toScene, tagsOn, bounds, type Scene, type SceneNode, type SceneEdge, ty
 export { toSvg, type RenderOptions } from './render';
 export { parseYaml, YamlError } from './yaml';
 export { signature, signatureParts, parseSignature, toFunctions, toLanguage, languageLabel, LANGUAGES, type Language, type SignatureParts } from './code';
-export type { DaidalDoc, DocNode, DocEdge, DocBoundary, DocTag, DocFunction, DocParam, NodeLink, CustomType } from './types';
+export { toColumns, toColumn, parseColumn, columnText, keyLabel, toKey, COLUMN_KEYS, DATA_TYPES } from './table';
+export type { DaidalDoc, DocNode, DocEdge, DocBoundary, DocTag, DocFunction, DocParam, DocColumn, ColumnKey, NodeLink, CustomType } from './types';

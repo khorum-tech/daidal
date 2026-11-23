@@ -161,6 +161,24 @@ describe("the MCP server", () => {
     expect((await tool("get_diagram", { diagram: d })).nodes[0]).not.toHaveProperty("functions");
   });
 
+  it("gives a table its columns, as lines or entries, keeps an id on each, and lists them as lines", async () => {
+    const email = "mcp-columns@example.com";
+    const { tool } = await client(email);
+    const made = { id: (await tool("create_diagram", { workspace: personal(email), name: "tables" })).diagram };
+    await tool("add_node", { diagram: made.id, name: "orders", type: "Table", columns: ["PK id: uuid", { name: "customer_id", type: "uuid", key: "fk" }] });
+    let out = await tool("get_diagram", { diagram: made.id });
+    expect(out.nodes[0]).toMatchObject({ name: "orders", type: "Table", columns: ["PK id: uuid", "FK customer_id: uuid"] });
+    let yaml = (await tool("get_diagram", { diagram: made.id, format: "yaml" })).config as string;
+    expect(yaml).toContain("columns:\n      - id: c1\n        name: id\n        type: uuid\n        key: pk\n      - id: c2\n        name: customer_id");
+    await tool("update_node", { diagram: made.id, node: "orders", columns: [{ id: "c2", name: "buyer_id", type: "uuid", key: "fk" }, "placed_at: timestamptz"] });
+    out = await tool("get_diagram", { diagram: made.id });
+    expect(out.nodes[0].columns).toEqual(["FK buyer_id: uuid", "placed_at: timestamptz"]);
+    yaml = (await tool("get_diagram", { diagram: made.id, format: "yaml" })).config as string;
+    expect(yaml).toContain("- id: c2\n        name: buyer_id");
+    await tool("update_node", { diagram: made.id, node: "orders", columns: [] });
+    expect((await tool("get_diagram", { diagram: made.id })).nodes[0]).not.toHaveProperty("columns");
+  });
+
   // What get_diagram's outline lists of each node field: its key there, or why only the YAML carries it. A field added
   // to DocNode fails the typecheck here until it has a line (see packages/core/src/contract.test.ts for the rest).
   const OUTLINE: { [K in keyof DocNode]-?: string | { yamlOnly: string } } = {
@@ -177,6 +195,7 @@ describe("the MCP server", () => {
     functions: "functions",
     language: "language",
     path: "path",
+    columns: "columns",
     links: "zoomsInto",
     ref: { yamlOnly: "ties the node to another diagram" },
   };

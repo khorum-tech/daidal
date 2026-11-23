@@ -1,5 +1,6 @@
-import type { DocBoundary, DocEdge, DocFunction, DocNode, DaidalDoc } from './types';
+import type { DocBoundary, DocColumn, DocEdge, DocFunction, DocNode, DaidalDoc } from './types';
 import { signature, toFunctions, toLanguage, type Language } from './code';
+import { tableHeight, toColumns } from './table';
 import { isNodeIcon, TYPE_CATS, typeIcon, typeKey, type TypeCats } from './icons';
 import { c4Line, c4Role, kindOf, type C4Role, type Kind } from './kinds';
 
@@ -64,6 +65,9 @@ export interface SceneNode {
 	language: Language | '';
 	path: string;
 	code: boolean;
+	/** A table's columns: on a Table with any, [table] is on and the card draws as a table block (see table.ts). */
+	columns: DocColumn[];
+	table: boolean;
 	flags: string[];
 	tags: string[];
 	/** Its web links. */
@@ -320,7 +324,10 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind:
 	const lay = n.layout ?? { x: 60 + (i % 4) * 280, y: 80 + Math.floor(i / 4) * 160 };
 	const type = typeName(n.type, cats);
 	const ownIcon = isNodeIcon(n.icon) ? n.icon : null;
-	const role = type === 'Note' || type === 'Text' ? null : c4Role(kind, type);
+	// A table with columns draws as a table block in every kind of diagram, C4's included: its columns are the point.
+	const columns = toColumns(n.columns);
+	const table = type === 'Table' && columns.length > 0;
+	const role = type === 'Note' || type === 'Text' || table ? null : c4Role(kind, type);
 	const c4 = role ? { role, line: c4Line(role, kind, n.subtitle ?? ''), desc: c4About(role, n) } : null;
 	const w = num(lay.w, NODE_W);
 	const h = num(lay.h, NODE_H);
@@ -330,8 +337,9 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind:
 	const functions = toFunctions(n.functions);
 	const language = toLanguage(n.language);
 	const path = typeof n.path === 'string' ? n.path.trim() : '';
-	const code = !c4 && type !== 'Note' && type !== 'Text' && (members.length > 0 || functions.length > 0 || path !== '');
-	if (c4) drawnH = Math.max(h, c4Height(c4.role, name, c4.line, c4.desc, w));
+	const code = !c4 && !table && type !== 'Note' && type !== 'Text' && (members.length > 0 || functions.length > 0 || path !== '');
+	if (table) drawnH = Math.max(h, tableHeight(n.subtitle ?? '', columns));
+	else if (c4) drawnH = Math.max(h, c4Height(c4.role, name, c4.line, c4.desc, w));
 	else if (code) drawnH = Math.max(h, codeHeight(n.subtitle ?? '', path, members, functions.map(f => signature(f, language))));
 	else if (type === 'Note') drawnH = Math.max(h, noteHeight(name, n.notes ?? '', w));
 	return {
@@ -347,6 +355,8 @@ function node(n: DocNode, i: number, tagKeys: Set<string>, cats: TypeCats, kind:
 		language,
 		path,
 		code,
+		columns,
+		table,
 		flags: Array.isArray(n.flags) ? n.flags : [],
 		tags: (Array.isArray(n.tags) ? n.tags : []).filter(t => tagKeys.has(t)),
 		links: (Array.isArray(n.links) ? n.links : []).filter(l => l && typeof l.url === 'string').map(l => ({ ...(l.label ? { label: l.label } : {}), url: l.url! })),

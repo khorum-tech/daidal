@@ -118,14 +118,17 @@ export function signatureParts(f: DocFunction, language?: unknown): SignaturePar
 	const typeFirst = list(p => `${p.type} ${p.name}`);
 	const names = `(${ps.map(p => p.name).join(', ')})`;
 	const arrow = (to: string) => (r ? ` ${to} ${r}` : '');
+	const typed = r ? ': ' + r : '';
+	const goReturns = r ? ' ' + grouped(r) : '';
+	const goParams = list(p => p.name + ' ' + p.type);
 	switch (toLanguage(language)) {
 		case 'java':
 		case 'csharp':
 			return { lead: r ? `${r} ` : '', name: f.name, rest: typeFirst };
 		case 'kotlin':
-			return { lead: 'fun ', name: f.name, rest: `${colon}${r ? `: ${r}` : ''}` };
+			return { lead: 'fun ', name: f.name, rest: colon + typed };
 		case 'typescript':
-			return { lead: '', name: f.name, rest: `${colon}${r ? `: ${r}` : ''}` };
+			return { lead: '', name: f.name, rest: colon + typed };
 		case 'javascript':
 			return { lead: '', name: f.name, rest: `${names}${arrow('→')}` };
 		case 'python':
@@ -133,7 +136,7 @@ export function signatureParts(f: DocFunction, language?: unknown): SignaturePar
 		case 'ruby':
 			return { lead: 'def ', name: f.name, rest: `${names}${arrow('→')}` };
 		case 'go':
-			return { lead: 'func ', name: f.name, rest: `${list(p => `${p.name} ${p.type}`)}${r ? ` ${grouped(r)}` : ''}` };
+			return { lead: 'func ', name: f.name, rest: goParams + goReturns };
 		case 'rust':
 			return { lead: 'fn ', name: f.name, rest: `${colon}${arrow('->')}` };
 		case 'swift':
@@ -148,6 +151,9 @@ export function signature(f: DocFunction, language?: unknown): string {
 	const p = signatureParts(f, language);
 	return p.lead + p.name + p.rest;
 }
+
+/** What can come between a signature's brackets and what it returns: "check(): Verdict", "load(id) -> Order". */
+const RETURN_MARKS = ['->', '=>', '→', ':'];
 
 /** A line of text with a list's bullet taken off: "- ", "* ", "• ". */
 const unbulleted = (line: string) => line.trim().replace(/^(?:[-*•]\s+)/, '');
@@ -176,15 +182,27 @@ export function parseSignature(text: string): DocFunction | null {
 	const rest = s.slice(close + 1).trim();
 	let returns = '';
 	if (rest) {
-		const m = /^(?::|->|=>|→)\s*(.+)$/.exec(rest);
-		if (!m) return null;
-		returns = m[1].trim();
+		const mark = RETURN_MARKS.find(m => rest.startsWith(m));
+		if (!mark) return null;
+		returns = rest.slice(mark.length).trim();
+		if (!returns) return null;
 	}
 	const params = parseParams(s.slice(open + 1, close));
 	return { name, ...(params.length ? { params } : {}), ...(returns ? { returns } : {}) };
 }
 
-const text = (v: unknown): string => (typeof v === 'string' ? v : typeof v === 'number' || typeof v === 'boolean' ? String(v) : '');
+function text(v: unknown): string {
+	if (typeof v === 'string') return v;
+	if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+	return '';
+}
+
+/** A function's parameters as a document or config gives them: a list, or one line of them. */
+function paramsOf(raw: unknown): DocParam[] {
+	if (typeof raw === 'string') return parseParams(raw);
+	if (!Array.isArray(raw)) return [];
+	return raw.map(param).filter((p): p is DocParam => p !== null);
+}
 
 function param(raw: unknown): DocParam | null {
 	if (typeof raw === 'string') return parseParam(raw);
@@ -210,14 +228,19 @@ export function toFunction(raw: unknown): DocFunction | null {
 	const o = raw as Record<string, unknown>;
 	const name = text(o.name).trim();
 	if (!name) return null;
-	const params = (typeof o.params === 'string' ? parseParams(o.params) : Array.isArray(o.params) ? o.params.map(param) : []).filter((p): p is DocParam => p !== null);
+	const params = paramsOf(o.params);
 	const returns = text(o.returns).trim();
 	const notes = text(o.notes).trim();
 	return { name, ...(params.length ? { params } : {}), ...(returns ? { returns } : {}), ...(notes ? { notes } : {}) };
 }
 
 /** A node's functions as its document holds them, cleaned: a list of entries or signatures; anything else is none. */
-export const toFunctions = (raw: unknown): DocFunction[] => (Array.isArray(raw) ? raw : raw == null || raw === '' ? [] : [raw]).map(toFunction).filter((f): f is DocFunction => f !== null);
+export function toFunctions(raw: unknown): DocFunction[] {
+	let list: unknown[] = [];
+	if (Array.isArray(raw)) list = raw;
+	else if (raw != null && raw !== '') list = [raw];
+	return list.map(toFunction).filter((f): f is DocFunction => f !== null);
+}
 
 /**
  * Functions written as text in a node's members, subtitle or notes (one a line, as code boxes kept them before
