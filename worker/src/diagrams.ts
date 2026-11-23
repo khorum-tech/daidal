@@ -144,6 +144,26 @@ async function fillSummaries(db: D1Database, workspace: string): Promise<void> {
   if (results.length) await db.batch(results.map(r => db.prepare("UPDATE diagrams SET summary = ? WHERE id = ?").bind(summaryText(r.doc), r.id)));
 }
 
+/** What a clone of `body.from` starts as: the source's latest snapshot (or working copy), its name and, in its own workspace, its group. */
+async function cloneOf(db: D1Database, body: Record<string, unknown>, email: string, workspace: string) {
+  if (typeof body.from !== "string") throw new HttpError(400, "from must be a diagram id");
+  if (body.doc !== undefined) throw new HttpError(400, "send either doc or from, not both");
+  if (body.follow !== undefined && typeof body.follow !== "boolean") throw new HttpError(400, "follow must be true or false");
+  const source = await visibleDiagram(db, body.from, email);
+  const latest = await db
+    .prepare("SELECT id, doc FROM snapshots WHERE diagram_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1")
+    .bind(source.id)
+    .first<{ id: string; doc: string }>();
+  const sameWorkspace = body.group === undefined && source.workspace_id === workspace;
+  return {
+    doc: latest?.doc ?? source.doc,
+    name: body.name === undefined ? source.name : nameOf(body.name),
+    group: sameWorkspace ? source.group_name : groupOf(body.group),
+    lead: body.follow === true ? source.id : null,
+    synced: body.follow === true ? (latest?.id ?? null) : null,
+  };
+}
+
 /**
  * Create a diagram in a workspace the caller belongs to: from a document (`{workspace, doc, name?, group?}`), or as a
  * clone of a diagram they can see (`{workspace, from, follow?, name?, group?}`). A clone copies the source's latest
@@ -158,32 +178,10 @@ export async function createDiagram(db: D1Database, email: string, request: Requ
   await requireMember(db, workspace, email);
   await checkDiagramRoom(db, email);
 
-  let doc: string;
-  let name: string;
-  let lead: string | null = null;
-  let synced: string | null = null;
-  let group = groupOf(body.group);
-  if (body.from !== undefined) {
-    if (typeof body.from !== "string") throw new HttpError(400, "from must be a diagram id");
-    if (body.doc !== undefined) throw new HttpError(400, "send either doc or from, not both");
-    const source = await visibleDiagram(db, body.from, email);
-    const latest = await db
-      .prepare("SELECT id, doc FROM snapshots WHERE diagram_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1")
-      .bind(source.id)
-      .first<{ id: string; doc: string }>();
-    doc = latest?.doc ?? source.doc;
-    name = body.name === undefined ? source.name : nameOf(body.name);
-    if (body.group === undefined && source.workspace_id === workspace) group = source.group_name;
-    if (body.follow === true) {
-      lead = source.id;
-      synced = latest?.id ?? null;
-    } else if (body.follow !== undefined && body.follow !== false) {
-      throw new HttpError(400, "follow must be true or false");
-    }
-  } else {
-    doc = docText(body.doc);
-    name = nameOf(body.name ?? docName(body.doc));
-  }
+  const { doc, name, group, lead, synced } =
+    body.from === undefined
+      ? { doc: docText(body.doc), name: nameOf(body.name ?? docName(body.doc)), group: groupOf(body.group), lead: null, synced: null }
+      : await cloneOf(db, body, email, workspace);
 
   const id = crypto.randomUUID();
   await db.batch([

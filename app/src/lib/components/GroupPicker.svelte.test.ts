@@ -7,7 +7,7 @@ describe('the group picker', () => {
 	it('picks a group in use, none, or a new one by name, and a name in use in any case picks that group', async () => {
 		const picked: (string | null)[] = [];
 		await render(GroupPicker, { groups: ['Ledger C4', 'Edge'], value: 'Edge', onpick: g => picked.push(g) });
-		await expect.element(page.getByRole('radio', { name: 'Edge' })).toHaveAttribute('aria-checked', 'true');
+		await expect.element(page.getByRole('radio', { name: 'Edge', exact: true })).toHaveAttribute('aria-checked', 'true');
 		await expect.element(page.getByRole('radio', { name: 'No group' })).toHaveAttribute('aria-checked', 'false');
 
 		await page.getByRole('radio', { name: 'Ledger C4' }).click();

@@ -71,28 +71,36 @@ function workspaceRoute(request: Request, db: D1Database, email: string, parts: 
   throw new HttpError(404, "not found");
 }
 
+type Handler = () => Promise<Response>;
+
+/** Runs the handler for the request's method, or answers 405 when the route has none. */
+function byMethod(method: string, handlers: Partial<Record<string, Handler>>): Promise<Response> {
+  const handler = handlers[method];
+  return handler ? handler() : notAllowed();
+}
+
 function diagramRoute(request: Request, db: D1Database, email: string, url: URL, parts: RegExpMatchArray, now: number): Promise<Response> {
   const [id, section] = segments(parts);
   const method = request.method;
   if (!id) {
-    if (method === "GET") return diagrams.listDiagrams(db, email, url);
-    if (method === "POST") return diagrams.createDiagram(db, email, request, now);
-    return notAllowed();
+    return byMethod(method, {
+      GET: () => diagrams.listDiagrams(db, email, url),
+      POST: () => diagrams.createDiagram(db, email, request, now),
+    });
   }
   if (section === "snapshots") {
-    if (method === "GET") return diagrams.listSnapshots(db, id, email);
-    if (method === "POST") return diagrams.createSnapshot(db, id, email, request, now);
-    return notAllowed();
+    return byMethod(method, {
+      GET: () => diagrams.listSnapshots(db, id, email),
+      POST: () => diagrams.createSnapshot(db, id, email, request, now),
+    });
   }
-  if (section === "group") {
-    if (method === "PUT") return diagrams.groupDiagram(db, id, email, request);
-    return notAllowed();
-  }
-  if (method === "GET") return diagrams.getDiagram(db, id, email);
-  if (method === "PUT") return diagrams.saveDiagram(db, id, email, request, now);
-  if (method === "PATCH") return diagrams.moveDiagram(db, id, email, request, now);
-  if (method === "DELETE") return diagrams.deleteDiagram(db, id, email);
-  return notAllowed();
+  if (section === "group") return byMethod(method, { PUT: () => diagrams.groupDiagram(db, id, email, request) });
+  return byMethod(method, {
+    GET: () => diagrams.getDiagram(db, id, email),
+    PUT: () => diagrams.saveDiagram(db, id, email, request, now),
+    PATCH: () => diagrams.moveDiagram(db, id, email, request, now),
+    DELETE: () => diagrams.deleteDiagram(db, id, email),
+  });
 }
 
 /**

@@ -108,8 +108,8 @@ test.describe("the app at /app", () => {
     await page.goto(`/app/?ws=${encodeURIComponent(team)}`);
     const groups = page.getByRole("navigation", { name: "Groups" });
     await expect(groups.getByRole("link", { name: /Ledger/ })).toContainText("2");
-    await expect(page.getByRole("region", { name: "Ledger" }).getByRole("link", { name: /ledger-platform \(DR drill\)/ })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Edge" }).getByRole("link", { name: /edge-ingress \(platform copy\)/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Ledger", exact: true }).getByRole("link", { name: /ledger-platform \(DR drill\)/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Edge", exact: true }).getByRole("link", { name: /edge-ingress \(platform copy\)/ })).toBeVisible();
 
     await groups.getByRole("link", { name: /Edge/ }).click();
     await expect(page).toHaveURL(/[?&]g=Edge/);
@@ -117,12 +117,12 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("link", { name: /edge-ingress \(platform copy\)/ })).toContainText("Edge");
 
     await page.getByRole("button", { name: "Group “edge-ingress (platform copy)”" }).click();
-    await page.getByRole("dialog", { name: "Group “edge-ingress (platform copy)”" }).getByRole("radio", { name: "Ledger" }).click();
+    await page.getByRole("dialog", { name: "Group “edge-ingress (platform copy)”" }).getByRole("radio", { name: "Ledger", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Nothing in “Edge”" })).toBeVisible();
     await groups.getByRole("link", { name: "All" }).click();
-    await expect(page.getByRole("region", { name: "Ledger" }).getByRole("link", { name: /edge-ingress \(platform copy\)/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Ledger", exact: true }).getByRole("link", { name: /edge-ingress \(platform copy\)/ })).toBeVisible();
     await expect(groups.getByRole("link", { name: /Ledger/ })).toContainText("3");
-    await expect(page.getByRole("region", { name: "Edge" })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Edge", exact: true })).toHaveCount(0);
   });
 
   test("draws the cards from one list request, without loading any diagram", async ({ page, request }) => {
