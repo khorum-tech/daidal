@@ -8,6 +8,7 @@ const d = (over: Partial<DiagramSummary> = {}): DiagramSummary => ({
 	ownerEmail: 'me@example.com',
 	name: 'copy',
 	rev: 1,
+	group: null,
 	leadId: 'lead',
 	syncedSnapshotId: 's1',
 	decided: {},

@@ -5,6 +5,16 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- **Groups for a workspace's diagrams.** A diagram can be filed under a group in its workspace (a C4 set, a service,
+  a team) from the folder button on its card or **Group** in its sheet, or when it's made. The workspace's page then
+  shows the cards under a heading per group, the ones in no group last, with a row of groups under the search that
+  keeps the list to one (`?g=`; it scrolls sideways on a phone). A new C4 level from Zoom in or Zoom out, and a
+  duplicate beside the diagram, join its group. Groups are flat and belong to the workspace, not the document
+  (migration 0007, `diagrams.group_name`): they aren't in its history or config, a move to another workspace leaves
+  it in none, and only the owner files it. `GET /api/diagrams` takes `group` (empty for none), `PUT
+  /api/diagrams/:id/group` files one (write tokens may too), workspaces list their groups with counts, and backups
+  carry each diagram's group. The MCP tools gain `group_diagram`, `create_diagram` takes `group`, and
+  `list_diagrams`/`list_workspaces` show groups. Core is unchanged: nothing a diagram draws depends on its group.
 - **Core publishes with the app.** After every successful prod deploy from main, `publish-core` puts the core
   that commit shipped on npm when npm doesn't have its version yet, and stops cleanly when it does. A pull request
   that changes core still has to move its version, so merging it deploys the app and publishes the package

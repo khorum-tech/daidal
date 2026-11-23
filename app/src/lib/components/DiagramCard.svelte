@@ -8,9 +8,15 @@
 	/**
 	 * A diagram in the list, as the prototype's project card: a thumbnail, its name and kind, and what it follows. All
 	 * of it comes from the diagram's summary, so the list never loads documents. With [search], the nodes whose names
-	 * matched are named.
+	 * matched are named, and with [showGroup] (a list not sorted under group headings) the group it is filed under.
 	 */
-	let { diagram, href, search = '', now = Date.now() }: { diagram: ListedDiagram; href: string; search?: string; now?: number } = $props();
+	let {
+		diagram,
+		href,
+		search = '',
+		now = Date.now(),
+		showGroup = false
+	}: { diagram: ListedDiagram; href: string; search?: string; now?: number; showGroup?: boolean } = $props();
 
 	const s = $derived(diagram.summary);
 	const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -38,6 +44,9 @@
 			<span class="name">{diagram.name}</span>
 			{#if s.kind}<span class="tag tag-neutral kind">{kindOf(s.kind).label}</span>{/if}
 		</span>
+		{#if showGroup && diagram.group}
+			<span class="group"><Icon name="folder" size={11} />{diagram.group}</span>
+		{/if}
 		{#if diagram.leadId}
 			<span class="follows"
 				><Icon name="follow" size={11} />{diagram.leadName ? `Follows ${diagram.leadName}` : 'Follows a diagram you can no longer see'}{diagram.paused ? ' · paused' : ''}</span
@@ -70,6 +79,17 @@
 	.card:focus-visible {
 		border-color: var(--color-neutral-600);
 		color: var(--color-text);
+	}
+	.group {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		margin-top: 4px;
+		font-size: 11.5px;
+		color: var(--color-neutral-400);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.matched {
 		margin-top: 6px;

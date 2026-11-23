@@ -4,7 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import WorkspaceSheet from './WorkspaceSheet.svelte';
 import type { Workspace } from '../types';
 
-const team: Workspace = { id: 't', name: 'Team', ownerEmail: 'owner@x.io', personal: false, members: ['owner@x.io', 'pal@x.io'], types: [] };
+const team: Workspace = { id: 't', name: 'Team', ownerEmail: 'owner@x.io', personal: false, members: ['owner@x.io', 'pal@x.io'], types: [], groups: [] };
 const noop = async () => {};
 
 describe('the workspace sheet', () => {
@@ -42,7 +42,7 @@ describe('the workspace sheet', () => {
 
 	it("keeps a personal workspace unshared and undeletable, and shows a failure", async () => {
 		await render(WorkspaceSheet, {
-			workspace: { ...team, personal: true, members: ['owner@x.io'], types: [] },
+			workspace: { ...team, personal: true, members: ['owner@x.io'], types: [], groups: [] },
 			me: 'owner@x.io',
 			onrename: noop,
 			onadd: noop,

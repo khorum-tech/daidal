@@ -28,6 +28,14 @@ export interface Workspace {
 	members: string[];
 	/** The workspace's own node types. */
 	types: CustomType[];
+	/** The groups its diagrams are filed under, by name, with how many diagrams each holds. */
+	groups: WorkspaceGroup[];
+}
+
+/** A group diagrams are filed under in a workspace (a C4 set, a service, a team): flat, by name. */
+export interface WorkspaceGroup {
+	name: string;
+	diagrams: number;
 }
 
 /** A personal access token as listed: never its secret, which is shown once when it's made. */
@@ -47,6 +55,8 @@ export interface DiagramSummary {
 	workspaceId: string;
 	ownerEmail: string;
 	name: string;
+	/** The group it is filed under in its workspace, or null. */
+	group: string | null;
 	rev: number;
 	leadId: string | null;
 	syncedSnapshotId: string | null;

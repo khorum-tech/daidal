@@ -36,6 +36,15 @@ export function nameOf(value: unknown, what = "name"): string {
   return name;
 }
 
+/** A diagram's group: a trimmed name of up to 100 characters, or null (no group) for null or a blank string. */
+export function groupOf(value: unknown, what = "group"): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") throw new HttpError(400, `${what} must be a string or null`);
+  const group = value.trim();
+  if (group.length > MAX_NAME) throw new HttpError(400, `${what} must be ${MAX_NAME} characters or fewer`);
+  return group || null;
+}
+
 /** The name a document gives itself (`diagram.name`), if any. */
 export function docName(doc: unknown): unknown {
   return isPlainObject(doc) && isPlainObject(doc.diagram) ? doc.diagram.name : undefined;

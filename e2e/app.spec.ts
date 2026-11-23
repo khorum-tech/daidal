@@ -103,6 +103,29 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("navigation", { name: "Workspaces" }).getByRole("link", { name: /Platform team/ }).first()).toBeVisible();
   });
 
+  test("sorts a workspace's cards under its groups, keeps the list to one group, and files a card under another", async ({ page, request }) => {
+    const { team } = await importStageData(request);
+    await page.goto(`/app/?ws=${encodeURIComponent(team)}`);
+    const groups = page.getByRole("navigation", { name: "Groups" });
+    await expect(groups.getByRole("link", { name: /Ledger/ })).toContainText("2");
+    await expect(page.getByRole("region", { name: "Ledger", exact: true }).getByRole("link", { name: /ledger-platform \(DR drill\)/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Edge", exact: true }).getByRole("link", { name: /edge-ingress \(platform copy\)/ })).toBeVisible();
+
+    await groups.getByRole("link", { name: /Edge/ }).click();
+    await expect(page).toHaveURL(/[?&]g=Edge/);
+    await expect(page.getByTestId("diagram-count")).toHaveText("1 diagram in “Edge”");
+    // The list is already down to one group, so its cards leave the group out.
+    await expect(page.getByRole("link", { name: /edge-ingress \(platform copy\)/ })).not.toContainText("Edge");
+
+    await page.getByRole("button", { name: "Group “edge-ingress (platform copy)”" }).click();
+    await page.getByRole("dialog", { name: "Group “edge-ingress (platform copy)”" }).getByRole("radio", { name: "Ledger", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Nothing in “Edge”" })).toBeVisible();
+    await groups.getByRole("link", { name: "All" }).click();
+    await expect(page.getByRole("region", { name: "Ledger", exact: true }).getByRole("link", { name: /edge-ingress \(platform copy\)/ })).toBeVisible();
+    await expect(groups.getByRole("link", { name: /Ledger/ })).toContainText("3");
+    await expect(page.getByRole("region", { name: "Edge", exact: true })).toHaveCount(0);
+  });
+
   test("draws the cards from one list request, without loading any diagram", async ({ page, request }) => {
     const { team } = await importStageData(request);
     const calls: string[] = [];

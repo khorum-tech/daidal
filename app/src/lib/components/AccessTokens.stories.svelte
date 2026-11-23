@@ -3,8 +3,8 @@
 	import AccessTokens from './AccessTokens.svelte';
 
 	const workspaces = [
-		{ id: 'p', name: 'Personal', ownerEmail: 'a@x.io', personal: true, members: ['a@x.io'], types: [] },
-		{ id: 't', name: 'Platform team', ownerEmail: 'a@x.io', personal: false, members: ['a@x.io'], types: [] }
+		{ id: 'p', name: 'Personal', ownerEmail: 'a@x.io', personal: true, members: ['a@x.io'], types: [], groups: [] },
+		{ id: 't', name: 'Platform team', ownerEmail: 'a@x.io', personal: false, members: ['a@x.io'], types: [], groups: [] }
 	];
 	const tokens = [
 		{ id: 'k1', name: 'Claude on my laptop', scope: 'write' as const, workspaces: null, createdAt: '2026-10-20T10:00:00Z', lastUsedAt: '2026-10-31T09:00:00Z' },

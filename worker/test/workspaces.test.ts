@@ -15,7 +15,7 @@ describe("workspaces", () => {
     const res = await call.get("ws-first@example.com", "/api/workspaces");
     expect(res.status).toBe(200);
     expect(res.body).toEqual([
-      { id: "personal:ws-first@example.com", name: "Personal", ownerEmail: "ws-first@example.com", personal: true, members: ["ws-first@example.com"], types: [] },
+      { id: "personal:ws-first@example.com", name: "Personal", ownerEmail: "ws-first@example.com", personal: true, members: ["ws-first@example.com"], types: [], groups: [] },
     ]);
   });
 

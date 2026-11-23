@@ -55,12 +55,14 @@ interface Workspace {
   ownerEmail: string;
   members: string[];
   types: CustomType[];
+  groups?: { name: string; diagrams: number }[];
 }
 interface Diagram {
   id: string;
   workspaceId: string;
   ownerEmail: string;
   name: string;
+  group?: string | null;
   rev: number;
   doc: DaidalDoc;
   updatedAt: number;
@@ -394,7 +396,7 @@ export const TOOLS: Tool[] = [
   {
     name: "list_workspaces",
     title: "List workspaces",
-    description: "Your workspaces: id, name, whether it's your personal one, who owns it (you or another member), how many members it has (if it's yours) and its own node types.",
+    description: "Your workspaces: id, name, whether it's your personal one, who owns it (you or another member), how many members it has (if it's yours), its own node types and the groups its diagrams are filed under.",
     readOnly: true,
     inputSchema: schema({}),
     run: async (_args, api) => ({
@@ -406,6 +408,7 @@ export const TOOLS: Tool[] = [
           owner: whoIs(w.ownerEmail, me),
           ...(w.ownerEmail === me ? { members: w.members.length } : {}),
           types: w.types.map(t => t.name),
+          groups: (w.groups ?? []).map(g => ({ name: g.name, diagrams: g.diagrams })),
         })),
       ),
     }),
@@ -424,12 +427,14 @@ export const TOOLS: Tool[] = [
   {
     name: "list_diagrams",
     title: "List diagrams",
-    description: "The diagrams in a workspace, newest first: id, name, owner, kind and size. query keeps those whose name, or a node's name, has it.",
+    description:
+      "The diagrams in a workspace, newest first: id, name, group, owner, kind and size. query keeps those whose name, or a node's name, has it; group keeps one group's diagrams (an empty group, those in none).",
     readOnly: true,
     inputSchema: schema(
       {
         workspace: { type: "string", description: "A workspace id or name" },
         query: { type: "string" },
+        group: { type: "string", description: "A group's name; empty for the diagrams in no group" },
         limit: { type: "integer", minimum: 1, maximum: 200 },
         offset: { type: "integer", minimum: 0 },
       },
@@ -439,6 +444,7 @@ export const TOOLS: Tool[] = [
       const w = await workspaceOf(api, args.workspace);
       const params = new URLSearchParams({ workspace: w.id, limit: String(Math.min(200, Math.max(1, num(args.limit) ?? 50))) });
       if (str(args.query).trim()) params.set("q", str(args.query).trim());
+      if (typeof args.group === "string") params.set("group", args.group.trim());
       if (num(args.offset)) params.set("offset", String(num(args.offset)));
       const [rows, me] = await Promise.all([api("GET", `/api/diagrams?${params}`) as Promise<Row[]>, myEmail(api)]);
       return {
@@ -446,6 +452,7 @@ export const TOOLS: Tool[] = [
         diagrams: rows.map(d => ({
           id: d.id,
           name: d.name,
+          ...(d.group ? { group: d.group } : {}),
           owner: whoIs(d.ownerEmail, me),
           kind: d.summary?.kind ?? "",
           nodes: d.summary?.nodes ?? 0,
@@ -485,7 +492,7 @@ export const TOOLS: Tool[] = [
   {
     name: "create_diagram",
     title: "Create a diagram",
-    description: `A new diagram in a workspace: blank, from a Daidal config (YAML or JSON), or from a template (${TEMPLATES.map(t => t.name).join(", ")}). You become its owner. Its kind (${KINDS.map(k => k.id).join(", ")}) decides which types the app offers first; a template sets one, and kind overrides it.`,
+    description: `A new diagram in a workspace: blank, from a Daidal config (YAML or JSON), or from a template (${TEMPLATES.map(t => t.name).join(", ")}). You become its owner. Its kind (${KINDS.map(k => k.id).join(", ")}) decides which types the app offers first; a template sets one, and kind overrides it. group files it under a group of the workspace's (new or existing).`,
     readOnly: false,
     inputSchema: schema(
       {
@@ -495,6 +502,7 @@ export const TOOLS: Tool[] = [
         template: { type: "string", enum: TEMPLATES.map(t => t.name) },
         examples: { type: "boolean", description: "With a template: keep its example nodes" },
         kind: { type: "string", enum: KINDS.map(k => k.id), description: "The kind of diagram; freeform if left out and no template sets one" },
+        group: { type: "string", description: "The group to file it under in the workspace; none if left out" },
       },
       ["workspace", "name"],
     ),
@@ -508,8 +516,9 @@ export const TOOLS: Tool[] = [
       }
       else if (str(args.template)) doc = fromTemplate(name, TEMPLATES.find(t => t.name === str(args.template)) ?? null, args.examples === true);
       if (str(args.kind)) doc = { ...doc, diagram: { ...doc.diagram, kind: kindOf(str(args.kind)).id satisfies KindId } };
-      const made = (await api("POST", "/api/diagrams", { workspace: w.id, name, doc })) as Diagram;
-      return { ...summary(made, "created"), workspace: w.name };
+      const group = str(args.group).trim();
+      const made = (await api("POST", "/api/diagrams", { workspace: w.id, name, doc, ...(group ? { group } : {}) })) as Diagram;
+      return { ...summary(made, "created"), workspace: w.name, ...(made.group ? { group: made.group } : {}) };
     },
   },
   {
@@ -824,6 +833,19 @@ export const TOOLS: Tool[] = [
         },
         `saved the view ${name}`,
       );
+    },
+  },
+  {
+    name: "group_diagram",
+    title: "File a diagram under a group",
+    description:
+      "Files a diagram under a group in its workspace, so the app shows it with the others in that group (a C4 set, a service, a team). A group is made by using its name; an empty group takes the diagram out of its group. It doesn't change the diagram itself or its history.",
+    readOnly: false,
+    inputSchema: schema({ diagram: DIAGRAM, group: { type: "string", description: "The group's name; empty for no group" } }, ["diagram", "group"]),
+    run: async (args, api) => {
+      const d = await diagramOf(api, args.diagram);
+      const moved = (await api("PUT", `/api/diagrams/${q(d.id)}/group`, { group: str(args.group).trim() || null })) as Diagram;
+      return { diagram: moved.id, name: moved.name, group: moved.group ?? null };
     },
   },
   {

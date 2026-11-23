@@ -12,6 +12,7 @@
 <script lang="ts">
 	import type { Workspace } from '../types';
 	import { KINDS, type KindId } from '@khorum/daidal-core/kinds';
+	import GroupPicker from './GroupPicker.svelte';
 	import Icon from './Icon.svelte';
 
 	/**
@@ -38,6 +39,8 @@
 		onexport,
 		onconfig,
 		onmove,
+		group = null,
+		ongroup,
 		linked = { above: [], below: [] }
 	}: {
 		name: string;
@@ -65,6 +68,9 @@
 		onconfig?: () => void;
 		/** The owner moves it, with its history, into another of their workspaces. */
 		onmove?: (workspace: string) => Promise<void>;
+		/** The group it is filed under in its workspace, which its owner changes. */
+		group?: string | null;
+		ongroup?: (group: string | null) => Promise<void>;
 		/**
 		 * The diagrams this one is linked to by zooming: above, those with a node that zooms into this one; below, those
 		 * this one's nodes zoom into, with the nodes that do. Each with the address that opens it.
@@ -72,6 +78,9 @@
 		linked?: { above: LinkedDiagram[]; below: LinkedDiagram[] };
 	} = $props();
 	const elsewhere = $derived(workspaces.filter(w => w.id !== here));
+	const groupNames = $derived((workspaces.find(w => w.id === here)?.groups ?? []).map(g => g.name));
+	// A group just made by filing this diagram isn't in the workspace's list until it reloads.
+	const groupChoices = $derived(group && !groupNames.includes(group) ? [...groupNames, group] : groupNames);
 	let moveTo = $state('');
 
 	let ghosted = $state(true);
@@ -143,6 +152,13 @@
 			</select>
 			<small class="hint" id="kind-hint">{KINDS.find(k => k.id === kind)?.hint} It decides which types <strong>+ Add</strong> offers first.</small>
 		</label>
+		{#if ongroup}
+			<div class="field" role="group" aria-label="Group">
+				<span>Group</span>
+				<GroupPicker groups={groupChoices} value={group} disabled={busy} onpick={g => run(() => ongroup(g))} />
+				<small class="hint">Sorts it with others on the workspace's page, such as a C4 set. Not part of its history.</small>
+			</div>
+		{/if}
 	{:else}
 		<p class="owned">You can look at this diagram, and copy it into a workspace of yours.</p>
 	{/if}

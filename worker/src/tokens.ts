@@ -70,12 +70,13 @@ const WRITES: [method: string, path: RegExp][] = [
   ["POST", /^\/api\/diagrams$/],
   ["PUT", /^\/api\/diagrams\/[^/]+$/],
   ["POST", /^\/api\/diagrams\/[^/]+\/snapshots$/],
+  ["PUT", /^\/api\/diagrams\/[^/]+\/group$/],
   ["PUT", /^\/api\/workspaces\/[^/]+\/types\/[^/]+$/],
 ];
 
 /**
  * What a token may do, decided before the route runs: read anything its person may (but not its own tokens), and
- * with write scope only make and save diagrams, take snapshots and save workspace types.
+ * with write scope only make and save diagrams, file them under groups, take snapshots and save workspace types.
  */
 export function checkToken(grant: TokenGrant, method: string, path: string): void {
   if (path.startsWith("/api/me/tokens")) throw new HttpError(403, "access tokens cannot manage access tokens");

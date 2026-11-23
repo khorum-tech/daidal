@@ -91,6 +91,7 @@ describe("access tokens", () => {
     const saved = await withToken(token, "PUT", `/api/diagrams/${made.body.id}`, { rev: made.body.rev, name: "renamed by token" });
     expect(saved.body.name).toBe("renamed by token");
     expect((await withToken(token, "POST", `/api/diagrams/${made.body.id}/snapshots`, { label: "v1", doc: doc() })).status).toBe(201);
+    expect((await withToken(token, "PUT", `/api/diagrams/${made.body.id}/group`, { group: "Bots" })).body.group).toBe("Bots");
     expect((await withToken(token, "PUT", `/api/workspaces/${encodeURIComponent(ws)}/types/bot`, { name: "Bot", category: "AI", icon: "robot" })).status).toBe(200);
 
     expect((await withToken(token, "DELETE", `/api/diagrams/${made.body.id}`)).body).toEqual({ error: "access tokens cannot do this; use the app" });
