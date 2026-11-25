@@ -26,6 +26,12 @@ async function savedLayout(request: APIRequestContext, id: string, list: "nodes"
   return saved.doc[list].find((x: { id: string }) => x.id === key).layout;
 }
 
+/** Where diagram [id]'s first connection's far end is pinned, if it is. */
+async function savedEndTo(request: APIRequestContext, id: string): Promise<string | undefined> {
+  const saved = await (await request.get(`/api/diagrams/${id}`)).json();
+  return saved.doc.edges[0].anchors?.to;
+}
+
 test.describe("the editor on an iPad held sideways", () => {
   test("uses the desktop layout, and a swipe on a node not selected pans", async ({ page, request }) => {
     await openLedger(page, request);
@@ -68,5 +74,26 @@ test.describe("the editor on an iPad held sideways", () => {
 
     // Storage starts at (880, 120), 230 × 340, and moves alone.
     expect(await savedLayout(request, id, "boundaries", "store")).toMatchObject({ x: 840, y: 140, w: 280, h: 380 });
+  });
+
+  test("moves a connection's end along its box by touch, and a double tap puts it back on auto", async ({ page, request }) => {
+    const id = await openLedger(page, request);
+    await page.getByRole("button", { name: "Web App: Ledger Console" }).tap();
+    await page.getByRole("region", { name: "Selected node" }).getByRole("button", { name: /Edge Router/ }).tap();
+    await expect(page.getByRole("region", { name: "Selected connection" }).getByRole("heading", { level: 2 })).toHaveText("Ledger Console → Edge Router");
+    const end = page.locator('.end-handle[data-end="to"]');
+    await expect(end).toBeVisible();
+    await expect(end).not.toHaveClass(/pinned/);
+
+    const start = await middle(page, '.end-handle[data-end="to"]');
+    await swipe(page, start.x, start.y, 0, 34);
+    await expect(end).toHaveClass(/pinned/);
+    await expect.poll(() => savedEndTo(request, id)).toMatch(/^(left|bottom):/);
+
+    const at = await middle(page, '.end-handle[data-end="to"]');
+    await page.touchscreen.tap(at.x, at.y);
+    await page.touchscreen.tap(at.x, at.y);
+    await expect(end).not.toHaveClass(/pinned/);
+    await expect.poll(() => savedEndTo(request, id)).toBeUndefined();
   });
 });

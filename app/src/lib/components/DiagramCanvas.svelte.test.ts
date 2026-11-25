@@ -439,6 +439,44 @@ describe('the canvas tools', () => {
 		expect(ends).toEqual([[0, 'to', null]]);
 	});
 
+	it('pins an end where a finger or pen drags its handle along the box', async () => {
+		for (const pointerType of ['touch', 'pen']) {
+			const ends: unknown[][] = [];
+			const r = await render(DiagramCanvas, {
+				target: stage,
+				props: { scene, on: tagsOn(scene, null), selected: null, onselect: () => {}, editable: true, selectedEdge: 0, onsetend: (i, end, at) => ends.push([i, end, at]) }
+			});
+			await drag(document.querySelectorAll('.end-handle')[1], 0, 30, { pointerType });
+			expect(ends).toHaveLength(1);
+			expect(ends[0].slice(0, 2)).toEqual([0, 'to']);
+			expect(ends[0][2]).not.toBeNull();
+			r.unmount();
+		}
+	});
+
+	it('sends an end back to auto on a double tap, not on one tap or two far apart', async () => {
+		const ends: unknown[][] = [];
+		await render(DiagramCanvas, {
+			target: stage,
+			props: { scene, on: tagsOn(scene, null), selected: null, onselect: () => {}, editable: true, selectedEdge: 0, onsetend: (i, end, at) => ends.push([i, end, at]) }
+		});
+		const [from, to] = document.querySelectorAll('.end-handle');
+		await drag(to, 0, 0, { pointerType: 'touch' });
+		expect(ends).toEqual([]);
+		await new Promise(r => setTimeout(r, 450));
+		await drag(to, 0, 0, { pointerType: 'touch' });
+		expect(ends).toEqual([]);
+		// A tap on the other end in between doesn't make a double tap either.
+		await drag(from, 0, 0, { pointerType: 'touch' });
+		await drag(to, 0, 0, { pointerType: 'touch' });
+		expect(ends).toEqual([]);
+		await drag(to, 0, 0, { pointerType: 'touch' });
+		expect(ends).toEqual([[0, 'to', null]]);
+		// The double-click a browser may send after the two taps doesn't send it again.
+		to.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+		expect(ends).toEqual([[0, 'to', null]]);
+	});
+
 	it('draws the minimap only when asked, and looks where it is pressed', async () => {
 		const r = await render(DiagramCanvas, { target: stage, props: { scene, on: tagsOn(scene, null), selected: null, onselect: () => {}, showMinimap: true } });
 		const mini = page.getByRole('img', { name: /^Minimap/ });

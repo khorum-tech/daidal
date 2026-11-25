@@ -23,7 +23,8 @@
 	 * it to another node to connect them, or onto empty canvas for a new node ([onconnect]), or click it to start
 	 * connecting ([onconnectstart]). While [connectFrom] is set, the next node tapped is the other end, and a tap on
  * empty canvas makes a new node there for it. With [picking] on (the toolbar's Connect), a tap on a node starts a
- * connection from it instead of selecting it.
+ * connection from it instead of selecting it. The selected connection's ends have handles: a mouse, finger or pen
+ * drags one along its box to pin it there, and a double-click or double tap sends it back to auto ([onsetend]).
  *
  * The selected node has a corner handle to resize it ([onresize]), for a finger as well as a mouse. With a mouse,
  * a double-click on empty canvas asks for a node there ([onaddat]) and on a node renames it in place: [renaming]
@@ -114,7 +115,10 @@
 		/** The toolbar's Connect: the next node tapped is where a connection starts. */
 		picking?: boolean;
 		onresize?: (id: string, w: number, h: number) => void;
-		/** One end of the selected connection dragged to a spot on its box's side, or (null, double-clicked) back to auto. */
+		/**
+		 * One end of the selected connection dragged to a spot on its box's side, or (null) back to auto: a double-click
+		 * on its handle, or a double tap with a finger or pen.
+		 */
 		onsetend?: (index: number, end: 'from' | 'to', at: Anchor | null) => void;
 		/** A double-click on empty canvas: a node wanted at [at]. */
 		onaddat?: (at: Point) => void;
@@ -162,6 +166,8 @@
 	const PAD = 48;
 	/** How far a press may wander and still count as a tap. */
 	const TAP_SLOP = 5;
+	/** How soon a second tap on a connection's end handle counts as a double tap, in ms. */
+	const DOUBLE_TAP_MS = 400;
 
 	// A node being dragged or resized is drawn as it goes (and its connections follow) before the change is reported.
 	let dragged = $state<{ id: string; x: number; y: number; w?: number; h?: number } | null>(null);
@@ -346,7 +352,7 @@
 		| { kind: 'pan'; pointer: number; start: Point; last: Point; moved: boolean }
 		| { kind: 'node'; pointer: number; start: Point; node: SceneNode; moved: boolean; touch: boolean }
 		| { kind: 'size'; pointer: number; start: Point; node: SceneNode; moved: boolean }
-		| { kind: 'end'; pointer: number; start: Point; index: number; end: 'from' | 'to'; moved: boolean }
+		| { kind: 'end'; pointer: number; start: Point; index: number; end: 'from' | 'to'; moved: boolean; touch: boolean }
 		| { kind: 'many'; pointer: number; start: Point; ids: string[]; moved: boolean }
 		| { kind: 'marquee'; pointer: number; start: Point; add: boolean; moved: boolean }
 		| { kind: 'connect'; pointer: number; start: Point; from: string; moved: boolean }
@@ -357,6 +363,9 @@
 	let panning = $state(false);
 	// Whether the last press turned into a drag: the click the browser sends after it is then not a tap.
 	let dragJustEnded = false;
+	// The last tap of a finger or pen on an end handle, so a second one soon after sends that end back to auto: a
+	// touch screen doesn't reliably send a double-click.
+	let lastEndTap: { index: number; end: 'from' | 'to'; at: number } | null = null;
 
 	const spread = () => {
 		const [a, b] = [...pointers.values()];
@@ -385,7 +394,7 @@
 		const touch = e.pointerType !== 'mouse';
 		const endHandle = editable ? target.closest<HTMLElement>('.end-handle') : null;
 		if (endHandle && selectedEdge !== null) {
-			gesture = { kind: 'end', pointer: e.pointerId, start: p, index: selectedEdge, end: endHandle.dataset.end === 'from' ? 'from' : 'to', moved: false };
+			gesture = { kind: 'end', pointer: e.pointerId, start: p, index: selectedEdge, end: endHandle.dataset.end === 'from' ? 'from' : 'to', moved: false, touch };
 			return;
 		}
 		if (editable && port && target.closest('.n-resize')) {
@@ -477,6 +486,19 @@
 		follow(gesture, p, e.altKey);
 	}
 
+	// A finger or pen sends an end back to auto by its own double tap; a double-click a browser may add after it would
+	// send it twice.
+	const touchedLast = () => lastPointer === 'touch' || lastPointer === 'pen';
+
+	/** A finger or pen tapping an end handle: the second tap soon after on the same end sends it back to auto. */
+	function tapEnd(index: number, end: 'from' | 'to', at: number) {
+		const last = lastEndTap;
+		lastEndTap = { index, end, at };
+		if (!last || last.index !== index || last.end !== end || at - last.at > DOUBLE_TAP_MS) return;
+		lastEndTap = null;
+		onsetend?.(index, end, null);
+	}
+
 	/** Draws a drag as it goes: the loose end of a connection, a node or container moved or resized, or the view panned. */
 	function follow(g: Exclude<Gesture, { kind: 'pinch' }>, p: Point, alt: boolean) {
 		if (g.kind === 'connect') {
@@ -543,6 +565,7 @@
 			const d = endDrag;
 			endDrag = null;
 			if (g.moved && d && !cancelled) onsetend?.(d.index, d.end, d.at);
+			else if (!g.moved && !cancelled && g.touch) tapEnd(g.index, g.end, e.timeStamp);
 		}
 		if (g.kind === 'box') {
 			const d = draggedBox;
@@ -857,7 +880,7 @@
 					style:top="{at.y}px"
 					title={pinned ? 'Pinned: drag along the box to move it, double-click to go back to auto' : 'Auto: drag to pin this end to a spot on the box'}
 					aria-hidden="true"
-					ondblclick={() => selectedEdge !== null && onsetend?.(selectedEdge, end, null)}
+					ondblclick={() => !touchedLast() && selectedEdge !== null && onsetend?.(selectedEdge, end, null)}
 				></span>
 			{/each}
 		{/if}
@@ -1097,7 +1120,7 @@
 			border-radius: 50%;
 		}
 	}
-	/* The ends of the selected connection. A finger pins ends in the connection's sheet instead. */
+	/* The ends of the selected connection, dragged with a mouse, a finger or a pen. */
 	.end-handle {
 		position: absolute;
 		width: 12px;
@@ -1113,9 +1136,19 @@
 	.end-handle.pinned {
 		background: var(--color-accent);
 	}
+	/* A finger needs a bigger target: the ring grows and an invisible margin around it takes the press too. */
 	@media (pointer: coarse) {
 		.end-handle {
-			display: none;
+			width: 18px;
+			height: 18px;
+			margin: -9px 0 0 -9px;
+			border-width: 2px;
+		}
+		.end-handle::before {
+			content: '';
+			position: absolute;
+			inset: -9px;
+			border-radius: 50%;
 		}
 	}
 	.marquee {
