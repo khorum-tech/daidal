@@ -104,5 +104,11 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   skope.khorum-oss.org and skope-stage.khorum-oss.org, still answer.
 
 ### Fixed
+- **A finger or Apple Pencil can drag on an iPad held sideways** (issue #100). Wider than 900 px the editor uses
+  its desktop layout, which has no Move or Resize buttons, and every touch or pen press panned. Now a press on what is
+  already selected drags it: the selected node, the picked nodes, or the selected container by its border or label
+  (moved) or its corner handle (resized). A first tap selects and a second press drags, so a stray finger on
+  anything else still pans. Phones keep Move and Resize in their menus. A new e2e `tablet` project (iPad Pro 11"
+  sideways) keeps this working.
 - A node card no longer lets long text spill out of it: the type keeps to one line, and the name and subtitle wrap
   over as many lines as the card's height leaves, then end in an ellipsis (hover shows it in full).

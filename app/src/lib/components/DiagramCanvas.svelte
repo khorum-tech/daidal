@@ -14,8 +14,10 @@
 	 * The canvas handles every gesture itself, the same with a finger or a mouse: drag to pan, pinch or ctrl+scroll
 	 * to zoom, scroll to pan. A tap (the browser's own click) selects a node, or clears the selection on empty space.
 	 * With [editable] on, a mouse drags any node to move it; in [moving] mode a drag anywhere moves the selected
-	 * node instead of panning, which is how a finger moves one. Moves snap to the nodes around and are reported
-	 * through [onmove]. Enter on the selected node asks for its details ([ondetails]).
+	 * node instead of panning, which is how a finger moves one on a phone. With [grabSelected] on (the desktop layout,
+	 * which has no Move button), a finger or pen that presses on the node already selected drags it instead; a press
+	 * anywhere else still pans. Moves snap to the nodes around and are reported through [onmove]. Enter on the
+	 * selected node asks for its details ([ondetails]).
 	 *
 	 * Connections are tapped like nodes ([onselectedge]). With [editable] on, the selected node shows a port: drag
 	 * it to another node to connect them, or onto empty canvas for a new node ([onconnect]), or click it to start
@@ -30,11 +32,13 @@
  * Many can be picked at once ([multi]): shift-click (or ⌘-click) adds or takes away a node or connection
  * ([ontoggle]), and a drag on empty canvas with shift held, or in [manyMode] (the toolbar's Multi-select, a
  * phone's Select), draws a box that picks what it touches ([onpick]). In [manyMode] a plain tap adds or takes away
- * too. A mouse dragging one of the picked nodes moves them all ([onmovemany]), and so does a finger in [moving].
+ * too. A mouse dragging one of the picked nodes moves them all ([onmovemany]), and so does a finger in [moving], or
+ * one that presses on a picked node with [grabSelected] on.
 	 *
 	 * Containers are picked by their border or label ([onselectbox]). A mouse drags the border to move one, with
 	 * what sits wholly inside unless it moves alone ([onmovebox]), and the corner handle to resize it
-	 * ([onresizebox]); a finger does either from anywhere once [boxMode] is chosen.
+	 * ([onresizebox]); a finger does either from anywhere once [boxMode] is chosen, or, with [grabSelected] on, from
+	 * the selected container's own border, label or corner handle.
 	 */
 	let {
 		scene,
@@ -55,6 +59,7 @@
 		onmovebox,
 		onresizebox,
 		boxMode = null,
+		grabSelected = false,
 		picking = false,
 		onresize,
 		onsetend,
@@ -100,6 +105,12 @@
 		onresizebox?: (id: string, w: number, h: number) => void;
 		/** A drag anywhere moves or resizes the selected container: how a finger does it. */
 		boxMode?: 'move' | 'resize' | null;
+		/**
+		 * A finger or pen that presses on what is already selected (a node, the picked nodes, or a container's border,
+		 * label or corner handle) drags it, as a mouse does. For layouts with no Move or Resize buttons, such as an
+		 * iPad held sideways: a first tap selects and a second press drags, so a stray finger still only pans.
+		 */
+		grabSelected?: boolean;
 		/** The toolbar's Connect: the next node tapped is where a connection starts. */
 		picking?: boolean;
 		onresize?: (id: string, w: number, h: number) => void;
@@ -397,8 +408,11 @@
 			gesture = { ...many, pointer: e.pointerId, start: p, moved: false };
 			return;
 		}
-		// In moving mode the selected node follows a drag from anywhere; otherwise a mouse drags the node under it.
-		const id = moving ? selected : touch || connectFrom || picking ? null : (target.closest<HTMLElement>('[data-node]')?.dataset.node ?? null);
+		// In moving mode the selected node follows a drag from anywhere; otherwise a mouse drags the node under it, and
+		// with [grabSelected] a finger or pen drags the node under it once that node is selected.
+		const under = target.closest<HTMLElement>('[data-node]')?.dataset.node ?? null;
+		const grabs = !touch || (grabSelected && under !== null && under === selected);
+		const id = moving ? selected : connectFrom || picking || !grabs ? null : under;
 		const node = editable && id ? scene.nodes.find(n => n.id === id) : undefined;
 		gesture = node
 			? { kind: 'node', pointer: e.pointerId, start: p, node, moved: false, touch }
@@ -410,7 +424,7 @@
 		if (connectFrom || picking) return null;
 		const under = target.closest<HTMLElement>('[data-node]')?.dataset.node;
 		const group = multi?.nodes.length ? multi.nodes : null;
-		if (editable && group && (moving || (!touch && under && pickedNodes.has(under)))) return { kind: 'many' as const, ids: group };
+		if (editable && group && (moving || ((!touch || grabSelected) && under && pickedNodes.has(under)))) return { kind: 'many' as const, ids: group };
 		const empty = !target.closest('[data-node], [data-hit], [data-box], .port, .resize, .n-resize, .end-handle');
 		if (onpick && empty && (manyMode || (shift && !touch))) return { kind: 'marquee' as const, add: shift };
 		return null;
@@ -420,9 +434,13 @@
 	function boxPress(target: Element, touch: boolean) {
 		let mode: 'move' | 'resize' | null = null;
 		let id: string | null = null;
+		const under = target.closest<HTMLElement>('[data-box]')?.dataset.box ?? null;
+		// A finger or pen only grabs the container already selected, and only with [grabSelected].
+		const grabs = !touch || grabSelected;
 		if (boxMode && selectedBox) [mode, id] = [boxMode, selectedBox];
-		else if (!touch && selectedBox && target.closest('.resize')) [mode, id] = ['resize', selectedBox];
-		else if (!touch) [mode, id] = ['move', target.closest<HTMLElement>('[data-box]')?.dataset.box ?? null];
+		else if (grabs && selectedBox && target.closest('.resize')) [mode, id] = ['resize', selectedBox];
+		else if (!touch) [mode, id] = ['move', under];
+		else if (grabs && under !== null && under === selectedBox) [mode, id] = ['move', under];
 		const box = mode && id ? scene.boundaries.find(b => b.id === id) : undefined;
 		if (!box || !mode) return null;
 		const kids = mode === 'move' && box.moveContents ? contentsOf(scene, box.id) : { nodes: [], boxes: [] };
