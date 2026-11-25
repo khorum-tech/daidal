@@ -26,8 +26,16 @@ const files = import.meta.glob('./*.md', { query: '?raw', import: 'default', eag
 
 /** The addresses this build was given (vite.config.ts reads them from the environment). */
 declare const __DAIDAL_SITE__: SiteUrls | undefined;
-// Daidal's own wherever the build didn't define them (a tool that loads this file without vite.config.ts).
-export const SITE: SiteUrls = typeof __DAIDAL_SITE__ === 'undefined' ? DAIDAL_SITE : __DAIDAL_SITE__;
+/** The build's addresses, or Daidal's own wherever the build didn't define them. */
+function builtSite(): SiteUrls {
+	try {
+		return __DAIDAL_SITE__ ?? DAIDAL_SITE;
+	} catch {
+		// A tool that loads this file without vite.config.ts never defines the name, so reading it throws.
+		return DAIDAL_SITE;
+	}
+}
+export const SITE: SiteUrls = builtSite();
 
 /**
  * [text] with each {{NAME}} placeholder replaced by its address in [site], and every line that uses an address
