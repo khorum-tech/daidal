@@ -99,6 +99,9 @@ Daidal is one Worker, one D1 database and Cloudflare Access in front. Roughly:
    npx wrangler deploy -c wrangler.prod.jsonc --secrets-file wrangler.prod.secrets.json
    ```
 4. For MCP clients online, turn on Managed OAuth for the Access application ([`docs/mcp.md`](docs/mcp.md)).
+5. Point the in-app docs at your hostname: copy `.env.example` to `.env` and set `DAIDAL_URL` (and
+   `DAIDAL_STAGE_URL`, or leave it empty if you have no stage) before you build. Unset, the docs give
+   `daidal.khorum.org`'s addresses.
 
 The GitHub Actions workflow in `.github/workflows/deploy.yml` does the same on every push to `main`, with the ids
 and tokens in repository environments; [`docs/stage.md`](docs/stage.md) walks through the one-time setup, including a

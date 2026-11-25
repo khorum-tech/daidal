@@ -5,6 +5,13 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- **Your own addresses in the docs.** The in-app docs no longer hard-code `daidal.khorum.org`: the MCP addresses on
+  Connecting AI, the Claude Code commands and the skill's repository link come from `DAIDAL_URL`, `DAIDAL_STAGE_URL`,
+  `DAIDAL_LOCAL_URL` and `DAIDAL_REPO_URL`, read from a `.env` at the repository root (or the build's environment)
+  when the app is built, so a copy run for another organisation points its docs at itself. `.env.example` lists
+  them with Daidal's own as the defaults; an empty `DAIDAL_STAGE_URL` leaves stage out, and anything that isn't a
+  plain http(s) address stops the build with the variable's name. The app's dev server sends `/api` to
+  `DAIDAL_LOCAL_URL`. Core is unchanged.
 - **Groups for a workspace's diagrams.** A diagram can be filed under a group in its workspace (a C4 set, a service,
   a team) from the folder button on its card or **Group** in its sheet, or when it's made. The workspace's page then
   shows the cards under a heading per group, the ones in no group last, with a row of groups under the search that

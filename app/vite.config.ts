@@ -1,11 +1,17 @@
 import { fileURLToPath } from 'node:url';
-import { searchForWorkspaceRoot } from 'vite';
+import { loadEnv, searchForWorkspaceRoot } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { siteUrls } from './src/lib/docs/site.ts';
+
+// The addresses the docs give for this Daidal: DAIDAL_URL and the rest, from a .env at the repository root or the
+// build's environment (see .env.example and src/lib/docs/site.ts). Unset, they're Daidal's own.
+const site = siteUrls(loadEnv(process.env.NODE_ENV ?? 'production', fileURLToPath(new URL('..', import.meta.url)), 'DAIDAL_'));
 
 export default defineConfig({
+	define: { __DAIDAL_SITE__: JSON.stringify(site) },
 	plugins: [
 		sveltekit({
 			compilerOptions: {
@@ -38,7 +44,7 @@ export default defineConfig({
 	],
 	server: {
 		// `npm run dev` here talks to the Worker running under `wrangler dev` at the project root.
-		proxy: { '/api': 'http://localhost:8787' },
+		proxy: { '/api': site.localUrl },
 		// The shared core (packages/core) sits outside app/, linked in through node_modules; the dev server and the
 		// browser tests serve its source from there.
 		fs: { allow: [searchForWorkspaceRoot(process.cwd()), fileURLToPath(new URL('../packages/core', import.meta.url))] }

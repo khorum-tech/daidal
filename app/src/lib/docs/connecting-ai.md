@@ -12,9 +12,9 @@ Daidal has an MCP server, so an AI assistant (Claude Code, Claude Desktop, claud
 
 | Where | MCP address |
 |-------|-------------|
-| Daidal | `https://daidal.khorum.org/mcp` |
-| Stage | `https://daidal-stage.khorum.org/mcp` |
-| On your computer (`wrangler dev`) | `http://localhost:8787/mcp` |
+| Daidal | `{{DAIDAL_URL}}/mcp` |
+| Stage | `{{DAIDAL_STAGE_URL}}/mcp` |
+| On your computer (`wrangler dev`) | `{{DAIDAL_LOCAL_URL}}/mcp` |
 
 Your initial → **AI access** shows the address for the Daidal you're on.
 
@@ -22,7 +22,7 @@ Your initial → **AI access** shows the address for the Daidal you're on.
 
 Online, an assistant signs in through the same Cloudflare Access sign-in you use, so it needs no token.
 
-- **Claude Code:** run `claude mcp add --transport http daidal https://daidal.khorum.org/mcp`, then open `/mcp` in Claude Code and choose **Authenticate**. A browser window opens on the sign-in.
+- **Claude Code:** run `claude mcp add --transport http daidal {{DAIDAL_URL}}/mcp`, then open `/mcp` in Claude Code and choose **Authenticate**. A browser window opens on the sign-in.
 - **claude.ai, Claude Desktop and Claude mobile:** in Settings → Connectors, add a custom connector with the address, and sign in when it asks. A connector added on claude.ai is there on Desktop and mobile too.
 
 This needs Managed OAuth turned on for Daidal's Access application, a one-time setup in Cloudflare (see `docs/mcp.md` in the repository). Until then, use a token.
@@ -34,7 +34,7 @@ This needs Managed OAuth turned on for Daidal's Access application, a one-time s
 3. **Create token**. The token is shown once: copy it. On your computer, the tab also gives you the Claude Code command to run:
 
 ```sh
-claude mcp add --transport http daidal http://localhost:8787/mcp --header "Authorization: Bearer skt_…"
+claude mcp add --transport http daidal {{DAIDAL_LOCAL_URL}}/mcp --header "Authorization: Bearer skt_…"
 ```
 
 `claude mcp list` should then say `daidal … ✓ Connected`. Revoke a token from the same tab any time; it stops working at once.
@@ -75,7 +75,7 @@ Asking it to take a snapshot first gives you something to look back at, in [Hist
 
 ## Drawing diagrams in the chat
 
-The `daidal-diagram` skill teaches Claude to write a [config](/app/docs/config) and draw it inline in the chat, with the same renderer Daidal uses, so you can see a diagram before it goes anywhere and paste the config straight in. With this connector added too, it can draw a diagram from your workspace without opening the app. It lives in the repository under [`skills/daidal-diagram`](https://github.com/khorum-tech/daidal/tree/main/skills/daidal-diagram); `skills/README.md` there says how to add it to Claude.
+The `daidal-diagram` skill teaches Claude to write a [config](/app/docs/config) and draw it inline in the chat, with the same renderer Daidal uses, so you can see a diagram before it goes anywhere and paste the config straight in. With this connector added too, it can draw a diagram from your workspace without opening the app. It lives in the repository under [`skills/daidal-diagram`]({{DAIDAL_REPO_URL}}/tree/main/skills/daidal-diagram); `skills/README.md` there says how to add it to Claude.
 
 ## When it doesn't work
 
