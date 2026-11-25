@@ -371,7 +371,7 @@
 			<label class="sr" for="node-members">Members</label>
 			<textarea id="node-members" class="input members" rows="3" value={node.members.join('\n')} placeholder="Fields, columns or exports, one a line: id: uuid, Config…" oninput={membersTyped} onblur={() => onfieldend?.()}></textarea>
 			<label class="sr" for="node-path">Path</label>
-			<input id="node-path" class="input mono" value={node.path} placeholder="Where it lives: src/lib/parser.ts, or a link" oninput={typed('path', 'Edit path')} onblur={() => onfieldend?.()} />
+			<input id="node-path" class="input mono" value={node.path} placeholder="Where it lives: src/lib/parser.ts, or a link" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" oninput={typed('path', 'Edit path')} onblur={() => onfieldend?.()} />
 
 			<h3>Functions</h3>
 			<label class="lang">
@@ -514,7 +514,7 @@
 			}}
 		>
 			<input class="input" aria-label="Link label" placeholder="Label" bind:value={linkLabel} />
-			<input class="input" aria-label="Link address" placeholder="https://…" inputmode="url" bind:value={linkAddress} />
+			<input class="input" aria-label="Link address" placeholder="https://…" inputmode="url" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" bind:value={linkAddress} />
 			<button type="submit" class="btn btn-secondary" disabled={!linkAddress.trim()}>Add link</button>
 		</form>
 
