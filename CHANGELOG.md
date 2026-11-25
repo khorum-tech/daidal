@@ -114,5 +114,9 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   selected connection's ends were hidden, so an end could only be pinned to the middle of a side from the connection's
   sheet. The handles now show there too, a little bigger: drag one along its box to pin it to that spot, and double tap
   it to put it back on auto, as a mouse does with a double-click. Core is unchanged.
+- **A link's address stays as typed on a phone or iPad** (issue #103). The keyboard capitalised its first letter, and
+  again whenever the box was emptied, so an address could be saved as `Example.com/Path` and break on a
+  case-sensitive path. The link address box, and a code node's **Path**, now ask the keyboard not to capitalise,
+  correct or spell-check; a link's label keeps normal capitals. Core is unchanged.
 - A node card no longer lets long text spill out of it: the type keeps to one line, and the name and subtitle wrap
   over as many lines as the card's height leaves, then end in an ellipsis (hover shows it in full).

@@ -82,6 +82,15 @@ describe('the inspector', () => {
 		await expect.element(page.getByLabelText('Link address')).toHaveValue('');
 	});
 
+	it("keeps a phone's keyboard from capitalising or correcting a link address, but not its label", async () => {
+		await editing('gw');
+		const address = page.getByLabelText('Link address').element();
+		for (const [name, value] of [['autocapitalize', 'off'], ['autocorrect', 'off'], ['spellcheck', 'false'], ['autocomplete', 'off'], ['inputmode', 'url']]) {
+			expect(address.getAttribute(name)).toBe(value);
+		}
+		expect(page.getByLabelText('Link label').element().getAttribute('autocapitalize')).toBeNull();
+	});
+
 	it('asks to duplicate or delete the node', async () => {
 		const { calls } = await editing('db');
 		await page.getByRole('button', { name: 'Duplicate' }).click();
