@@ -471,6 +471,13 @@ describe('a finger or pen grabbing what is selected (grabSelected, the desktop l
 		return { ...r, calls };
 	}
 
+	/** A finger dragged 50 px sideways from [selector] pans the view by as much. */
+	async function pansFrom(selector: string) {
+		const before = sheet();
+		await drag(document.querySelector(selector)!, 50, 0, { pointerType: 'touch' });
+		expect(sheet().tx).toBeCloseTo(before.tx + 50, 2);
+	}
+
 	it('drags the selected node with a finger or a pen, and still pans from one not selected', async () => {
 		const { calls } = await mountGrab({ selected: 'gw' });
 		const { s } = sheet();
@@ -480,18 +487,14 @@ describe('a finger or pen grabbing what is selected (grabSelected, the desktop l
 		await drag(document.querySelector('[data-node="gw"]')!, 0, 30 * s, { pointerType: 'pen', altKey: true });
 		expect(calls.moved).toHaveLength(2);
 
-		const before = sheet();
-		await drag(document.querySelector('[data-node="shop"]')!, 50, 0, { pointerType: 'touch' });
+		await pansFrom('[data-node="shop"]');
 		expect(calls.moved).toHaveLength(2);
-		expect(sheet().tx).toBeCloseTo(before.tx + 50, 2);
 	});
 
 	it('pans from the selected node under a finger without grabSelected, as on a phone', async () => {
 		const { calls } = await mountGrab({ selected: 'gw', grabSelected: false });
-		const before = sheet();
-		await drag(document.querySelector('[data-node="gw"]')!, 50, 0, { pointerType: 'touch' });
+		await pansFrom('[data-node="gw"]');
 		expect(calls.moved).toEqual([]);
-		expect(sheet().tx).toBeCloseTo(before.tx + 50, 2);
 	});
 
 	it('moves the selected container by its label and resizes it by its corner, with a finger', async () => {
@@ -506,17 +509,13 @@ describe('a finger or pen grabbing what is selected (grabSelected, the desktop l
 
 	it('pans from a container not selected under a finger, and from a selected one without grabSelected', async () => {
 		const unselected = await mountGrab();
-		let before = sheet();
-		await drag(document.querySelector('.b-label[data-box="zone"]')!, 50, 0, { pointerType: 'touch' });
+		await pansFrom('.b-label[data-box="zone"]');
 		expect(unselected.calls.boxMoved).toEqual([]);
-		expect(sheet().tx).toBeCloseTo(before.tx + 50, 2);
 		unselected.unmount();
 
 		const phone = await mountGrab({ selectedBox: 'zone', grabSelected: false });
-		before = sheet();
-		await drag(document.querySelector('.b-label[data-box="zone"]')!, 50, 0, { pointerType: 'touch' });
+		await pansFrom('.b-label[data-box="zone"]');
 		expect(phone.calls.boxMoved).toEqual([]);
-		expect(sheet().tx).toBeCloseTo(before.tx + 50, 2);
 	});
 
 	it('moves every picked node when a finger drags one of them', async () => {
