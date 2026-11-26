@@ -19,5 +19,8 @@ writeFileSync(`${out}/version.json`, `${JSON.stringify(build, null, 2)}\n`);
 // Every static file says which build it came from, so `curl -I` on any of them tells you. version.json is never
 // cached: it is how you check what a deploy put live.
 const lines = Object.entries({ ...SECURITY_HEADERS, "x-daidal-version": build.version }).map(([k, v]) => `  ${k}: ${v}`);
-writeFileSync(`${out}/_headers`, `/*\n${lines.join("\n")}\n/version.json\n  cache-control: no-store\n`);
+// The docs' pictures keep their names from one build to the next, so a browser keeps them a day and then checks for a
+// new one in the background, rather than asking again on every page.
+const docsImages = "/app/docs-images/*\n  cache-control: public, max-age=86400, stale-while-revalidate=604800\n";
+writeFileSync(`${out}/_headers`, `/*\n${lines.join("\n")}\n/version.json\n  cache-control: no-store\n${docsImages}`);
 console.log(`assembled ${out}/ (app at /app, which / redirects to; security headers in _headers; ${build.version} in version.json)`);

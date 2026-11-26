@@ -110,6 +110,11 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   skope.khorum-oss.org and skope-stage.khorum-oss.org, still answer.
 
 ### Fixed
+- **The docs' pictures load without the page jumping** (issue #95). Each picture now has its width and height, so
+  the page keeps its room before it arrives instead of shifting the text down as each one loads. They decode off the
+  main thread, all but a page's first wait until they're near the screen, and browsers keep them a day instead of
+  asking again on every page. `npm run docs:shots` writes each picture's size to `image-sizes.json` beside the
+  pages, and a test checks it against the files. Core is unchanged.
 - **A finger or Apple Pencil can drag on an iPad held sideways** (issue #100). Wider than 900 px the editor uses
   its desktop layout, which has no Move or Resize buttons, and every touch or pen press panned. Now a press on what is
   already selected drags it: the selected node, the picked nodes, or the selected container by its border or label

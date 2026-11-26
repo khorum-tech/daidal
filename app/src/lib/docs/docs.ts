@@ -10,8 +10,9 @@
 //
 // Daidal's own addresses are written as placeholders, {{DAIDAL_URL}} and the rest (see site.ts), so a copy run
 // elsewhere shows its own. A line that uses an address left empty (no stage, say) is left out.
-import { Marked } from 'marked';
+import { Marked, type Tokens } from 'marked';
 import { DAIDAL_SITE, placeholders, type SiteUrls } from './site';
+import IMAGE_SIZES from './image-sizes.json';
 
 export interface DocPage {
 	slug: string;
@@ -92,7 +93,35 @@ export function docImages(body: string): string[] {
 	return [...body.matchAll(/!\[[^\]]*\]\(\/app\/docs-images\/([^)\s]+)\)/g)].map(m => m[1]);
 }
 
-const marked = new Marked({ gfm: true });
+const escapeAttr = (s: string) => s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+
+/** The width and height of the docs picture at [href], from image-sizes.json, if it's one of them. */
+export function imageSize(href: string): readonly [number, number] | undefined {
+	const m = /^\/app\/docs-images\/([^/?#]+)$/.exec(href);
+	const size: number[] | undefined = m ? (IMAGE_SIZES as Record<string, number[]>)[m[1]] : undefined;
+	return size?.length === 2 ? [size[0], size[1]] : undefined;
+}
+
+/**
+ * A picture as an <img> that keeps its place before it loads (its width and height, so the page doesn't jump as
+ * each one arrives) and is decoded off the main thread. All but the page's first wait until they're near the screen.
+ */
+function picture({ href, title, text }: Tokens.Image, first: boolean): string {
+	const size = imageSize(href);
+	const attrs = [
+		`src="${escapeAttr(href)}"`,
+		`alt="${escapeAttr(text)}"`,
+		title ? `title="${escapeAttr(title)}"` : '',
+		size ? `width="${size[0]}" height="${size[1]}"` : '',
+		first ? '' : 'loading="lazy"',
+		'decoding="async"'
+	];
+	return `<img ${attrs.filter(Boolean).join(' ')}>`;
+}
 
 /** A page's markdown as HTML. The pages are Daidal's own, so nothing in them needs sanitising. */
-export const render = (body: string): string => marked.parse(body, { async: false });
+export function render(body: string): string {
+	let pictures = 0;
+	const marked = new Marked({ gfm: true, renderer: { image: token => picture(token, pictures++ === 0) } });
+	return marked.parse(body, { async: false });
+}
