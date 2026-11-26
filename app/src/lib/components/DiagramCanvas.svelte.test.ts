@@ -477,6 +477,17 @@ describe('the canvas tools', () => {
 		expect(ends).toEqual([[0, 'to', null]]);
 	});
 
+	it('keeps the connection selected when the click after a tap on an end handle lands on the node under it', async () => {
+		const picked: (string | null)[] = [];
+		await render(DiagramCanvas, {
+			target: stage,
+			props: { scene, on: tagsOn(scene, null), selected: null, onselect: id => picked.push(id), editable: true, selectedEdge: 0, onsetend: () => {} }
+		});
+		await drag(document.querySelectorAll('.end-handle')[1], 0, 0, { pointerType: 'touch' });
+		document.querySelector<HTMLElement>('[data-node="gw"]')!.click();
+		expect(picked).toEqual([]);
+	});
+
 	it('draws the minimap only when asked, and looks where it is pressed', async () => {
 		const r = await render(DiagramCanvas, { target: stage, props: { scene, on: tagsOn(scene, null), selected: null, onselect: () => {}, showMinimap: true } });
 		const mini = page.getByRole('img', { name: /^Minimap/ });

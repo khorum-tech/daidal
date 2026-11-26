@@ -555,7 +555,8 @@
 		gesture = null;
 		panning = false;
 		guides = [];
-		dragJustEnded = g.moved;
+		// A press on an end handle never taps what is under it: a touch screen may send the click after it to the node.
+		dragJustEnded = g.moved || g.kind === 'end';
 		const d = dragged;
 		dragged = null;
 		if (g.kind === 'node' && g.moved && d && !cancelled) onmove?.(d.id, Math.round(d.x), Math.round(d.y));
