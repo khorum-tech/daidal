@@ -6,7 +6,7 @@
 
 	let { data } = $props();
 
-	const href = (slug: string) => (slug ? resolve('/docs/[[page]]', { page: slug }) : resolve('/docs/[[page]]', {}));
+	const href = (slug: string) => (slug ? resolve('/(app)/docs/[[page]]', { page: slug }) : resolve('/(app)/docs/[[page]]', {}));
 	const html = $derived(data.page ? render(data.page.body) : '');
 	const title = $derived(data.page?.title ?? (data.slug ? 'Not found' : 'Docs'));
 
@@ -21,7 +21,7 @@
 
 <svelte:head><title>{title} · Daidal docs</title></svelte:head>
 
-<AppHeader me={data.me} homeHref={resolve('/')} crumbs={data.slug ? [{ label: 'Docs', href: href('') }, { label: title }] : [{ label: 'Docs' }]} />
+<AppHeader me={data.me} homeHref={resolve('/(app)')} crumbs={data.slug ? [{ label: 'Docs', href: href('') }, { label: title }] : [{ label: 'Docs' }]} />
 
 <div class="docs" bind:this={scroller} data-testid="docs-scroll">
 	<aside class="side"><DocsNav pages={PAGES} current={data.page ? data.slug : null} {href} /></aside>

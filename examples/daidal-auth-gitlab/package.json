@@ -1,0 +1,11 @@
+{
+  "name": "daidal-auth-gitlab",
+  "version": "0.1.0",
+  "description": "An example Daidal sign-in provider plugin: GitLab, through a GitLab OAuth application.",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": { ".": { "types": "./index.d.ts", "default": "./index.js" } },
+  "files": ["index.js", "index.d.ts"],
+  "license": "MIT"
+}

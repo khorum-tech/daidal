@@ -5,6 +5,17 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- **Sign-in with the providers you choose** (issue #106). A self-hosted Daidal can now sign people in through its own
+  page at `/app/signin` with OpenID Connect, Google or GitHub, or trust a forward-auth proxy (Authelia, Authentik,
+  oauth2-proxy), as well as Cloudflare Access. Providers are turned on with `DAIDAL_AUTH_PROVIDERS` (JSON), their
+  secrets as `DAIDAL_AUTH_SECRET_<ID>`, and who may sign in with `DAIDAL_AUTH_ALLOW` (unset, nobody through the
+  sign-in page); a provider Daidal doesn't ship is a package of its own, bundled with `DAIDAL_AUTH_PLUGINS` at build
+  time (`examples/daidal-auth-gitlab`). Sign-ins use PKCE, a one-time `state` and, for OpenID Connect, a nonce, and
+  accept only verified emails; sessions are revocable on the server (sign out, sign out everywhere with `DELETE
+  /api/me/sessions`, deleting the account), and Download my data lists your linked sign-ins and sessions. **Sign out**
+  in the account menu now ends the session, or goes to Access's logout. With nothing configured the hosted site is
+  Access alone, exactly as before; personal access tokens and MCP are unchanged. Migration 0008 adds the
+  `identities`, `sessions` and `sign_in_states` tables. See `docs/sign-in.md`. Core is unchanged.
 - **Lock or unlock a container's contents** (issue #96). A selected container has a lock button beside its corner
   handle: locked, moving the container moves whatever sits wholly inside it; unlocked, the container moves alone. On a
   phone or tablet the button is bigger for a finger, by the corner handle as a node's connect button is. The inspector's

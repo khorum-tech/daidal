@@ -5,6 +5,7 @@
 	import { resolve } from '$app/paths';
 	import { createApi } from '../api';
 	import { download } from '../download';
+	import { signOut } from '../signin';
 	import { appearance } from '../appearance.svelte';
 	import { buildLabel, buildTitle, type BuildInfo } from '../build';
 	import type { Me } from '../types';
@@ -156,7 +157,7 @@
 	async function tutorial() {
 		open = false;
 		const id = await startTour(api, `personal:${me.email}`);
-		await goto(`${resolve('/d/[id]', { id })}?tour=1`, { invalidateAll: true });
+		await goto(`${resolve('/(app)/d/[id]', { id })}?tour=1`, { invalidateAll: true });
 	}
 	async function saveProfile(profile: { name: string; title: string }) {
 		await api.updateMe(profile);
@@ -168,8 +169,8 @@
 	}
 	async function deleteAccount(confirm: string) {
 		await api.deleteAccount(confirm);
-		// Signed out of Access too, so this browser doesn't quietly start a new, empty account.
-		location.href = '/cdn-cgi/access/logout';
+		// Signed out too (of Access, on the hosted site), so this browser doesn't quietly start a new, empty account.
+		await signOut();
 	}
 </script>
 
@@ -289,8 +290,8 @@
 	<button type="button" role="menuitem" onclick={() => openSettings('appearance')}>Appearance</button>
 	<button type="button" role="menuitem" onclick={() => openSettings('ai')}>AI access</button>
 	<button type="button" role="menuitem" onclick={tutorial}>Tutorial</button>
-	<a role="menuitem" href={resolve('/docs/[[page]]', {})}>Docs</a>
-	<a role="menuitem" href="/cdn-cgi/access/logout">Sign out</a>
+	<a role="menuitem" href={resolve('/(app)/docs/[[page]]', {})}>Docs</a>
+	<button type="button" role="menuitem" onclick={() => signOut()}>Sign out</button>
 	{#if build}
 		<!-- Text, not a menu item: a branch name can hold any word, and must never match another item's name. -->
 		<p class="version" title={buildTitle(build)} data-testid="build-version">Version {buildLabel(build)}</p>

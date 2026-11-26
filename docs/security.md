@@ -1,11 +1,11 @@
 # Security and privacy
 
 How Daidal decides who sees what, what it keeps about people, and the settings outside this repository that it
-relies on. Reviewed 2026-11-03; update this page with any change to sign-in, tokens, headers or what is stored.
+relies on. Reviewed 2026-11-26; update this page with any change to sign-in, tokens, headers or what is stored.
 
 ## Who can reach it
 
-1. **Cloudflare Access** stands in front of the whole site (`daidal.khorum.org`, the old `skope.khorum-oss.org`, and stage). Nobody reaches the
+1. **Cloudflare Access** stands in front of the hosted site (`daidal.khorum.org`, the old `skope.khorum-oss.org`, and stage). Nobody reaches the
    Worker without passing its policy; a request without a sign-in, or with only a Daidal access token, gets Access's
    own 401 or login page. There is no `workers.dev` or preview address (`workers_dev` and `preview_urls` are off),
    so nothing gets round Access.
@@ -13,6 +13,17 @@ relies on. Reviewed 2026-11-03; update this page with any change to sign-in, tok
    verified against the team's keys (RS256, issuer, the application's AUD, expiry). A JWT without an email, such as an
    Access service token, is refused. `DEV_USER_EMAIL` signs you in only on `localhost`; never set it as a secret on
    stage or prod.
+
+   A self-hosted Daidal can sign people in other ways too (`docs/sign-in.md`, `worker/src/signin/`): OpenID
+   Connect, Google and GitHub through Daidal's own sign-in page, a forward-auth proxy, or a plugin package. Those
+   sign-ins always use PKCE (S256), a one-time `state` bound to the browser by a `__Host-` cookie, and (for OpenID
+   Connect) a nonce and full ID-token checks; only a verified email is accepted, and only for people
+   `DAIDAL_AUTH_ALLOW` lists (unset, nobody). A sign-in returns only to a page of the app. Sessions are a random
+   256-bit token in a `__Host-daidal-session` cookie (HttpOnly, Secure, SameSite=Lax, 30 days) with only its SHA-256
+   hash stored, so signing out, signing out everywhere and deleting the account end them on the server at once.
+   Changes made with that cookie must come from Daidal's own pages (`Origin` or `Sec-Fetch-Site`), or get a 403.
+   Forward-auth headers count only from the configured proxy addresses. With nothing configured, the hosted site
+   is Access alone, as before.
 3. **Inside, the rules are the API's** (`workspaces.ts`, `diagrams.ts`): you see a workspace only as a member (any
    other is a 404); only a diagram's owner saves, snapshots, moves or deletes it; only a workspace's owner renames
    or deletes it and adds members. The MCP tools call the same API as the person, so the same rules hold for an AI.
@@ -67,11 +78,13 @@ local server with the `DAIDAL_LIMITS` variable (`playwright.config.ts`); never s
   list (members see the owner and themselves); members see who owns a diagram and took a snapshot, as they need to.
   The MCP tools give the AI none of these emails: owners and authors come back as "you" or "another member".
 - Your access tokens' names, scopes and when they were last used (never the token itself).
+- Where you sign in through Daidal's own sign-in page: which provider ids your account is linked to and when each was
+  last used, and your sessions (provider, start, end, last use; never the token itself).
 - No analytics, no third-party requests, no AI calls of its own (an AI client's model runs on the client's side).
 
 **Your data**: Profile → **Download my data** (`GET /api/me/export`) gives one file with everything above that is
 yours, its workspaces in the backup format. **Delete my account** (`DELETE /api/me`, confirmed with your email)
-deletes your user, tokens, personal workspace, the workspaces you own (with their diagrams and history) and your
+deletes your user, tokens, sign-in sessions and linked sign-ins, personal workspace, the workspaces you own (with their diagrams and history) and your
 memberships; diagrams you made in someone else's workspace pass to its owner, and your snapshots there say "former
 member". Access tokens can do neither.
 
@@ -82,6 +95,9 @@ logs. Errors are logged without emails.
 
 Check these when setting up a site, and after any change in Cloudflare:
 
+- **Sign-in page providers** (self-hosted only): each provider's callback registered as exactly
+  `https://<site>/auth/callback/<id>`; client secrets as Worker secrets (`DAIDAL_AUTH_SECRET_<ID>`), never in
+  `DAIDAL_AUTH_PROVIDERS`; `DAIDAL_AUTH_ALLOW` as narrow as you can.
 - **Access application:** the policy allows only the people who should use Daidal; no bypass rule; cookie
   **SameSite** Lax (or Strict) and **HTTP Only** on.
 - **Managed OAuth** (for MCP): short access-token lifetime (5–15 minutes); allowed redirect URIs as narrow as you can

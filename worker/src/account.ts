@@ -9,11 +9,12 @@ export const FORMER_MEMBER = "former member";
 /**
  * `GET /api/me/export`: everything Daidal keeps about you, in one file. Your profile and settings; every workspace you
  * own (your personal one included) as the same `daidal-backup` content an import reads; the names of the workspaces
- * you're a member of; and your access tokens' names, scopes and dates (never the tokens, which aren't kept).
+ * you're a member of; your access tokens' names, scopes and dates (never the tokens, which aren't kept); and your
+ * linked sign-ins and signed-in browsers, by provider and date (never the session tokens either).
  */
 export async function exportAccount(db: D1Database, email: string, now: number): Promise<Response> {
   const user = await ensureUser(db, email, now);
-  const [created, owned, memberOf, tokens, size] = await db.batch<Record<string, string | number | null>>([
+  const [created, owned, memberOf, tokens, size, identities, sessions] = await db.batch<Record<string, string | number | null>>([
     db.prepare("SELECT created_at FROM users WHERE email = ?").bind(email),
     db.prepare("SELECT id FROM workspaces WHERE owner_email = ? ORDER BY id = ? DESC, created_at, rowid").bind(email, personalWorkspaceId(email)),
     db
@@ -30,6 +31,8 @@ export async function exportAccount(db: D1Database, email: string, now: number):
                  JOIN workspaces w ON w.id = d.workspace_id WHERE w.owner_email = ?1) AS n`,
       )
       .bind(email),
+    db.prepare("SELECT provider, created_at, last_seen_at FROM identities WHERE email = ? ORDER BY created_at").bind(email),
+    db.prepare("SELECT provider, created_at, expires_at, last_seen_at FROM sessions WHERE email = ? ORDER BY created_at").bind(email),
   ]);
   if (Number(size.results[0]?.n ?? 0) > LIMITS.exportBytes) {
     throw new HttpError(413, "Your workspaces are too large for one file; export each workspace from its Manage sheet instead.");
@@ -52,12 +55,15 @@ export async function exportAccount(db: D1Database, email: string, now: number):
       createdAt: iso(t.created_at),
       lastUsedAt: iso(t.last_used_at),
     })),
+    // Which sign-ins are linked to the account, and the browsers signed in (never the providers' ids or the session tokens).
+    signIns: identities.results.map(i => ({ provider: i.provider, linkedAt: iso(i.created_at), lastUsedAt: iso(i.last_seen_at) })),
+    sessions: sessions.results.map(s => ({ provider: s.provider, startedAt: iso(s.created_at), endsAt: iso(s.expires_at), lastUsedAt: iso(s.last_seen_at) })),
   });
 }
 
 /**
  * `DELETE /api/me` with `{ confirm: <your email> }`: deletes your account. Workspaces you own go, with their diagrams
- * and history (your personal one included); so do your access tokens and your memberships. Diagrams you made in
+ * and history (your personal one included); so do your access tokens, sign-in sessions and linked sign-ins, and your memberships. Diagrams you made in
  * someone else's workspace pass to its owner, as when you leave it, so nothing there breaks; your snapshots there
  * say "former member". Signing in again later starts a new, empty account.
  */
@@ -76,6 +82,8 @@ export async function deleteAccount(db: D1Database, email: string, request: Requ
     db.prepare("DELETE FROM workspace_members WHERE email = ?").bind(email),
     db.prepare("DELETE FROM workspaces WHERE owner_email = ?").bind(email),
     db.prepare("DELETE FROM access_tokens WHERE email = ?").bind(email),
+    db.prepare("DELETE FROM sessions WHERE email = ?").bind(email),
+    db.prepare("DELETE FROM identities WHERE email = ?").bind(email),
     db.prepare("DELETE FROM rate_windows WHERE email = ?").bind(email),
     db.prepare("DELETE FROM users WHERE email = ?").bind(email),
   ]);
