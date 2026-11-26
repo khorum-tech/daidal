@@ -4,6 +4,8 @@ import { docImages, docLinks, fillAddresses, imageSize, neighbours, PAGES, pageO
 import IMAGE_SIZES from './image-sizes.json';
 import { DAIDAL_SITE } from './site';
 
+const byName = (a: string, b: string) => a.localeCompare(b);
+
 describe('the docs pages', () => {
 	it('each have a title, a summary and their own slug, in order', () => {
 		expect(PAGES.length).toBeGreaterThanOrEqual(10);
@@ -32,7 +34,7 @@ describe('the docs pages', () => {
 	it('know the size of every picture, as the files have it (npm run docs:shots keeps image-sizes.json up to date)', () => {
 		const dir = new URL('../../../static/docs-images/', import.meta.url);
 		const files = readdirSync(dir).filter(f => f.endsWith('.png'));
-		expect(Object.keys(IMAGE_SIZES).sort()).toEqual([...files].sort());
+		expect(Object.keys(IMAGE_SIZES).sort(byName)).toEqual([...files].sort(byName));
 		for (const name of files) {
 			const png = readFileSync(new URL(name, dir));
 			expect(png.toString('latin1', 12, 16), name).toBe('IHDR');

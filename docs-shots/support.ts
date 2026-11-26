@@ -11,7 +11,7 @@ function recordSize(name: string, path: string) {
   const sizes = JSON.parse(readFileSync(SIZES, "utf8")) as Record<string, [number, number]>;
   sizes[`${name}.png`] = [png.readUInt32BE(16), png.readUInt32BE(20)];
   const lines = Object.keys(sizes)
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .map(k => `  ${JSON.stringify(k)}: [${sizes[k][0]}, ${sizes[k][1]}]`);
   writeFileSync(SIZES, `{\n${lines.join(",\n")}\n}\n`);
 }
