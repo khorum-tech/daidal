@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
-import { docImages, docLinks, fillAddresses, neighbours, PAGES, pageOf, parsePage, render, SITE } from './docs';
+import { docImages, docLinks, fillAddresses, imageSize, neighbours, PAGES, pageOf, parsePage, render, SITE } from './docs';
+import IMAGE_SIZES from './image-sizes.json';
 import { DAIDAL_SITE } from './site';
 
 describe('the docs pages', () => {
@@ -26,6 +27,17 @@ describe('the docs pages', () => {
 		for (const name of shown) expect(files, name).toContain(name);
 		expect([...new Set(shown)].sort()).toEqual([...files].sort());
 		for (const p of PAGES) for (const m of p.body.matchAll(/!\[([^\]]*)\]\(/g)) expect(m[1].length, p.slug).toBeGreaterThan(10);
+	});
+
+	it('know the size of every picture, as the files have it (npm run docs:shots keeps image-sizes.json up to date)', () => {
+		const dir = new URL('../../../static/docs-images/', import.meta.url);
+		const files = readdirSync(dir).filter(f => f.endsWith('.png'));
+		expect(Object.keys(IMAGE_SIZES).sort()).toEqual([...files].sort());
+		for (const name of files) {
+			const png = readFileSync(new URL(name, dir));
+			expect(png.toString('latin1', 12, 16), name).toBe('IHDR');
+			expect(imageSize(`/app/docs-images/${name}`), name).toEqual([png.readUInt32BE(16), png.readUInt32BE(20)]);
+		}
 	});
 
 	it('know their neighbours', () => {
@@ -93,6 +105,17 @@ describe('a page', () => {
 		expect(html).toContain('<table>');
 		expect(html).toContain('<code class="language-yaml">');
 		expect(html).toContain('href="/app/docs/nodes"');
+	});
+
+	it('renders pictures that keep their place while loading, the first at once and the rest when near the screen', () => {
+		const html = render('# T\n\n![The editor, with "tags" & views](/app/docs-images/editor.png)\n\n![The phone](/app/docs-images/phone-editor.png)\n\n![Elsewhere](https://example.com/x.png)');
+		const imgs = html.match(/<img [^>]*>/g)!;
+		expect(imgs).toHaveLength(3);
+		expect(imgs[0]).toBe('<img src="/app/docs-images/editor.png" alt="The editor, with &quot;tags&quot; &amp; views" width="1280" height="800" decoding="async">');
+		expect(imgs[1]).toBe('<img src="/app/docs-images/phone-editor.png" alt="The phone" width="824" height="1678" loading="lazy" decoding="async">');
+		expect(imgs[2]).toBe('<img src="https://example.com/x.png" alt="Elsewhere" loading="lazy" decoding="async">');
+		// Each page counts its own pictures.
+		expect(render('![The editor again](/app/docs-images/editor.png)')).not.toContain('loading="lazy"');
 	});
 });
 
