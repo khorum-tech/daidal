@@ -450,3 +450,78 @@ describe('the canvas tools', () => {
 		await expect.element(mini).not.toBeInTheDocument();
 	});
 });
+
+describe('a finger or pen grabbing what is selected (grabSelected, the desktop layout on a tablet)', () => {
+	async function mountGrab(props: Record<string, unknown> = {}) {
+		const calls = { moved: [] as [string, number, number][], boxMoved: [] as [string, number, number][], boxResized: [] as [string, number, number][], many: [] as [string[], number, number][] };
+		const r = await render(DiagramCanvas, {
+			target: stage,
+			props: {
+				scene,
+				on: tagsOn(scene, null),
+				editable: true,
+				grabSelected: true,
+				onmove: (id, x, y) => calls.moved.push([id, x, y]),
+				onmovebox: (id, x, y) => calls.boxMoved.push([id, x, y]),
+				onresizebox: (id, w, h) => calls.boxResized.push([id, w, h]),
+				onmovemany: (ids, dx, dy) => calls.many.push([ids, dx, dy]),
+				...props
+			}
+		});
+		return { ...r, calls };
+	}
+
+	/** A finger dragged 50 px sideways from [selector] pans the view by as much. */
+	async function pansFrom(selector: string) {
+		const before = sheet();
+		await drag(document.querySelector(selector)!, 50, 0, { pointerType: 'touch' });
+		expect(sheet().tx).toBeCloseTo(before.tx + 50, 2);
+	}
+
+	it('drags the selected node with a finger or a pen, and still pans from one not selected', async () => {
+		const { calls } = await mountGrab({ selected: 'gw' });
+		const { s } = sheet();
+		await drag(document.querySelector('[data-node="gw"]')!, 100 * s, 50 * s, { pointerType: 'touch', altKey: true });
+		// Gateway starts at (340, 150); the drag was 100 × 50 in diagram units.
+		expect(calls.moved).toEqual([['gw', 440, 200]]);
+		await drag(document.querySelector('[data-node="gw"]')!, 0, 30 * s, { pointerType: 'pen', altKey: true });
+		expect(calls.moved).toHaveLength(2);
+
+		await pansFrom('[data-node="shop"]');
+		expect(calls.moved).toHaveLength(2);
+	});
+
+	it('pans from the selected node under a finger without grabSelected, as on a phone', async () => {
+		const { calls } = await mountGrab({ selected: 'gw', grabSelected: false });
+		await pansFrom('[data-node="gw"]');
+		expect(calls.moved).toEqual([]);
+	});
+
+	it('moves the selected container by its label and resizes it by its corner, with a finger', async () => {
+		const { calls } = await mountGrab({ selectedBox: 'zone' });
+		const { s } = sheet();
+		await drag(document.querySelector('.b-label[data-box="zone"]')!, 40 * s, 20 * s, { pointerType: 'touch' });
+		// Prod starts at (300, 100), 560 × 220.
+		expect(calls.boxMoved).toEqual([['zone', 340, 120]]);
+		await drag(document.querySelector('.resize')!, 60 * s, 30 * s, { pointerType: 'touch' });
+		expect(calls.boxResized).toEqual([['zone', 620, 250]]);
+	});
+
+	it('pans from a container not selected under a finger, and from a selected one without grabSelected', async () => {
+		const unselected = await mountGrab();
+		await pansFrom('.b-label[data-box="zone"]');
+		expect(unselected.calls.boxMoved).toEqual([]);
+		unselected.unmount();
+
+		const phone = await mountGrab({ selectedBox: 'zone', grabSelected: false });
+		await pansFrom('.b-label[data-box="zone"]');
+		expect(phone.calls.boxMoved).toEqual([]);
+	});
+
+	it('moves every picked node when a finger drags one of them', async () => {
+		const { calls } = await mountGrab({ multi: { nodes: ['gw', 'db'], edges: [] } });
+		const { s } = sheet();
+		await drag(document.querySelector('[data-node="gw"]')!, 40 * s, 100 * s, { pointerType: 'touch' });
+		expect(calls.many).toEqual([[['gw', 'db'], 40, 100]]);
+	});
+});

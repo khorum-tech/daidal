@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { c4Backup } from "../stage/diagrams";
-import { importStageData } from "./support";
+import { importStageData, sheet, swipe } from "./support";
 
 // Runs in the "phone" project (playwright.config.ts): a touch screen 412 px wide.
 
@@ -12,22 +12,6 @@ async function pinchOut(page: Page) {
   for (let s = 40; s <= 120; s += 10) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: at(s) });
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
 }
-
-/** One finger from (x, y) by (dx, dy), in steps, as raw touch events. With [alt], Alt is held (no snapping). */
-async function swipe(page: Page, x: number, y: number, dx: number, dy: number, alt = false) {
-  const cdp = await page.context().newCDPSession(page);
-  const modifiers = alt ? 1 : 0;
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y, id: 1 }], modifiers });
-  for (let i = 1; i <= 8; i++) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x + (dx * i) / 8, y: y + (dy * i) / 8, id: 1 }], modifiers });
-  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [], modifiers });
-}
-
-/** The canvas's current offset and scale. */
-const sheet = (page: Page) =>
-  page.getByTestId("diagram-sheet").evaluate(el => {
-    const m = /translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([-\d.]+)\)/.exec((el as HTMLElement).style.transform)!;
-    return { tx: Number(m[1]), ty: Number(m[2]), s: Number(m[3]) };
-  });
 
 /** A point near the top of the canvas with nothing on it (no node, container, connection or control), clear of the toolbar and zoom bar. */
 async function emptySpot(page: Page): Promise<{ x: number; y: number }> {

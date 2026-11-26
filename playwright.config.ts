@@ -16,9 +16,12 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: { baseURL: `http://localhost:${PORT}`, trace: "retain-on-failure" },
   projects: [
-    { name: "chromium", testIgnore: /mobile\.spec\.ts/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    { name: "chromium", testIgnore: /(mobile|tablet)\.spec\.ts/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
     // A touch phone on Chromium (Pixel 7: 412 px wide), for the layout and gestures phones get.
     { name: "phone", testMatch: /mobile\.spec\.ts/, use: { ...devices["Pixel 7"] } },
+    // An iPad Pro 11" held sideways (1194 x 834, touch), which gets the desktop layout. Run on Chromium like the
+    // phone, since that's the browser CI installs and the touch helpers drive it through CDP.
+    { name: "tablet", testMatch: /tablet\.spec\.ts/, use: { ...devices["iPad Pro 11 landscape"], browserName: "chromium" } },
   ],
   webServer: {
     // One signed-in person runs every test, importing the stage data each time, so the per-person limits are

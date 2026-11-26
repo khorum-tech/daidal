@@ -1437,6 +1437,7 @@
 			onmovebox={moveBox}
 			onresizebox={resizeBox}
 			boxMode={editable ? boxMode : null}
+			grabSelected={!narrow}
 			picking={editable && connectTool && !connectFrom}
 			onresize={resize}
 			onsetend={setEdgeEnd}

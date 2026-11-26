@@ -105,8 +105,11 @@ What's left to port, and the order it's planned in: [`docs/superpowers/specs/202
 The canvas handles every gesture itself, the same for a finger or a mouse: drag to pan, pinch or ctrl+scroll to zoom,
 scroll to pan; arrow keys, `+`, `-` and `0` when it has focus. A tap (the browser's own click, which is what works
 everywhere, Safari included) selects a node; a tap on empty space clears it. A mouse drags any node to move it. A
-finger moves one through **Move** in the node menu: then a drag from anywhere moves the selected node, two fingers
-still pan or pinch, and Done (or a tap on empty space) goes back to panning. A dragged node snaps into line with
+finger on a phone moves one through **Move** in the node menu: then a drag from anywhere moves the selected node,
+two fingers still pan or pinch, and Done (or a tap on empty space) goes back to panning. Wider than 900 px (an iPad
+held sideways) there's no Move button, so a finger or pen that presses on what is already selected drags it: the
+selected node, the picked nodes, or the selected container by its border or label, or its corner handle to resize.
+A press anywhere else still pans. The e2e `tablet` project (`e2e/tablet.spec.ts`) keeps this working. A dragged node snaps into line with
 its neighbours (`src/lib/diagram/snap.ts`, the prototype's rule), with a wider reach for a finger than a mouse;
 Alt places it freely. Touch pointers are never captured: WebKit throws on `setPointerCapture` for them, and a
 mouse is captured only once its drag has begun, so the click after a plain press still reaches the node. The view is a transform (`src/lib/diagram/zoom.ts`), so it
