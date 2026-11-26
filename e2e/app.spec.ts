@@ -654,6 +654,9 @@ test.describe("the app at /app", () => {
 
     const inspector = page.getByRole("region", { name: "Selected container" });
     await expect(inspector.getByLabel("Label")).toHaveValue("NEW CONTAINER");
+    // A new container starts with a medium border, and unlocked so it moves alone.
+    await expect(inspector.getByRole("button", { name: "Medium" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Lock what's inside NEW CONTAINER" })).toHaveAttribute("aria-pressed", "false");
     await inspector.getByLabel("Label").fill("PAYMENTS");
     await inspector.getByRole("button", { name: "Outside" }).click();
     await inspector.getByRole("button", { name: "Top right" }).click();
@@ -671,7 +674,7 @@ test.describe("the app at /app", () => {
     expect(box.layout).toMatchObject({ w: 620, h: 400 });
   });
 
-  test("moves a container with what sits inside it, and one that moves alone", async ({ page, request }) => {
+  test("moves a container with what sits inside it, one that moves alone, and one locked from its corner button", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     const id = diagrams["ledger-platform"];
     await page.goto(`/app/d/${id}`);
@@ -684,11 +687,25 @@ test.describe("the app at /app", () => {
 
     // Storage moves alone, so Journal DB stays put; the inspector says so.
     await page.getByRole("button", { name: "Container: Storage" }).click();
-    await expect(page.getByRole("region", { name: "Selected container" }).getByRole("checkbox", { name: /moves what's inside/ })).not.toBeChecked();
+    await expect(page.getByRole("region", { name: "Selected container" }).getByRole("checkbox", { name: /Lock what's inside/ })).not.toBeChecked();
     await dragBy(page, 'button[aria-label="Container: Storage"]', 0, 60);
     ({ doc } = await saved(page, request, id));
     expect(doc.boundaries.find(b => b.id === "store")!.layout).toMatchObject({ x: 920, y: 210 });
     expect(doc.nodes.find(n => n.id === "journal")!.layout).toMatchObject({ x: 940, y: 180 });
+
+    // Back where it was and locked from the button by its corner, Storage carries Journal DB with it.
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect.poll(async () => (await saved(page, request, id)).doc.boundaries.find(b => b.id === "store")!.layout).toMatchObject({ y: 150 });
+    const lock = page.getByRole("button", { name: "Lock what's inside Storage" });
+    await expect(lock).toHaveAttribute("aria-pressed", "false");
+    await lock.click();
+    await expect(lock).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("region", { name: "Selected container" }).getByRole("checkbox", { name: /Lock what's inside/ })).toBeChecked();
+    await expect.poll(async () => (await saved(page, request, id)).doc.boundaries.find(b => b.id === "store")!.moveContents).toBeUndefined();
+    await dragBy(page, 'button[aria-label="Container: Storage"]', 0, 40);
+    await expect.poll(async () => (await saved(page, request, id)).doc.nodes.find(n => n.id === "journal")!.layout).toMatchObject({ x: 940, y: 220 });
+    ({ doc } = await saved(page, request, id));
+    expect(doc.boundaries.find(b => b.id === "store")!.layout).toMatchObject({ x: 920, y: 190 });
   });
 
   test("connects a node to a container, and deleting the container takes the connection with it", async ({ page, request }) => {

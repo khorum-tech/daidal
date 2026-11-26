@@ -567,6 +567,31 @@ describe('a finger or pen grabbing what is selected (grabSelected, the desktop l
 		expect(phone.calls.boxMoved).toEqual([]);
 	});
 
+	it('locks and unlocks what is inside the selected container from the button by its corner, without moving it', async () => {
+		const locks: [string, boolean][] = [];
+		const { calls, rerender } = await mountGrab({ onlockbox: (id: string, locked: boolean) => locks.push([id, locked]) });
+		expect(document.querySelector('.b-lock')).toBeNull();
+
+		await rerender({ selectedBox: 'zone' });
+		// Postings starts locked, so it carries what is inside.
+		const lock = page.getByRole('button', { name: "Lock what's inside Postings" });
+		await expect.element(lock).toHaveAttribute('aria-pressed', 'true');
+		await lock.click();
+		expect(locks).toEqual([['zone', false]]);
+
+		// A finger's press on it, even with Move chosen, neither moves the container nor pans.
+		await rerender({ boxMode: 'move' });
+		const before = sheet();
+		await drag(document.querySelector('.b-lock')!, 40, 20, { pointerType: 'touch' });
+		expect(calls.boxMoved).toEqual([]);
+		expect(sheet().tx).toBe(before.tx);
+
+		await rerender({ scene: toScene({ ...SAMPLE, boundaries: SAMPLE.boundaries!.map(b => ({ ...b, moveContents: false })) }) });
+		await expect.element(lock).toHaveAttribute('aria-pressed', 'false');
+		await lock.click();
+		expect(locks).toEqual([['zone', false], ['zone', true]]);
+	});
+
 	it('moves every picked node when a finger drags one of them', async () => {
 		const { calls } = await mountGrab({ multi: { nodes: ['gw', 'db'], edges: [] } });
 		const { s } = sheet();

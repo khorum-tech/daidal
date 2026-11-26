@@ -148,7 +148,9 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 |----|----|--------|----|--------|
 | BOX-1 | **+ Add**, then **labelled box** (or the container button) | A container is added | D P | |
 | BOX-2 | Drag the LEDGER CLUSTER container by its border (on the phone, its menu's **Move**) | It moves with what's inside | D P | |
-| BOX-3 | Drag the Storage container | It moves alone: it's set not to move its contents | D | |
+| BOX-3 | Drag the Storage container | It moves alone: it's unlocked | D | |
+| BOX-3a | Select Storage, press the lock beside its corner handle, then drag it | The lock fills in, and Journal DB and Balance Cache move with it; press it again and it moves alone | D P | |
+| BOX-3b | Add a container | Its border is Medium and its lock is open | D P | |
 | BOX-4 | Resize a container by its corner (on the phone, **Resize**) | It resizes | D P | |
 | BOX-5 | Change its label, label position and border | Each shows on the canvas and saves | D P | |
 | BOX-6 | Duplicate and delete a container | A copy, then it's gone; what was inside stays | D | |

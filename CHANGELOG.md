@@ -5,6 +5,13 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- **Lock or unlock a container's contents** (issue #96). A selected container has a lock button beside its corner
+  handle: locked, moving the container moves whatever sits wholly inside it; unlocked, the container moves alone. On a
+  phone or tablet the button is bigger for a finger, by the corner handle as a node's connect button is. The inspector's
+  switch is now **Lock what's inside** and does the same. New containers start with a medium border (2) instead of a
+  hairline, still unlocked; this is core's `addBoundary`, so MCP's `add_container` gets it too. Containers already
+  drawn keep their border. Both defaults can become settings with #101. Core changes: `addBoundary` adds
+  `border: { width: 2 }` (`NEW_BOX_BORDER`) and the icon library gains `lockSimple`; core moves to 0.4.0.
 - **Side panels can be widened** (issue #104). Each side panel has a handle on its inner edge: drag it with a mouse,
   finger or Apple Pencil to give the panel up to half the window or more, while the canvas keeps at least 200 px.
   The panels never get narrower than before (the right one is 440 px while the config is open). The arrow keys move a

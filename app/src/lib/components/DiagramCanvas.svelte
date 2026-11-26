@@ -39,7 +39,8 @@
 	 * Containers are picked by their border or label ([onselectbox]). A mouse drags the border to move one, with
 	 * what sits wholly inside unless it moves alone ([onmovebox]), and the corner handle to resize it
 	 * ([onresizebox]); a finger does either from anywhere once [boxMode] is chosen, or, with [grabSelected] on, from
-	 * the selected container's own border, label or corner handle.
+	 * the selected container's own border, label or corner handle. Beside that handle, the lock button locks what sits
+	 * inside to the container, so it moves with it, or unlocks it so the container moves alone ([onlockbox]).
 	 */
 	let {
 		scene,
@@ -59,6 +60,7 @@
 		onselectbox,
 		onmovebox,
 		onresizebox,
+		onlockbox,
 		boxMode = null,
 		grabSelected = false,
 		picking = false,
@@ -104,6 +106,8 @@
 		onselectbox?: (id: string) => void;
 		onmovebox?: (id: string, x: number, y: number) => void;
 		onresizebox?: (id: string, w: number, h: number) => void;
+		/** The selected container's lock button: [locked] true carries what sits wholly inside it when it moves. */
+		onlockbox?: (id: string, locked: boolean) => void;
 		/** A drag anywhere moves or resizes the selected container: how a finger does it. */
 		boxMode?: 'move' | 'resize' | null;
 		/**
@@ -375,7 +379,7 @@
 	function down(e: PointerEvent) {
 		if (e.pointerType === 'mouse' && e.button !== 0) return;
 		const target = e.target as Element;
-		if (target.closest('.zoom, .rename, .minimap')) return; // the zoom buttons, the minimap and the name being typed are their own controls
+		if (target.closest('.zoom, .rename, .minimap, .b-lock')) return; // the zoom buttons, the minimap, a container's lock and the name being typed are their own controls
 		lastPointer = e.pointerType;
 		dragJustEnded = false;
 		leave();
@@ -434,7 +438,7 @@
 		const under = target.closest<HTMLElement>('[data-node]')?.dataset.node;
 		const group = multi?.nodes.length ? multi.nodes : null;
 		if (editable && group && (moving || ((!touch || grabSelected) && under && pickedNodes.has(under)))) return { kind: 'many' as const, ids: group };
-		const empty = !target.closest('[data-node], [data-hit], [data-box], .port, .resize, .n-resize, .end-handle');
+		const empty = !target.closest('[data-node], [data-hit], [data-box], .port, .resize, .b-lock, .n-resize, .end-handle');
 		if (onpick && empty && (manyMode || (shift && !touch))) return { kind: 'marquee' as const, add: shift };
 		return null;
 	}
@@ -613,7 +617,7 @@
 	 * there for it (as dropping one does). Nodes handle their own taps (NodeCard).
 	 */
 	function tapEmpty(e: MouseEvent) {
-		if (dragJustEnded || (e.target as Element).closest('[data-node], [data-hit], [data-box], .zoom, .port, .resize, .n-resize, .end-handle, .rename')) return;
+		if (dragJustEnded || (e.target as Element).closest('[data-node], [data-hit], [data-box], .zoom, .port, .resize, .b-lock, .n-resize, .end-handle, .rename')) return;
 		loose = null;
 		if (connectFrom && editable) {
 			connectedAt = e.timeStamp;
@@ -643,7 +647,7 @@
 		const target = e.target as Element;
 		const id = target.closest<HTMLElement>('[data-node]')?.dataset.node;
 		if (id) onrenamestart?.(id);
-		else if (!target.closest('[data-hit], [data-box], .zoom, .port, .resize, .n-resize, .end-handle, .rename')) onaddat?.(toContent(view, local(e)));
+		else if (!target.closest('[data-hit], [data-box], .zoom, .port, .resize, .b-lock, .n-resize, .end-handle, .rename')) onaddat?.(toContent(view, local(e)));
 	}
 
 	// The name being typed: Enter or leaving the field keeps it, Escape leaves the name as it was.
@@ -754,6 +758,17 @@
 					<button type="button" class="b-label" style={LP[b.pos]} data-box={b.id} aria-label="Container: {b.label}" onclick={() => tapBox(b)}>{b.label}</button>
 				{/if}
 				{#if editable && selectedBox === b.id}
+					<button
+						type="button"
+						class="b-lock"
+						class:on={b.moveContents}
+						aria-pressed={b.moveContents}
+						aria-label="Lock what's inside {b.label || 'the container'}"
+						title={b.moveContents ? "Locked: what's inside moves with it · click to move it alone" : "Unlocked: it moves alone · click to lock what's inside to it"}
+						onclick={() => onlockbox?.(b.id, !b.moveContents)}
+					>
+						<Icon name={b.moveContents ? 'lockSimple' : 'lockSimpleOpen'} size={12} />
+					</button>
 					<span class="resize" title="Drag to resize" aria-hidden="true"></span>
 				{/if}
 			</div>
@@ -1033,6 +1048,44 @@
 			height: 24px;
 			right: -12px;
 			bottom: -12px;
+		}
+	}
+	/* The lock sits on the bottom border, just inside the resize handle, as a node's connect button sits by its corner. */
+	.b-lock {
+		position: absolute;
+		right: 14px;
+		bottom: -9px;
+		width: 18px;
+		height: 18px;
+		display: grid;
+		place-items: center;
+		padding: 0;
+		box-sizing: border-box;
+		border-radius: 4px;
+		border: 1px solid var(--color-accent);
+		background: var(--color-surface);
+		color: var(--color-neutral-400);
+		pointer-events: auto;
+		cursor: pointer;
+	}
+	.b-lock.on {
+		background: var(--color-accent);
+		color: var(--color-bg);
+	}
+	.b-lock:focus-visible {
+		outline: 2px solid var(--color-accent-200);
+		outline-offset: 2px;
+	}
+	@media (pointer: coarse) {
+		.b-lock {
+			width: 28px;
+			height: 28px;
+			right: 20px;
+			bottom: -14px;
+		}
+		.b-lock :global(svg) {
+			width: 16px;
+			height: 16px;
 		}
 	}
 	.b-label {

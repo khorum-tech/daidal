@@ -29,14 +29,14 @@ describe('the container inspector', () => {
 		await expect.element(page.getByRole('button', { name: 'Outside' })).toHaveAttribute('aria-pressed', 'true');
 		await expect.element(page.getByRole('button', { name: 'Top right' })).toHaveAttribute('aria-pressed', 'true');
 		await expect.element(page.getByRole('button', { name: 'Medium' })).toHaveAttribute('aria-pressed', 'true');
-		await expect.element(page.getByRole('checkbox', { name: /moves what's inside/ })).toBeChecked();
+		await expect.element(page.getByRole('checkbox', { name: /Lock what's inside/ })).toBeChecked();
 
 		await page.getByLabelText('Label').fill('STAGING');
 		await page.getByRole('button', { name: 'Inside' }).click();
 		await page.getByRole('button', { name: 'Bottom left' }).click();
 		await page.getByRole('button', { name: 'Hairline' }).click();
 		await page.getByRole('button', { name: 'Dotted border' }).click();
-		await page.getByRole('checkbox', { name: /moves what's inside/ }).click();
+		await page.getByRole('checkbox', { name: /Lock what's inside/ }).click();
 		await page.getByRole('button', { name: 'Duplicate container' }).click();
 		await page.getByRole('button', { name: 'Delete container' }).click();
 
@@ -46,7 +46,7 @@ describe('the container inspector', () => {
 			{ change: { labelPosition: 'outside-bl' }, label: 'Move container label', group: undefined },
 			{ change: { borderWidth: 1 }, label: 'Change border', group: undefined },
 			{ change: { borderStyle: 'dotted' }, label: 'Change border', group: undefined },
-			{ change: { moveContents: false }, label: 'Container moves alone', group: undefined }
+			{ change: { moveContents: false }, label: "Unlock container's contents", group: undefined }
 		]);
 		expect(calls).toEqual(['end', 'duplicate', 'delete']);
 	});

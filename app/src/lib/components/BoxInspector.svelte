@@ -83,8 +83,8 @@
 		</div>
 
 		<label class="switch">
-			<input type="checkbox" checked={box.moveContents} onchange={() => onchange?.({ moveContents: !box.moveContents }, box.moveContents ? 'Container moves alone' : 'Container moves its contents')} />
-			Moving it moves what's inside
+			<input type="checkbox" checked={box.moveContents} onchange={() => onchange?.({ moveContents: !box.moveContents }, box.moveContents ? "Unlock container's contents" : "Lock container's contents")} />
+			Lock what's inside, so it moves with the container
 		</label>
 
 		<div class="actions">

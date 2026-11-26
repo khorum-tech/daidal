@@ -76,6 +76,23 @@ test.describe("the editor on an iPad held sideways", () => {
     expect(await savedLayout(request, id, "boundaries", "store")).toMatchObject({ x: 840, y: 140, w: 280, h: 380 });
   });
 
+  test("locks what's inside a container by touch from the button by its corner, so a drag carries it", async ({ page, request }) => {
+    const id = await openLedger(page, request);
+    await page.getByRole("button", { name: "Container: Storage" }).tap();
+    const lock = page.getByRole("button", { name: "Lock what's inside Storage" });
+    await expect(lock).toHaveAttribute("aria-pressed", "false");
+    await lock.tap();
+    await expect(lock).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(async () => (await (await request.get(`/api/diagrams/${id}`)).json()).doc.boundaries.find((b: { id: string }) => b.id === "store").moveContents).toBeUndefined();
+
+    const { s } = await sheet(page);
+    const start = await middle(page, 'button[aria-label="Container: Storage"]');
+    await swipe(page, start.x, start.y, 0, 40 * s);
+    // Storage starts at (880, 120) and Journal DB inside it at (900, 150).
+    await expect.poll(() => savedLayout(request, id, "nodes", "journal")).toMatchObject({ x: 900, y: 190 });
+    expect(await savedLayout(request, id, "boundaries", "store")).toMatchObject({ x: 880, y: 160 });
+  });
+
   test("moves a connection's end along its box by touch, and a double tap puts it back on auto", async ({ page, request }) => {
     const id = await openLedger(page, request);
     await page.getByRole("button", { name: "Web App: Ledger Console" }).tap();

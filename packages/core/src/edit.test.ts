@@ -209,9 +209,9 @@ describe('containers', () => {
 		edges: [...base().edges!, { from: 'db', to: 'zone' }]
 	});
 
-	it('adds one centred on the point, moving alone', () => {
+	it('adds one centred on the point, with a medium border, moving alone', () => {
 		const { doc, id } = addBoundary(base(), { x: 500, y: 400 }, 1);
-		expect(doc.boundaries!.find(b => b.id === id)).toEqual({ id, label: 'NEW CONTAINER', moveContents: false, layout: { x: 240, y: 230, w: 520, h: 340 } });
+		expect(doc.boundaries!.find(b => b.id === id)).toEqual({ id, label: 'NEW CONTAINER', border: { width: 2 }, moveContents: false, layout: { x: 240, y: 230, w: 520, h: 340 } });
 	});
 
 	it('finds what sits wholly inside one', () => {
