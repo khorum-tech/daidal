@@ -110,5 +110,9 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   (moved) or its corner handle (resized). A first tap selects and a second press drags, so a stray finger on
   anything else still pans. Phones keep Move and Resize in their menus. A new e2e `tablet` project (iPad Pro 11"
   sideways) keeps this working.
+- **Connection ends can be moved with a finger or Apple Pencil** (issue #102). On a touch screen the handles on the
+  selected connection's ends were hidden, so an end could only be pinned to the middle of a side from the connection's
+  sheet. The handles now show there too, a little bigger: drag one along its box to pin it to that spot, and double tap
+  it to put it back on auto, as a mouse does with a double-click. Core is unchanged.
 - A node card no longer lets long text spill out of it: the type keeps to one line, and the name and subtitle wrap
   over as many lines as the card's height leaves, then end in an ellipsis (hover shows it in full).

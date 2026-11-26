@@ -107,7 +107,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | VIEW-10 | On the phone, tap a node, then **View** | A sheet shows it read-only: notes, tags, every connection and its links. On a replayed snapshot the bar is just View and × | P | |
 | VIEW-10 | Use the minimap in the bottom-left: zoom in, then click its far corner, then drag on it | The canvas looks where you clicked, and follows the drag; the outline shows what's on screen | D | |
 | VIEW-11 | Fold both side panels with the tabs at the canvas's edges, reload | Both stay folded; the tabs bring them back | D | |
-| VIEW-12 | Check the phone has no minimap, edge tabs or end handles | None show; the bottom bar has the panels | P | |
+| VIEW-12 | Check the phone has no minimap or edge tabs | None show; the bottom bar has the panels | P | |
 
 ## 5. Nodes
 
@@ -138,8 +138,8 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | EDGE-4 | On the phone, a node's menu, **Connect**, then tap another node (or empty space) | A connection (or a new connected node) | P | |
 | EDGE-5 | In the connection's details: label, show label, arrows, weight, line, route, each end's side | Each change shows on the canvas and saves | D P | |
 | EDGE-6 | **Reverse**, then **Delete** | The ends swap; then it's gone | D P | |
-| EDGE-7 | Select the HTTPS connection, drag the end at Edge Router along its side | The end moves there and snaps to the quarters; its handle fills; the details name the side | D | |
-| EDGE-8 | Double-click that handle | That end goes back to auto | D | |
+| EDGE-7 | Select the HTTPS connection, drag the end at Edge Router along its side (on the phone, with a finger) | The end moves there and snaps to the quarters; its handle fills; the details name the side | D P | |
+| EDGE-8 | Double-click that handle (on the phone, double tap it) | That end goes back to auto | D P | |
 
 ## 7. Containers
 

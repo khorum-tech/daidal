@@ -81,12 +81,12 @@ tags, views and kind always, its example nodes if asked. Under History, **Edits 
 the diagram was opened, newest first; picking one rolls back to just after it (or forward, to one undone), a step at a
 time through undo and redo, so ⌘Z carries on from there.
 
-On the canvas, a selected connection shows a handle on each end: drag one along its box to pin it to that spot (it
-snaps to the quarters), double-click it to put it back on auto. A mouse resting on a node a moment shows its card
+On the canvas, a selected connection shows a handle on each end: drag one along its box, with a mouse, finger or
+pen, to pin it to that spot (it snaps to the quarters), and double-click or double tap it to put it back on auto. A mouse resting on a node a moment shows its card
 (notes, tags, connections). **Isolate its tags**, in a node's details, shows only the tags it carries. The **minimap**
 in the corner shows the whole diagram with the part on screen outlined; press or drag on it to look there. The tabs at
 the canvas's edges fold the side panels away, and this browser remembers. A phone keeps to its sheets and menus: no
-minimap, and ends are pinned to a side in the connection's sheet.
+minimap. The connection's sheet can also pin an end to the middle of a side.
 
 Before a release, or after a change to the editor, run the hand checklist in [`docs/uat.md`](../docs/uat.md) on stage,
 on a desktop and an iPhone.

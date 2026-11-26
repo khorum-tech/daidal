@@ -566,7 +566,7 @@ test.describe("the app on a phone", () => {
     await expect(page.locator("[data-node]")).toHaveCount(4);
     await expect(history.getByRole("button", { name: /Add queue/i })).toContainText("Undone");
   });
-  test("isolates a node's tags from its sheet, with no minimap or end handles on a phone", async ({ page, request }) => {
+  test("isolates a node's tags from its sheet, with no minimap on a phone", async ({ page, request }) => {
     const { diagrams } = await importStageData(request);
     await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
     await expect(page.getByRole("img", { name: /^Minimap/ })).toHaveCount(0);
