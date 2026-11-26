@@ -573,8 +573,8 @@ describe('a finger or pen grabbing what is selected (grabSelected, the desktop l
 		expect(document.querySelector('.b-lock')).toBeNull();
 
 		await rerender({ selectedBox: 'zone' });
-		// Postings starts locked, so it carries what is inside.
-		const lock = page.getByRole('button', { name: "Lock what's inside Postings" });
+		// Prod starts locked (no setting means locked), so it carries what is inside.
+		const lock = page.getByRole('button', { name: "Lock what's inside Prod" });
 		await expect.element(lock).toHaveAttribute('aria-pressed', 'true');
 		await lock.click();
 		expect(locks).toEqual([['zone', false]]);
