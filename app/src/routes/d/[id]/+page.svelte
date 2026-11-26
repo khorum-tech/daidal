@@ -808,6 +808,10 @@
 		const before = current();
 		apply(resizeBoundary(before, id, w, h), before, 'Resize container');
 	};
+	const lockBox = (id: string, locked: boolean) => {
+		const before = current();
+		apply(updateBoundary(before, id, { moveContents: locked }), before, locked ? "Lock container's contents" : "Unlock container's contents");
+	};
 	function changeBox(change: BoundaryChange, label: string, group?: string) {
 		if (!selectedBox) return;
 		const before = current();
@@ -1469,6 +1473,7 @@
 			onselectbox={selectBox}
 			onmovebox={moveBox}
 			onresizebox={resizeBox}
+			onlockbox={lockBox}
 			boxMode={editable ? boxMode : null}
 			grabSelected={!narrow}
 			picking={editable && connectTool && !connectFrom}

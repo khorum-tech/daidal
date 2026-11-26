@@ -261,13 +261,22 @@ function newBoxId(doc: DaidalDoc, now: number): string {
 	return id;
 }
 
+/** A new container's border width: a step heavier than the hairline that is the default for one without a width. */
+export const NEW_BOX_BORDER = 2;
+
 /**
- * A new container centred on [at], as the prototype adds one: 520 × 340, labelled, and moving alone (so laying it
- * over existing nodes doesn't sweep them up when it is dragged).
+ * A new container centred on [at]: 520 × 340, labelled, with a medium border, and unlocked so it moves alone (laying
+ * it over existing nodes doesn't sweep them up when it is dragged; its lock button carries them).
  */
 export function addBoundary(doc: DaidalDoc, at: { x: number; y: number }, now = Date.now()): { doc: DaidalDoc; id: string } {
 	const id = newBoxId(doc, now);
-	const box: DocBoundary = { id, label: 'NEW CONTAINER', moveContents: false, layout: { x: Math.round(at.x - 260), y: Math.round(at.y - 170), w: 520, h: 340 } };
+	const box: DocBoundary = {
+		id,
+		label: 'NEW CONTAINER',
+		border: { width: NEW_BOX_BORDER },
+		moveContents: false,
+		layout: { x: Math.round(at.x - 260), y: Math.round(at.y - 170), w: 520, h: 340 }
+	};
 	return { doc: { ...doc, boundaries: [...(doc.boundaries ?? []), box] }, id };
 }
 

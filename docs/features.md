@@ -9,9 +9,11 @@ selected node). **Connections** too: drag the port on a selected node to another
 for a new one), or click the port and then the target; on a phone, Connect in the node menu, then tap the target.
 Tap a connection to edit its label, arrows, weight, line, route and which side each end leaves from, or to reverse
 or delete it. **Containers** as well: add one from the Add menu, pick it by its border or label, drag the border to
-move it (with whatever sits wholly inside, unless it is set to move alone) and the corner handle to resize it; on a
-phone, Move or Resize in its menu, then drag anywhere. Its inspector sets the label and where it sits, the border,
-and whether it carries its contents. **Tags and views** too: the tags panel saves the tags on now as a view, and
+move it and the corner handle to resize it; on a phone, Move or Resize in its menu, then drag anywhere. The lock
+button beside the corner handle (bigger for a finger) locks what sits wholly inside to it, so it moves with the
+container, or unlocks it so the container moves alone. A new container starts unlocked, with a medium border (core's
+`addBoundary`, so MCP's `add_container` too). Its inspector sets the label and where it sits, the border, and the
+same lock. **Tags and views** too: the tags panel saves the tags on now as a view, and
 the chosen view can be renamed, re-saved with the tags on now, made the one the diagram opens on, or deleted;
 **Manage tags** adds, renames, recolours, regroups and deletes tags, and a node's tag picker can make a new one. Solo
 (the crosshair by a tag) shows one tag alone without saving anything. **Diagrams themselves** as well: **+ New

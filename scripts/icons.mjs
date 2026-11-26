@@ -36,7 +36,7 @@ const ICONS = `
 	.split(/\s+/)
 	.filter(Boolean);
 /** Phosphor names for the app's own controls (the phone's bottom bars): marked "ui", so not offered for nodes. */
-const UI = new Set(['pencil-simple', 'arrows-out-cardinal', 'info', 'x']);
+const UI = new Set(['pencil-simple', 'arrows-out-cardinal', 'info', 'x', 'lock-simple']);
 
 const camel = name => name.replace(/-(\w)/g, (_, c) => c.toUpperCase());
 const words = name => name.replaceAll('-', ' ').replace(/^\w/, c => c.toUpperCase());
