@@ -5,6 +5,12 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
 ## [Unreleased]
 
 ### Added
+- **Side panels can be widened** (issue #104). Each side panel has a handle on its inner edge: drag it with a mouse,
+  finger or Apple Pencil to give the panel up to half the window or more, while the canvas keeps at least 200 px.
+  The panels never get narrower than before (the right one is 440 px while the config is open). The arrow keys move a
+  focused handle (Shift for bigger steps, Home and End for either end), a double-click or double tap puts the panel
+  back to its usual width, and this browser remembers each width with the folded state, fitting it again to a smaller
+  window. The bottom sheets on narrower screens are unchanged. Core is unchanged.
 - **Your own addresses in the docs.** The in-app docs no longer hard-code `daidal.khorum.org`: the MCP addresses on
   Connecting AI, the Claude Code commands and the skill's repository link come from `DAIDAL_URL`, `DAIDAL_STAGE_URL`,
   `DAIDAL_LOCAL_URL` and `DAIDAL_REPO_URL`, read from a `.env` at the repository root (or the build's environment)

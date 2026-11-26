@@ -23,6 +23,7 @@
 	import Sheet from '#lib/components/Sheet.svelte';
 	import TagManager from '#lib/components/TagManager.svelte';
 	import TagPanel from '#lib/components/TagPanel.svelte';
+	import PanelResizer from '#lib/components/PanelResizer.svelte';
 	import TypePicker from '#lib/components/TypePicker.svelte';
 	import {
 		addBoundary,
@@ -1041,25 +1042,52 @@
 		view = null;
 	}
 
-	// The side panels, shown or folded away; a viewer setting kept in this browser.
+	// The side panels, shown or folded away and how wide; a viewer setting kept in this browser.
 	let panels = $state({ left: true, right: true });
+	// A width chosen by dragging a panel's edge; null is its usual width.
+	let widths = $state<{ left: number | null; right: number | null }>({ left: null, right: null });
 	$effect.pre(() => {
 		untrack(() => {
 			try {
 				const saved = JSON.parse(localStorage.getItem('skope.panels') ?? '{}') as Record<string, unknown>;
+				const px = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.round(v) : null);
 				panels = { left: saved.left !== false, right: saved.right !== false };
+				widths = { left: px(saved.leftWidth), right: px(saved.rightWidth) };
 			} catch {
-				// Both shown.
+				// Both shown, at their usual width.
 			}
 		});
 	});
-	function fold(side: 'left' | 'right') {
-		panels = { ...panels, [side]: !panels[side] };
+	function savePanels() {
 		try {
-			localStorage.setItem('skope.panels', JSON.stringify(panels));
+			localStorage.setItem('skope.panels', JSON.stringify({ ...panels, leftWidth: widths.left, rightWidth: widths.right }));
 		} catch {
 			// Kept for this visit only.
 		}
+	}
+	function fold(side: 'left' | 'right') {
+		panels = { ...panels, [side]: !panels[side] };
+		savePanels();
+	}
+
+	// Each panel is at least its usual width (wider while the config is open) and can grow until the canvas has
+	// CANVAS_MIN left; as the window narrows, the right panel gives way first, then the left.
+	const LEFT_MIN = 248;
+	const RIGHT_MIN = 288;
+	const CONFIG_MIN = 440;
+	const CANVAS_MIN = 200;
+	let windowWidth = $state(typeof window === 'undefined' ? 1280 : window.innerWidth);
+	const sidePanels = $derived(!narrow && !presenting);
+	const rightMin = $derived(configOpen ? CONFIG_MIN : RIGHT_MIN);
+	const room = $derived(windowWidth - CANVAS_MIN);
+	const clampTo = (w: number, lo: number, hi: number) => Math.min(Math.max(w, lo), Math.max(lo, hi));
+	const leftWidth = $derived(clampTo(widths.left ?? LEFT_MIN, LEFT_MIN, room - (panels.right ? rightMin : 0)));
+	const rightWidth = $derived(clampTo(widths.right ?? rightMin, rightMin, room - (panels.left ? leftWidth : 0)));
+	const leftMax = $derived(Math.max(LEFT_MIN, room - (panels.right ? rightWidth : 0)));
+	const rightMax = $derived(Math.max(rightMin, room - (panels.left ? leftWidth : 0)));
+	function resizePanel(side: 'left' | 'right', w: number) {
+		// Back at its smallest, a panel follows its usual width again (the right one widens for the config).
+		widths = { ...widths, [side]: w <= (side === 'left' ? LEFT_MIN : rightMin) ? null : w };
 	}
 
 	// Isolate shows just a node's tags (only what this browser shows, like the switches); Everything brings back all.
@@ -1189,6 +1217,7 @@
 
 <svelte:head><title>{working.name} · Daidal</title></svelte:head>
 <svelte:window
+	bind:innerWidth={windowWidth}
 	onkeydown={shortcut}
 	onpointerdown={e => {
 		// The add menu closes on a press anywhere outside it (its own button toggles it).
@@ -1372,6 +1401,7 @@
 		ondefaultview={defaultView}
 		onlockview={lockViewTo}
 		onmanage={() => (sheet = 'tags')}
+		width={leftWidth}
 	/>
 {/snippet}
 {#snippet followPanel()}
@@ -1404,7 +1434,10 @@
 {/snippet}
 
 <div class="body">
-	{#if !narrow && !presenting && panels.left}{@render tags()}{/if}
+	{#if sidePanels && panels.left}
+		{@render tags()}
+		<PanelResizer side="left" label="Resize views and tags" width={leftWidth} min={LEFT_MIN} max={leftMax} onresize={w => resizePanel('left', w)} onend={savePanels} />
+	{/if}
 	<main class="stage" aria-label="Diagram" bind:this={stageEl}>
 		{#if !narrow && !presenting}
 			<!-- Each side panel folds away for more canvas; this browser remembers which. -->
@@ -1523,8 +1556,9 @@
 			{/if}
 		{/if}
 	</main>
-	{#if !narrow && !presenting && panels.right}
-		<aside class="right" class:wide={configOpen}>
+	{#if sidePanels && panels.right}
+		<PanelResizer side="right" label="Resize the side panel" width={rightWidth} min={rightMin} max={rightMax} onresize={w => resizePanel('right', w)} onend={savePanels} />
+		<aside class="right" style:width="{rightWidth}px">
 			{#if configOpen}{@render configPanel(true)}{/if}
 			{@render multiInspector()}
 			{@render nodeInspector()}
@@ -1982,11 +2016,7 @@
 		border-right: none;
 		border-radius: 7px 0 0 7px;
 	}
-	.right.wide {
-		width: 440px;
-	}
 	.right {
-		width: 288px;
 		flex: none;
 		overflow-y: auto;
 		border-left: 1px solid var(--color-divider);

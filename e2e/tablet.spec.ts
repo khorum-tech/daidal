@@ -96,4 +96,30 @@ test.describe("the editor on an iPad held sideways", () => {
     await expect(end).not.toHaveClass(/pinned/);
     await expect.poll(() => savedEndTo(request, id)).toBeUndefined();
   });
+
+  test("widens the side panel by touch from its edge, keeps the width after a reload, and a double tap resets it", async ({ page, request }) => {
+    await openLedger(page, request);
+    const panel = page.locator("aside.right");
+    const handle = page.getByRole("separator", { name: "Resize the side panel" });
+    await expect(handle).toHaveAttribute("aria-valuenow", "288");
+    const width = async () => Math.round((await panel.boundingBox())!.width);
+    expect(await width()).toBe(288);
+
+    const edge = await middle(page, "aside.right");
+    const x = (await panel.boundingBox())!.x;
+    await swipe(page, x + 6, edge.y, -200, 0);
+    await expect(handle).toHaveAttribute("aria-valuenow", "488");
+    expect(await width()).toBe(488);
+    // At least half of the iPad's width is there to take.
+    expect(Number(await handle.getAttribute("aria-valuemax"))).toBeGreaterThanOrEqual(1194 / 2);
+
+    await page.reload();
+    await expect(handle).toHaveAttribute("aria-valuenow", "488");
+
+    const at = (await panel.boundingBox())!.x + 6;
+    await page.touchscreen.tap(at, edge.y);
+    await page.touchscreen.tap(at, edge.y);
+    await expect(handle).toHaveAttribute("aria-valuenow", "288");
+    expect(await width()).toBe(288);
+  });
 });

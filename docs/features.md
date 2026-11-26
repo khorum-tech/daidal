@@ -85,8 +85,10 @@ On the canvas, a selected connection shows a handle on each end: drag one along 
 pen, to pin it to that spot (it snaps to the quarters), and double-click or double tap it to put it back on auto. A mouse resting on a node a moment shows its card
 (notes, tags, connections). **Isolate its tags**, in a node's details, shows only the tags it carries. The **minimap**
 in the corner shows the whole diagram with the part on screen outlined; press or drag on it to look there. The tabs at
-the canvas's edges fold the side panels away, and this browser remembers. A phone keeps to its sheets and menus: no
-minimap. The connection's sheet can also pin an end to the middle of a side.
+the canvas's edges fold the side panels away, and this browser remembers. Drag a side panel's inner edge, with a
+mouse, finger or pen, to widen it up to half the window or more (the canvas keeps at least 200 px); the arrow keys move
+the edge once it has focus, and a double-click or double tap puts the panel back to its usual width. This browser
+remembers each width too. A phone keeps to its sheets and menus: no minimap. The connection's sheet can also pin an end to the middle of a side.
 
 Before a release, or after a change to the editor, run the hand checklist in [`docs/uat.md`](../docs/uat.md) on stage,
 on a desktop and an iPhone.

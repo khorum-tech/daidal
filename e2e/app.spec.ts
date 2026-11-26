@@ -1962,6 +1962,30 @@ test.describe("the app at /app", () => {
     await expect(page.getByRole("region", { name: "History" })).toBeVisible();
   });
 
+  test("widens the views and tags panel by dragging its edge or from the keyboard, and a double-click resets it", async ({ page, request }) => {
+    const { diagrams } = await importStageData(request);
+    await page.goto(`/app/d/${diagrams["ledger-platform"]}`);
+    const panel = page.getByRole("complementary", { name: "Views and tags" });
+    const handle = page.getByRole("separator", { name: "Resize views and tags" });
+    await expect(handle).toHaveAttribute("aria-valuenow", "248");
+    const box = (await panel.boundingBox())!;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width - 3, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width + 150, y, { steps: 5 });
+    await page.mouse.up();
+    await expect(handle).toHaveAttribute("aria-valuenow", "401");
+    expect(Math.round((await panel.boundingBox())!.width)).toBe(401);
+
+    await handle.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(handle).toHaveAttribute("aria-valuenow", "417");
+
+    const edge = (await panel.boundingBox())!;
+    await page.mouse.dblclick(edge.x + edge.width - 3, y);
+    await expect(handle).toHaveAttribute("aria-valuenow", "248");
+  });
+
   test("moves a diagram with its history to another workspace from its sheet", async ({ page, request }) => {
     const { diagrams, team } = await importStageData(request);
     const id = diagrams["edge-ingress (platform copy)"];

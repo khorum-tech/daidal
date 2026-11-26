@@ -107,6 +107,7 @@ Open **ledger-platform** for sections 4 to 14 unless a case says otherwise.
 | VIEW-10 | On the phone, tap a node, then **View** | A sheet shows it read-only: notes, tags, every connection and its links. On a replayed snapshot the bar is just View and × | P | |
 | VIEW-10 | Use the minimap in the bottom-left: zoom in, then click its far corner, then drag on it | The canvas looks where you clicked, and follows the drag; the outline shows what's on screen | D | |
 | VIEW-11 | Fold both side panels with the tabs at the canvas's edges, reload | Both stay folded; the tabs bring them back | D | |
+| VIEW-13 | Drag the right panel's left edge toward the canvas (mouse, then finger or pen on an iPad held sideways), reload, then double-click or double tap the edge | It widens as you drag, to at least half the window, and its fields get room; after the reload it's as wide; the double-click puts it back. The views and tags panel does the same from its right edge | D | |
 | VIEW-12 | Check the phone has no minimap or edge tabs | None show; the bottom bar has the panels | P | |
 
 ## 5. Nodes

@@ -22,7 +22,8 @@
 		ondeleteview,
 		ondefaultview,
 		onlockview,
-		onmanage
+		onmanage,
+		width
 	}: {
 		scene: Scene;
 		on: Record<string, boolean>;
@@ -42,6 +43,8 @@
 		/** Locks a view (it can still be shown, not changed) or unlocks it. */
 		onlockview?: (name: string, locked: boolean) => void;
 		onmanage?: () => void;
+		/** Its width in pixels, when resized; 248 otherwise. */
+		width?: number;
 	} = $props();
 
 	const groups = $derived(tagGroups(scene));
@@ -74,7 +77,7 @@
 	}
 </script>
 
-<aside class="panel" aria-label="Views and tags">
+<aside class="panel" aria-label="Views and tags" style:width={width ? `${width}px` : undefined}>
 	{#if scene.views.length || editable}
 		<section>
 			<h2>Views</h2>
