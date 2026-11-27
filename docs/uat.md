@@ -64,7 +64,7 @@ Journal DB and Balance Cache, which doesn't move its contents).
 | HOME-9 | Tap the search box on the phone | The page doesn't zoom in | P | |
 | HOME-10 | Click a card | The diagram opens | D P | |
 | HOME-11 | Open https://daidal-stage.khorum.org/app/signin | "Sign in to Daidal" with a note that this site signs you in through Cloudflare Access, and a **Sign in** link back to the app (stage has no sign-in page providers) | D P | |
-| HOME-12 | Your initial → **Sign out** | Access's logout page; opening `/app/` again asks you to sign in through Access | D P | |
+| HOME-12 | Your initial → **Sign out** | No error page: you come back to `/app/` through Access's sign-in (Google may sign you straight back in if it remembers you; in a private window you stay at Google's sign-in) | D P | |
 
 ## 2. Workspaces
 

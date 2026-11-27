@@ -13,7 +13,8 @@ All notable changes to Daidal. The format follows [Keep a Changelog](https://kee
   time (`examples/daidal-auth-gitlab`). Sign-ins use PKCE, a one-time `state` and, for OpenID Connect, a nonce, and
   accept only verified emails; sessions are revocable on the server (sign out, sign out everywhere with `DELETE
   /api/me/sessions`, deleting the account), and Download my data lists your linked sign-ins and sessions. **Sign out**
-  in the account menu now ends the session, or goes to Access's logout. With nothing configured the hosted site is
+  in the account menu now ends the session; behind Access it clears Access's cookie and ends the Access session
+  through the team domain's logout (the application's own logout page showed "No Access cookie found" on stage). With nothing configured the hosted site is
   Access alone, exactly as before; personal access tokens and MCP are unchanged. Migration 0008 adds the
   `identities`, `sessions` and `sign_in_states` tables. See `docs/sign-in.md`. Core is unchanged.
 - **Lock or unlock a container's contents** (issue #96). A selected container has a lock button beside its corner

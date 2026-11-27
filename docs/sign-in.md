@@ -57,8 +57,10 @@ Register each sign-in page provider with the callback `https://<your Daidal>/aut
 - **`github`**: `clientId` (required), `name`, `icon`. A GitHub OAuth app; Daidal asks for `read:user user:email`
   and uses your primary verified email (or another verified one). The subject is your GitHub user id, so renaming
   your login changes nothing.
-- **`access`**: `name`, `icon`. Uses `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD`, as before. Sign out goes to Access's
-  logout.
+- **`access`**: `name`, `icon`. Uses `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD`, as before. Sign out clears the
+  application's `CF_Authorization` cookie and goes to the team domain's logout, which ends the Access session and comes
+  back to the app, where Access asks you to sign in again. If your identity provider (Google, say) still remembers
+  you, Access may sign you straight back in; that session is the identity provider's, not Daidal's.
 - **`forward-auth`**: `trustedProxies` (required: the proxy addresses, matched against `CF-Connecting-IP`; headers
   from anywhere else are ignored); `emailHeader` (default `Remote-Email`), `userHeader` (`Remote-User`), `nameHeader`
   (`Remote-Name`), `signOutUrl`, `name`, `icon`. Only use it where the proxy is the only way to reach Daidal.
@@ -104,7 +106,8 @@ A plugin's default export is `{ type, create(context) }` (`ProviderPlugin` in `w
 - a **redirect** provider: `authorizeUrl({ redirectUri, state, codeChallenge, nonce })` returns where to send the
   browser, and must pass `state` and the S256 `codeChallenge` on; `callback({ params, redirectUri, codeVerifier,
   nonce })` swaps the code (with the verifier) for the person and returns `{ provider: id, subject, email, name? }`.
-- a **header** provider: `identify(request)` returns the same, or null, and may give a `signOutUrl`.
+- a **header** provider: `identify(request)` returns the same, or null. It may give a `signOutUrl` (an address, or a
+  function of the address to come back to) and `signOutCookies` to clear on Daidal's host when signing out.
 
 Return an email only once the provider has verified it belongs to the person, and a subject that never changes
 (never the email). Throw `SignInError("unverified" | "failed", …)` otherwise; the sign-in page explains each code.

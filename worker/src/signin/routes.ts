@@ -2,7 +2,7 @@ import type { JWTVerifyGetKey } from "jose";
 import type { Env } from "../env";
 import { json } from "../http";
 import { isAllowed, providersOf } from "./config";
-import { SignInError, type Provider, type RedirectProvider, type SignInFailure } from "./provider";
+import { SignInError, type HeaderProvider, type Provider, type RedirectProvider, type SignInFailure } from "./provider";
 import {
   accountFor,
   challengeOf,
@@ -25,7 +25,7 @@ import {
  * - `GET /auth/providers`: the providers that are on, for the sign-in page (public).
  * - `GET /auth/start/<id>?return=/app/…`: leaves for a sign-in page provider.
  * - `GET /auth/callback/<id>`: where the provider sends the browser back; starts a session.
- * - `POST /auth/signout`: ends this browser's session and answers where to go next (Access's own logout, for one).
+ * - `POST /auth/signout`: ends this browser's session and answers where to go next (Access's logout, for one).
  */
 
 export const SIGN_IN_PAGE = "/app/signin";
@@ -121,16 +121,24 @@ async function callback(request: Request, env: Env, url: URL, provider: Redirect
 }
 
 /** Ends this browser's session and says where to go: the sign-in page, or the header provider's own logout. */
-async function signOut(request: Request, env: Env, providers: Provider[], now: number): Promise<Response> {
+async function signOut(request: Request, env: Env, url: URL, providers: Provider[], now: number): Promise<Response> {
   const session = await sessionOf(env.DB, request, now);
   if (session) {
     await endSession(env.DB, request);
     return Response.json({ redirect: `${SIGN_IN_PAGE}?signed-out=1` }, { headers: { "cache-control": "no-store", "set-cookie": setCookie(SESSION_COOKIE, "", 0) } });
   }
   for (const p of providers) {
-    if (p.kind === "header" && (await p.identify(request))) return json({ redirect: p.signOutUrl ?? `${SIGN_IN_PAGE}?signed-out=1` });
+    if (p.kind === "header" && (await p.identify(request))) return headerSignOut(p, `${originOf(env, url)}${HOME}`);
   }
   return json({ redirect: `${SIGN_IN_PAGE}?signed-out=1` });
+}
+
+/** Signing out of a header provider: clear its cookies on this host and go to its logout, which comes back to [home]. */
+function headerSignOut(p: HeaderProvider, home: string): Response {
+  const to = typeof p.signOutUrl === "function" ? p.signOutUrl(home) : (p.signOutUrl ?? `${SIGN_IN_PAGE}?signed-out=1`);
+  const headers = new Headers({ "cache-control": "no-store" });
+  for (const name of p.signOutCookies ?? []) headers.append("set-cookie", `${name}=; Path=/; Secure; SameSite=Lax; Max-Age=0`);
+  return Response.json({ redirect: to }, { headers });
 }
 
 const AUTH_PATH = /^\/auth\/(providers|signout|start|callback)(?:\/([a-z0-9-]{1,40}))?$/;
@@ -158,6 +166,6 @@ async function listOrSignOut(action: "providers" | "signout", request: Request, 
   }
   if (request.method !== "POST") return json({ error: "method not allowed" }, 405);
   if (!sameOrigin(request, env, url)) return json({ error: "cross-site request refused" }, 403);
-  return signOut(request, env, providers, Date.now());
+  return signOut(request, env, url, providers, Date.now());
 }
 

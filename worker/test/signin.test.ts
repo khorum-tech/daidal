@@ -338,10 +338,13 @@ describe("sessions", () => {
     expect((await two.go("/api/me")).status).toBe(401);
   });
 
-  it("sends someone signed in through Access to Access's own logout", async () => {
+  it("signs someone out of Access: clears its cookie here and ends the Access session, coming back to the app", async () => {
     const token = await signer.sign({ email: "acc@corp.example" });
     const res = await browser(configured()).go("/auth/signout", { method: "POST", headers: { "Cf-Access-Jwt-Assertion": token } });
-    expect(await res.json()).toEqual({ redirect: "/cdn-cgi/access/logout" });
+    expect(await res.json()).toEqual({
+      redirect: `https://test-team.cloudflareaccess.com/cdn-cgi/access/logout?returnTo=${encodeURIComponent(`${SITE}/app/`)}`,
+    });
+    expect(res.headers.get("set-cookie")).toMatch(/^CF_Authorization=; Path=\/; Secure; SameSite=Lax; Max-Age=0$/);
   });
 
   it("goes with the account, and the account's backup lists its sign-ins", async () => {

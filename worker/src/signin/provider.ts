@@ -65,8 +65,13 @@ export interface HeaderProvider extends ProviderBase {
   kind: "header";
   /** The identity something in front of Daidal put on this request, or null when there is none it can trust. */
   identify(request: Request): Promise<VerifiedIdentity | null>;
-  /** Where signing out sends the browser, such as the proxy's own logout page. */
-  signOutUrl?: string;
+  /**
+   * Where signing out sends the browser, such as the proxy's own logout page. A function gets the address to come
+   * back to afterwards (the app's home page), for a logout that can send the browser on.
+   */
+  signOutUrl?: string | ((returnTo: string) => string);
+  /** Cookies on Daidal's own host that signing out clears, such as Access's `CF_Authorization`. */
+  signOutCookies?: string[];
 }
 
 export type Provider = RedirectProvider | HeaderProvider;

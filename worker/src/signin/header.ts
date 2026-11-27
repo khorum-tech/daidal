@@ -6,6 +6,11 @@ import type { HeaderProvider, ProviderContext } from "./provider";
  * Cloudflare Access, as Daidal has always used it: Access stands in front of the site and adds a signed
  * `Cf-Access-Jwt-Assertion` JWT to every request, which is checked against the team's keys (RS256, issuer, the
  * application's AUD, expiry). A JWT with no email, such as an Access service token, is refused.
+ *
+ * Signing out clears the application's `CF_Authorization` cookie here, then goes to the team domain's logout, which
+ * ends the Access session for every application and comes back to Daidal (`returnTo`), where Access asks again. The
+ * application's own `/cdn-cgi/access/logout` is not used: on a hostname that Access doesn't see the cookie for, it
+ * shows "No Access cookie found" and signs nobody out.
  */
 export function accessProvider(
   ctx: Pick<ProviderContext, "id" | "options">,
@@ -17,7 +22,9 @@ export function accessProvider(
     id: ctx.id,
     name: optionalString(ctx.options, "name") ?? "Cloudflare Access",
     icon: optionalString(ctx.options, "icon") ?? "shieldCheck",
-    signOutUrl: "/cdn-cgi/access/logout",
+    signOutUrl: returnTo =>
+      settings.teamDomain ? `${settings.teamDomain}/cdn-cgi/access/logout?returnTo=${encodeURIComponent(returnTo)}` : "/cdn-cgi/access/logout",
+    signOutCookies: ["CF_Authorization"],
     async identify(request) {
       const token = request.headers.get("Cf-Access-Jwt-Assertion");
       if (!token || !settings.teamDomain || !settings.audience) return null;
