@@ -152,7 +152,7 @@
 	function zoomInHref(z: ZoomLink): string {
 		const params = new URLSearchParams({ from: [data.diagram.id, ...trail].join(',') });
 		if (z.view) params.set('view', z.view);
-		return `${resolve('/d/[id]', { id: z.diagram })}?${params}`;
+		return `${resolve('/(app)/d/[id]', { id: z.diagram })}?${params}`;
 	}
 	function zoomIn(z: ZoomLink) {
 		void goto(zoomInHref(z));
@@ -173,7 +173,7 @@
 			}
 		}
 		return {
-			above: above.map(d => ({ ...d, href: `${resolve('/d/[id]', { id: d.id })}?${new URLSearchParams({ focus: data.diagram.id })}` })),
+			above: above.map(d => ({ ...d, href: `${resolve('/(app)/d/[id]', { id: d.id })}?${new URLSearchParams({ focus: data.diagram.id })}` })),
 			below: [...below.values()]
 		};
 	});
@@ -182,7 +182,7 @@
 		const params = new URLSearchParams({ focus: levels === 1 ? data.diagram.id : trail[levels - 2] });
 		const rest = trail.slice(levels);
 		if (rest.length) params.set('from', rest.join(','));
-		return `${resolve('/d/[id]', { id: trail[levels - 1] })}?${params}`;
+		return `${resolve('/(app)/d/[id]', { id: trail[levels - 1] })}?${params}`;
 	}
 	function zoomOut() {
 		if (trail.length) void goto(zoomOutHref(1));
@@ -216,7 +216,7 @@
 		if (!node || !up || !mine) return;
 		await working.saver.flush();
 		const made = await api.createDiagram({ workspace: data.diagram.workspaceId, name: node.name, group: diagramGroup, doc: parentDoc(current(), data.diagram.id, node.id, up) });
-		void goto(`${resolve('/d/[id]', { id: made.id })}?${new URLSearchParams({ focus: data.diagram.id })}`);
+		void goto(`${resolve('/(app)/d/[id]', { id: made.id })}?${new URLSearchParams({ focus: data.diagram.id })}`);
 	}
 	/** A double-click (or ⌘↓) on a node: one diagram to zoom into goes there; several open the node's details to choose. */
 	function drill(nodeId: string): boolean {
@@ -955,13 +955,13 @@
 					doc: { ...current(), diagram: { ...current().diagram, name } }
 				});
 		sheet = null;
-		await goto(resolve('/d/[id]', { id: made.id }));
+		await goto(resolve('/(app)/d/[id]', { id: made.id }));
 	}
 	async function destroy() {
 		await api.deleteDiagram(data.diagram.id);
 		deleted = true;
 		sheet = null;
-		await goto(`${resolve('/')}?ws=${encodeURIComponent(data.diagram.workspaceId)}`, { invalidateAll: true });
+		await goto(`${resolve('/(app)')}?ws=${encodeURIComponent(data.diagram.workspaceId)}`, { invalidateAll: true });
 	}
 	async function takeSnapshot(label: string) {
 		const made = await api.createSnapshot(data.diagram.id, { label, doc: current() });
@@ -1253,9 +1253,9 @@
 {:else}
 <AppHeader
 	me={data.me}
-	homeHref={resolve('/')}
+	homeHref={resolve('/(app)')}
 	crumbs={[
-		...(workspace ? [{ label: workspace.name, href: `${resolve('/')}?ws=${encodeURIComponent(workspace.id)}` }] : []),
+		...(workspace ? [{ label: workspace.name, href: `${resolve('/(app)')}?ws=${encodeURIComponent(workspace.id)}` }] : []),
 		// The way back up, outermost first.
 		...trail.map((id, i) => ({ label: trailName(id), href: zoomOutHref(i + 1), kind: trailKind(id) })).reverse(),
 		{
@@ -1296,7 +1296,7 @@
 	{#if follow.kind === 'following'}
 		<span class="follow" data-testid="follow">
 			<Icon name="follow" size={12} />
-			Follows <a href={resolve('/d/[id]', { id: follow.leadId })}>{follow.leadName}</a>
+			Follows <a href={resolve('/(app)/d/[id]', { id: follow.leadId })}>{follow.leadName}</a>
 			{#if !narrow}· {follow.syncedLabel ? `synced to “${follow.syncedLabel}”` : 'not synced yet'}{/if}
 			{#if follow.paused}· paused{:else if openUpdates > 0}·
 				<button type="button" class="link" onclick={showUpdates}>{plural(openUpdates, 'change')} to review</button>{:else}· up to date{/if}
@@ -1413,7 +1413,7 @@
 		<div id="updates">
 			<FollowPanel
 				leadName={follow.leadName}
-				leadHref={resolve('/d/[id]', { id: follow.leadId })}
+				leadHref={resolve('/(app)/d/[id]', { id: follow.leadId })}
 				groups={updates}
 				decided={working.follow.decided}
 				paused={working.follow.paused}

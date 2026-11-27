@@ -6,7 +6,7 @@
 <main class="error">
 	<h1>{page.status === 404 ? 'Not found' : 'Something went wrong'}</h1>
 	<p>{page.status === 404 ? "This diagram doesn't exist, or you can't see it." : (page.error?.message ?? 'Try reloading the page.')}</p>
-	<p><a href={resolve('/')}>Back to your diagrams</a></p>
+	<p><a href={resolve('/(app)')}>Back to your diagrams</a></p>
 </main>
 
 <style>

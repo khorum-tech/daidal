@@ -14,6 +14,9 @@ stream, no session), in `worker/src/mcp/`. A client signs in one of two ways:
   **Read** tokens only look; **Read and write** tokens can also make and change diagrams. A token can be limited to
   some workspaces. Tokens are kept only as a hash (`access_tokens`, migration 0005; `worker/src/tokens.ts`).
 
+A self-hosted Daidal without Cloudflare Access may sign people in to the app through its own sign-in page
+(`docs/sign-in.md`); AI clients there use personal access tokens. Daidal's sign-in sessions are for browsers only.
+
 ## Tools
 
 | Read | Write |

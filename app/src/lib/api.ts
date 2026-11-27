@@ -1,3 +1,4 @@
+import { signInAgain } from './signin';
 import type { AccessToken, CustomType, Diagram, ListedDiagram, Me, DaidalDoc, Snapshot, Workspace } from './types';
 
 /** An API answer other than 2xx, with the server's `{ error }` message. */
@@ -15,10 +16,10 @@ export class ApiError extends Error {
 type Fetch = typeof fetch;
 
 /**
- * The Worker's API. Access signs every request, so there is no token to send. A 401 means the Access session has
- * lapsed (or the API can't see the user); reloading sends the browser through Access again.
+ * The Worker's API. The browser's sign-in (a Daidal session cookie, or Cloudflare Access) rides on every request, so
+ * there is no token to send. A 401 means the sign-in has lapsed; the browser goes to sign in again.
  */
-export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => location.reload()) {
+export function createApi(fetchFn: Fetch, onSignedOut: () => void = () => void signInAgain()) {
 	async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 		const res = await fetchFn(path, { ...init, headers: { accept: 'application/json', ...init.headers } });
 		if (res.status === 401) {

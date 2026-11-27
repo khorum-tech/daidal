@@ -20,7 +20,7 @@
 
 	const mine = $derived(data.workspaces.filter(w => w.ownerEmail === data.me.email));
 	const shared = $derived(data.workspaces.filter(w => w.ownerEmail !== data.me.email));
-	const wsHref = (w: Workspace) => `${resolve('/')}?ws=${encodeURIComponent(w.id)}`;
+	const wsHref = (w: Workspace) => `${resolve('/(app)')}?ws=${encodeURIComponent(w.id)}`;
 	const now = Date.now();
 
 	// Groups: a workspace's diagrams can be filed under flat, named groups (a C4 set, a service, a team). The bar under
@@ -33,7 +33,7 @@
 		const params = new URLSearchParams({ ws: data.workspace?.id ?? '' });
 		if (search.trim()) params.set('q', search.trim());
 		if (group !== undefined) params.set('g', group);
-		return `${resolve('/')}?${params}`;
+		return `${resolve('/(app)')}?${params}`;
 	}
 
 	// The cards: the first lot comes with the page, Show more fetches the next. Searching reloads the page with ?q=
@@ -130,7 +130,7 @@
 		touring = true;
 		try {
 			const id = await startTour(api, `personal:${data.me.email}`);
-			await goto(`${resolve('/d/[id]', { id })}?tour=1`, { invalidateAll: true });
+			await goto(`${resolve('/(app)/d/[id]', { id })}?tour=1`, { invalidateAll: true });
 		} catch (err) {
 			notice = { text: `Couldn't start the tour: ${err instanceof Error ? err.message : 'unknown error'}`, failed: true };
 			touring = false;
@@ -143,7 +143,7 @@
 	$effect(() => {
 		if (untrack(() => page.url.searchParams.get('tour')) === 'start') void beginTour();
 	});
-	const showWorkspace = (id: string) => goto(`${resolve('/')}?ws=${encodeURIComponent(id)}`, { invalidateAll: true });
+	const showWorkspace = (id: string) => goto(`${resolve('/(app)')}?ws=${encodeURIComponent(id)}`, { invalidateAll: true });
 	async function createWorkspace(e: SubmitEvent) {
 		e.preventDefault();
 		const name = wsName.trim();
@@ -175,7 +175,7 @@
 		if (!data.workspace) return;
 		await api.deleteWorkspace(data.workspace.id);
 		managing = false;
-		await goto(resolve('/'), { invalidateAll: true });
+		await goto(resolve('/(app)'), { invalidateAll: true });
 	}
 	let picker = $state<HTMLInputElement>();
 	async function importBackup(e: Event & { currentTarget: HTMLInputElement }) {
@@ -217,7 +217,7 @@
 			newGroup = '';
 			template = null;
 			examples = false;
-			await goto(resolve('/d/[id]', { id: made.id }));
+			await goto(resolve('/(app)/d/[id]', { id: made.id }));
 		} catch (err) {
 			failed = err instanceof Error ? err.message : "Couldn't create the diagram";
 		} finally {
@@ -228,7 +228,7 @@
 
 {#snippet card(d: ListedDiagram, showGroup: boolean)}
 	<div class="card-wrap">
-		<DiagramCard diagram={d} href={resolve('/d/[id]', { id: d.id })} search={data.search} {now} {showGroup} />
+		<DiagramCard diagram={d} href={resolve('/(app)/d/[id]', { id: d.id })} search={data.search} {now} {showGroup} />
 		{#if d.ownerEmail === data.me.email}
 			<button
 				type="button"
@@ -244,7 +244,7 @@
 	</div>
 {/snippet}
 
-<AppHeader me={data.me} homeHref={resolve('/')} crumbs={data.workspace ? [{ label: data.workspace.name }] : []} />
+<AppHeader me={data.me} homeHref={resolve('/(app)')} crumbs={data.workspace ? [{ label: data.workspace.name }] : []} />
 
 <div class="body">
 	<nav class="side" aria-label="Workspaces">
@@ -369,7 +369,7 @@
 					<span class="empty-icon"><Icon name="folder" size={30} /></span>
 					<h2>No diagrams here yet</h2>
 					<p>Start one with <strong>+ New diagram</strong>, or copy one from another workspace from its name in the header.</p>
-					<p class="learn">New to Daidal? <a href={resolve('/docs/[[page]]', { page: 'getting-started' })}>Learn Daidal</a> in five minutes.</p>
+					<p class="learn">New to Daidal? <a href={resolve('/(app)/docs/[[page]]', { page: 'getting-started' })}>Learn Daidal</a> in five minutes.</p>
 				</div>
 			{/if}
 		{/if}
@@ -420,7 +420,7 @@
 				await api.removeMember(ws.id, data.me.email);
 				managing = false;
 				notice = { text: `You left “${ws.name}”.`, failed: false };
-				await goto(resolve('/'), { invalidateAll: true });
+				await goto(resolve('/(app)'), { invalidateAll: true });
 			}}
 		/>
 	</Sheet>

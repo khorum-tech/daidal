@@ -4,6 +4,8 @@ import * as diagrams from "./diagrams";
 import type { Env } from "./env";
 import { deleteAccount, exportAccount } from "./account";
 import { secured } from "./headers";
+import { authRoute } from "./signin/routes";
+import { endAllSessions } from "./signin/sessions";
 import { applyLimitOverrides, countSessionWrite } from "./limits";
 import { HttpError, json, readJson } from "./http";
 import { exportWorkspace, importWorkspaces } from "./importer";
@@ -149,7 +151,7 @@ async function mcpEndpoint(request: Request, env: Env, getKeys: () => KeySource)
   } catch (e) {
     return unauthorized(e instanceof HttpError ? e.message : "not signed in");
   }
-  if (!actor) return unauthorized("sign in through Cloudflare Access, or send a personal access token (your initial → AI access)");
+  if (!actor) return unauthorized("sign in, or send a personal access token (your initial → AI access)");
   const signedIn = actor;
   const headers = new Headers({ "content-type": "application/json" });
   const api: Api = async (method, path, body) => {
@@ -216,6 +218,11 @@ export async function handleRequest(
 async function route(request: Request, env: Env, getKeys: () => KeySource, as?: Actor): Promise<Response> {
   const url = new URL(request.url);
   if (url.pathname === "/mcp") return mcpEndpoint(request, env, getKeys);
+  const signIn = await authRoute(request, env, url, getKeys).catch(e => {
+    console.error("sign-in request failed:", errorName(e));
+    return json({ error: "internal error" }, 500);
+  });
+  if (signIn) return signIn;
   if (!url.pathname.startsWith("/api/")) return siteFile(request, env, url);
 
   applyLimitOverrides(env.DAIDAL_LIMITS);
@@ -230,6 +237,9 @@ async function route(request: Request, env: Env, getKeys: () => KeySource, as?: 
     const tokens = TOKENS_PATH.exec(url.pathname);
     if (tokens) return await tokensRoute(env.DB, email, request, segments(tokens)[0], now);
     if (url.pathname === "/api/me") return await me(request, env, email);
+    if (url.pathname === "/api/me/sessions") {
+      return request.method === "DELETE" ? json({ ended: await endAllSessions(env.DB, email) }) : notAllowed();
+    }
     if (url.pathname === "/api/me/export") return request.method === "GET" ? await exportAccount(env.DB, email, now) : notAllowed();
     const workspace = WORKSPACE_PATH.exec(url.pathname);
     if (workspace) return limitList(await workspaceRoute(request, env.DB, email, workspace, now), token, !workspace[1] && request.method === "GET");
