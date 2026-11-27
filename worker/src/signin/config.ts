@@ -55,36 +55,50 @@ export function providersOf(
 ): Provider[] {
   const byType = new Map<string, ProviderPlugin["create"]>(Object.entries(BUILT_IN));
   for (const p of plugins) if (!byType.has(p.type)) byType.set(p.type, p.create);
-  const vars = env as unknown as Record<string, unknown>;
   const out: Provider[] = [];
   const seen = new Set<string>();
   for (const entry of entriesOf(env)) {
     const { id: rawId, type, ...options } = entry;
-    const id = typeof rawId === "string" ? rawId : typeof type === "string" ? type : "";
+    const id = idOf(rawId, type);
     if (!ID.test(id) || seen.has(id)) {
       console.error(`sign-in provider "${String(rawId)}": the id must be unique, lower case letters, digits and -`);
       continue;
     }
     try {
-      if (type === "access") {
-        out.push(accessProvider({ id, options }, { teamDomain: env.ACCESS_TEAM_DOMAIN, audience: env.ACCESS_AUD }, getKeys));
-      } else {
-        const create = typeof type === "string" ? byType.get(type) : undefined;
-        if (!create) throw new Error(`no provider type "${String(type)}"`);
-        const secret = (name?: string) => {
-          const v = vars[name ?? secretName(id)];
-          return typeof v === "string" && v ? v : undefined;
-        };
-        const provider = create({ id, options, secret, fetch: fetchFn });
-        if (provider.id !== id) throw new Error("a provider must keep its configured id");
-        out.push(provider);
-      }
+      out.push(makeProvider(env, id, type, options, { byType, getKeys, fetchFn }));
       seen.add(id);
     } catch (e) {
       console.error(`sign-in provider "${id}" is off:`, e instanceof Error ? e.message : e);
     }
   }
   return out;
+}
+
+/** An entry's id: its own, or its type's when it gives none (`{ "type": "github" }` is `github`). */
+function idOf(rawId: unknown, type: unknown): string {
+  if (typeof rawId === "string") return rawId;
+  return typeof type === "string" ? type : "";
+}
+
+interface Makers {
+  byType: Map<string, ProviderPlugin["create"]>;
+  getKeys: () => JWTVerifyGetKey;
+  fetchFn: typeof fetch;
+}
+
+/** One configured provider; throws when it can't be made. */
+function makeProvider(env: Env, id: string, type: unknown, options: Record<string, unknown>, { byType, getKeys, fetchFn }: Makers): Provider {
+  if (type === "access") return accessProvider({ id, options }, { teamDomain: env.ACCESS_TEAM_DOMAIN, audience: env.ACCESS_AUD }, getKeys);
+  const create = typeof type === "string" ? byType.get(type) : undefined;
+  if (!create) throw new Error(`no provider type "${String(type)}"`);
+  const vars = env as unknown as Record<string, unknown>;
+  const secret = (name?: string) => {
+    const v = vars[name ?? secretName(id)];
+    return typeof v === "string" && v ? v : undefined;
+  };
+  const provider = create({ id, options, secret, fetch: fetchFn });
+  if (provider.id !== id) throw new Error("a provider must keep its configured id");
+  return provider;
 }
 
 /**

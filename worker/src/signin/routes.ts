@@ -2,7 +2,7 @@ import type { JWTVerifyGetKey } from "jose";
 import type { Env } from "../env";
 import { json } from "../http";
 import { isAllowed, providersOf } from "./config";
-import { SignInError, type HeaderProvider, type Provider, type RedirectProvider, type SignInFailure } from "./provider";
+import { SignInError, type Provider, type RedirectProvider, type SignInFailure } from "./provider";
 import {
   accountFor,
   challengeOf,
@@ -99,7 +99,7 @@ async function callback(request: Request, env: Env, url: URL, provider: Redirect
     env.DB.prepare("DELETE FROM sign_in_states WHERE hash = ?").bind(hash),
   ]);
   const row = found.results[0];
-  if (!row || row.provider !== provider.id || row.expires_at <= now) return failed("expired", [clearState]);
+  if (row?.provider !== provider.id || row.expires_at <= now) return failed("expired", [clearState]);
 
   try {
     const identity = await provider.callback({
@@ -142,22 +142,22 @@ export async function authRoute(request: Request, env: Env, url: URL, getKeys: (
   if (!match) return json({ error: "not found" }, 404);
   const [, action, id] = match;
   const providers = providersOf(env, getKeys);
-  const now = Date.now();
+  if (action === "providers" || action === "signout") return id ? json({ error: "not found" }, 404) : listOrSignOut(action, request, env, url, providers);
+  if (!id) return json({ error: "not found" }, 404);
+  if (request.method !== "GET") return json({ error: "method not allowed" }, 405);
+  const provider = providers.find((p): p is RedirectProvider => p.kind === "redirect" && p.id === id);
+  if (!provider) return failed("unknown");
+  return action === "start" ? start(request, env, url, provider, Date.now()) : callback(request, env, url, provider, Date.now());
+}
 
-  if (action === "providers" && !id) {
+/** `GET /auth/providers` and `POST /auth/signout`. */
+async function listOrSignOut(action: "providers" | "signout", request: Request, env: Env, url: URL, providers: Provider[]): Promise<Response> {
+  if (action === "providers") {
     if (request.method !== "GET") return json({ error: "method not allowed" }, 405);
     return json({ providers: providers.map(p => ({ id: p.id, name: p.name, icon: p.icon ?? null, kind: p.kind })) });
   }
-  if (action === "signout" && !id) {
-    if (request.method !== "POST") return json({ error: "method not allowed" }, 405);
-    if (!sameOrigin(request, env, url)) return json({ error: "cross-site request refused" }, 403);
-    return signOut(request, env, providers, now);
-  }
-  const provider = providers.find((p): p is RedirectProvider => p.kind === "redirect" && p.id === id);
-  if (!id || (action !== "start" && action !== "callback")) return json({ error: "not found" }, 404);
-  if (request.method !== "GET") return json({ error: "method not allowed" }, 405);
-  if (!provider) return failed("unknown");
-  return action === "start" ? start(request, env, url, provider, now) : callback(request, env, url, provider, now);
+  if (request.method !== "POST") return json({ error: "method not allowed" }, 405);
+  if (!sameOrigin(request, env, url)) return json({ error: "cross-site request refused" }, 403);
+  return signOut(request, env, providers, Date.now());
 }
 
-export type { HeaderProvider };

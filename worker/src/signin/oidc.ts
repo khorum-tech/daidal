@@ -104,6 +104,19 @@ export async function exchangeCode(
 }
 
 const isVerified = (v: unknown) => v === true || v === "true";
+const nameOf = (v: unknown) => (typeof v === "string" ? v : undefined);
+
+/**
+ * The email (and whether it is verified) and name from the ID token's [claims]. Some providers keep the email out of
+ * the ID token; their userinfo endpoint has it, and counts only when it answers for the same subject.
+ */
+async function emailFor(ctx: ProviderContext, claims: JWTPayload, userinfoUrl: string | undefined, accessToken: unknown) {
+  const fromToken = { email: emailOf(claims.email), verified: isVerified(claims.email_verified), name: nameOf(claims.name) };
+  if (fromToken.email || !userinfoUrl || typeof accessToken !== "string") return fromToken;
+  const info = await getJson<Record<string, unknown>>(ctx.fetch, userinfoUrl, { headers: { authorization: `Bearer ${accessToken}` } });
+  if (info.sub !== claims.sub) return fromToken;
+  return { email: emailOf(info.email), verified: isVerified(info.email_verified), name: fromToken.name ?? nameOf(info.name) };
+}
 const emailOf = (v: unknown) => (typeof v === "string" && v.includes("@") ? v.trim().toLowerCase() : "");
 
 export function oidcProvider(ctx: ProviderContext, defaults: { name?: string; icon?: string; issuer?: string } = {}): RedirectProvider {
@@ -149,18 +162,7 @@ export function oidcProvider(ctx: ProviderContext, defaults: { name?: string; ic
       if (claims.nonce !== input.nonce) throw new SignInError("failed", "the ID token's nonce doesn't match");
       if (typeof claims.sub !== "string" || !claims.sub) throw new SignInError("failed", "the ID token has no subject");
 
-      let email = emailOf(claims.email);
-      let verified = isVerified(claims.email_verified);
-      let name = typeof claims.name === "string" ? claims.name : undefined;
-      // Some providers keep the email out of the ID token; their userinfo endpoint has it, for the same subject.
-      if (!email && meta.userinfo_endpoint && typeof tokens.access_token === "string") {
-        const info = await getJson<Record<string, unknown>>(ctx.fetch, meta.userinfo_endpoint, { headers: { authorization: `Bearer ${tokens.access_token}` } });
-        if (info.sub === claims.sub) {
-          email = emailOf(info.email);
-          verified = isVerified(info.email_verified);
-          name ??= typeof info.name === "string" ? info.name : undefined;
-        }
-      }
+      const { email, verified, name } = await emailFor(ctx, claims, meta.userinfo_endpoint, tokens.access_token);
       if (!email) throw new SignInError("unverified", "the provider gave no email");
       if (!verified && !trustEmail) throw new SignInError("unverified", "the provider hasn't verified this email");
       return { provider: ctx.id, subject: claims.sub, email, name };

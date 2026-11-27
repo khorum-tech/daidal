@@ -20,11 +20,15 @@ export function pluginNames(raw) {
 
 /** The generated module for [names]. */
 export function renderPlugins(names) {
-  const lines = ["// Written by scripts/auth-plugins.mjs from DAIDAL_AUTH_PLUGINS. With none set, there are no plugin providers."];
-  names.forEach((n, i) => lines.push(`import plugin${i} from ${JSON.stringify(n)};`));
-  lines.push('import type { ProviderPlugin } from "./provider";', "");
-  lines.push(`export const GENERATED: ProviderPlugin[] = [${names.map((_, i) => `plugin${i}`).join(", ")}];`, "");
-  return lines.join("\n");
+  const idents = names.map((_, i) => "plugin" + i);
+  return [
+    "// Written by scripts/auth-plugins.mjs from DAIDAL_AUTH_PLUGINS. With none set, there are no plugin providers.",
+    ...names.map((n, i) => `import ${idents[i]} from ${JSON.stringify(n)};`),
+    'import type { ProviderPlugin } from "./provider";',
+    "",
+    `export const GENERATED: ProviderPlugin[] = [${idents.join(", ")}];`,
+    "",
+  ].join("\n");
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

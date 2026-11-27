@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
+import { SIGN_IN_ERRORS } from '#lib/signin.ts';
 import SignIn from './+page.svelte';
 
 type Data = { providers: { id: string; name: string; icon: string | null; kind: 'redirect' | 'header' }[]; error: string | null; signedOut: boolean; returnTo: string };
@@ -17,7 +18,7 @@ describe('the sign-in page', () => {
 
 	it('explains why the last sign-in didn\'t work', async () => {
 		await show(data({ error: 'denied', providers: [{ id: 'corp', name: 'Corp SSO', icon: 'key', kind: 'redirect' }] }));
-		await expect.element(page.getByRole('alert')).toHaveTextContent("isn't allowed to sign in here");
+		await expect.element(page.getByRole('alert')).toHaveTextContent(SIGN_IN_ERRORS.denied);
 	});
 
 	it('says you are signed out, and points to the sign-in in front when there is no page provider', async () => {
